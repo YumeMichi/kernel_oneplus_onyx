@@ -15,7 +15,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
 			   page_isolation.o mm_init.o mmu_context.o percpu.o \
 			   compaction.o $(mmu-y) \
 			   showmem.o vmpressure.o \
-			   list_lru.o
+			   list_lru.o slab_common.o
 
 obj-y += init-mm.o
 
