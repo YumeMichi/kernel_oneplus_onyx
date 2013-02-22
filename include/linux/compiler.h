@@ -387,6 +387,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #endif
 #ifndef __compiletime_error
 # define __compiletime_error(message)
+# define __compiletime_error_fallback(condition) \
+	do { ((void)sizeof(char[1 - 2*!!(condition)])); } while (0)
+#else
+# define __compiletime_error_fallback(condition) do { } while (0)
 #endif
 
 #define compiletime_assert_atomic_type(t)				\
