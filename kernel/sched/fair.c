@@ -4344,7 +4344,7 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 	for_each_cpu_and(i, sched_group_cpus(group), cpus) {
 		struct rq *rq = cpu_rq(i);
 
-		nr_running = rq->nr_running;
+		nr_running = rq->cfs.h_nr_running;
 
 		/* Bias balancing toward cpus of our domain */
 		if (local_group) {
