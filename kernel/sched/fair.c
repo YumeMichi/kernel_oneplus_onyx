@@ -4892,7 +4892,7 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 		 * When comparing with imbalance, use weighted_cpuload()
 		 * which is not scaled with the cpu power.
 		 */
-		if (capacity && rq->nr_running == 1 && wl > env->imbalance)
+		if (capacity && rq->cfs.h_nr_running == 1 && wl > env->imbalance)
 			continue;
 
 		/*
