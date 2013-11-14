@@ -76,3 +76,4 @@ obj-$(CONFIG_UID_CPUTIME) 	+= uid_cputime.o
 obj-$(CONFIG_SN3193_SLED)  += shineled/
 #endif VENDOR_EDIT
 #OPPO 2013-02-21 yuyi add end
+obj-$(CONFIG_SOUND_CONTROL) += sound_control.o
