@@ -271,7 +271,7 @@ bnad_tx_free_tasklet(unsigned long bnad_ptr)
 				if (likely(test_bit(BNAD_TXQ_TX_STARTED,
 					&tcb->flags)))
 					bna_ib_ack(tcb->i_dbell, acked);
-				smp_mb__before_clear_bit();
+				smp_mb__before_atomic();
 				clear_bit(BNAD_TXQ_FREE_SENT, &tcb->flags);
 			}
 			if (unlikely(!test_bit(BNAD_TXQ_TX_STARTED,
@@ -317,7 +317,7 @@ bnad_tx(struct bnad *bnad, struct bna_tcb *tcb)
 	if (likely(test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags)))
 		bna_ib_ack(tcb->i_dbell, sent);
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(BNAD_TXQ_FREE_SENT, &tcb->flags);
 
 	return sent;
@@ -435,7 +435,7 @@ bnad_refill_rxq(struct bnad *bnad, struct bna_rcb *rcb)
 		if (BNA_QE_FREE_CNT(unmap_q, unmap_q->q_depth)
 			 >> BNAD_RXQ_REFILL_THRESHOLD_SHIFT)
 			bnad_alloc_n_post_rxbufs(bnad, rcb);
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(BNAD_RXQ_REFILL, &rcb->flags);
 	}
 }
@@ -849,7 +849,7 @@ bnad_cb_tcb_destroy(struct bnad *bnad, struct bna_tcb *tcb)
 	unmap_q->producer_index = 0;
 	unmap_q->consumer_index = 0;
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(BNAD_TXQ_FREE_SENT, &tcb->flags);
 
 	tx_info->tcb[tcb->id] = NULL;
@@ -939,7 +939,7 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 		unmap_q->producer_index = 0;
 		unmap_q->consumer_index = 0;
 
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(BNAD_TXQ_FREE_SENT, &tcb->flags);
 
 		set_bit(BNAD_TXQ_TX_STARTED, &tcb->flags);
@@ -1064,7 +1064,7 @@ bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 				if (BNA_QE_FREE_CNT(unmap_q, unmap_q->q_depth)
 					>> BNAD_RXQ_REFILL_THRESHOLD_SHIFT)
 					bnad_alloc_n_post_rxbufs(bnad, rcb);
-					smp_mb__before_clear_bit();
+					smp_mb__before_atomic();
 				clear_bit(BNAD_RXQ_REFILL, &rcb->flags);
 			}
 		}
@@ -2623,7 +2623,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			acked = bnad_free_txbufs(bnad, tcb);
 			if (likely(test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags)))
 				bna_ib_ack(tcb->i_dbell, acked);
-			smp_mb__before_clear_bit();
+			smp_mb__before_atomic();
 			clear_bit(BNAD_TXQ_FREE_SENT, &tcb->flags);
 		} else {
 			netif_stop_queue(netdev);
