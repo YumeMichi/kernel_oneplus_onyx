@@ -234,6 +234,7 @@ our $Inline	= qr{inline|__always_inline|noinline};
 our $Member	= qr{->$Ident|\.$Ident|\[[^]]*\]};
 our $Lval	= qr{$Ident(?:$Member)*};
 
+our $Octal	    = qr{(?i:(?:[0-7]+)[llu|ull|ll|lu|ul|l|u]*)};
 our $Constant	= qr{(?i:(?:[0-9]+|0x[0-9a-f]+)[ul]*)};
 our $Assignment	= qr{(?:\*\=|/=|%=|\+=|-=|<<=|>>=|&=|\^=|\|=|=)};
 our $Compare    = qr{<=|>=|==|!=|<|>};
@@ -309,6 +310,15 @@ our @modifierList = (
 	qr{fastcall},
 );
 
+our @mode_permission_funcs = (
+	["module_param", 3],
+	["module_param_(?:array|named|string)", 4],
+	["module_param_array_named", 5],
+	["debugfs_create_(?:file|u8|u16|u32|u64|x8|x16|x32|x64|size_t|atomic_t|bool|blob|regset32|u32_array)", 2],
+	["proc_create(?:_data|)", 2],
+	["(?:CLASS|DEVICE|SENSOR)_ATTR", 2],
+);
+
 our $allowed_asm_includes = qr{(?x:
 	irq|
 	memory
@@ -345,7 +355,7 @@ our $Typecast	= qr{\s*(\(\s*$NonptrType\s*\)){0,1}\s*};
 # Any use must be runtime checked with $^V
 
 our $balanced_parens = qr/(\((?:[^\(\)]++|(?-1))*\))/;
-our $LvalOrFunc	= qr{($Lval)\s*($balanced_parens{0,1})\s*};
+our $LvalOrFunc	= qr{((?:[\&\*]\s*)?$Lval)\s*($balanced_parens{0,1})\s*};
 our $FuncArg = qr{$Typecast{0,1}($LvalOrFunc|$Constant)};
 
 sub deparenthesize {
@@ -3744,6 +3754,28 @@ sub process {
 		    $line =~ /DEVICE_ATTR.*S_IWUGO/ ) {
 			WARN("EXPORTED_WORLD_WRITABLE",
 			     "Exporting world writable files is usually an error. Consider more restrictive permissions.\n" . $herecurr);
+		}
+
+		foreach my $entry (@mode_permission_funcs) {
+			my $func = $entry->[0];
+			my $arg_pos = $entry->[1];
+
+			my $skip_args = "";
+			if ($arg_pos > 1) {
+				$arg_pos--;
+				$skip_args = "(?:\\s*$FuncArg\\s*,\\s*){$arg_pos,$arg_pos}";
+			}
+			my $test = "\\b$func\\s*\\(${skip_args}([\\d]+)\\s*[,\\)]";
+			if ($^V && $^V ge 5.10.0 &&
+			    $line =~ /$test/) {
+				my $val = $1;
+				$val = $6 if ($skip_args ne "");
+
+				if ($val =~ /^$Int$/ && $val !~ /^$Octal$/) {
+					ERROR("NON_OCTAL_PERMISSIONS",
+					      "Use octal not decimal permissions\n" . $herecurr);
+				}
+			}
 		}
 	}
 
