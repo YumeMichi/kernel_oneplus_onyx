@@ -56,6 +56,12 @@ modules.builtin
 #
 !.gitignore
 !.mailmap
+*.lzo
+*.patch
+*.gcno
+modules.builtin
+Module.symvers
+*.dwo
 
 #
 # Generated include files
