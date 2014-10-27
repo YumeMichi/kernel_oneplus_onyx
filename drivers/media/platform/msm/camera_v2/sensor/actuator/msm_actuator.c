@@ -1101,6 +1101,7 @@ static int msm_actuator_close(struct v4l2_subdev *sd,
 	int rc = 0;
 	struct msm_actuator_ctrl_t *a_ctrl =  v4l2_get_subdevdata(sd);
 	CDBG("Enter\n");
+	mutex_lock(a_ctrl->actuator_mutex);
 	if (!a_ctrl) {
 		pr_err("failed\n");
 		return -EINVAL;
@@ -1114,6 +1115,7 @@ static int msm_actuator_close(struct v4l2_subdev *sd,
 	}
 	kfree(a_ctrl->i2c_reg_tbl);
 	a_ctrl->i2c_reg_tbl = NULL;
+	mutex_unlock(a_ctrl->actuator_mutex);
 
 #if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
     tinfo.a_ctrl = NULL;
