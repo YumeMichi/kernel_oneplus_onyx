@@ -40,7 +40,7 @@
 #define smp_wmb()	barrier()
 #endif
 
-#define set_mb(var, value)  do { var = value;  mb(); } while (0)
+#define set_mb(var, value)  do { WRITE_ONCE(var, value);  mb(); } while (0)
 #define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 #define read_barrier_depends()		do {} while (0)
