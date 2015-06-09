@@ -7,6 +7,13 @@
 #define _LINUX_RANDOM_H
 
 #include <linux/uapi_random.h>
+#include <linux/list.h>
+
+struct random_ready_callback {
+	struct list_head list;
+	void (*func)(struct random_ready_callback *rdy);
+	struct module *owner;
+};
 
 /*
  * Flags for getrandom(2)
@@ -24,6 +31,8 @@ extern void add_interrupt_randomness(int irq, int irq_flags);
 
 extern void get_random_bytes(void *buf, int nbytes);
 extern void get_blocking_random_bytes(void *buf, int nbytes);
+extern int add_random_ready_callback(struct random_ready_callback *rdy);
+extern void del_random_ready_callback(struct random_ready_callback *rdy);
 extern void get_random_bytes_arch(void *buf, int nbytes);
 void generate_random_uuid(unsigned char uuid_out[16]);
 extern int random_int_secret_init(void);
