@@ -4544,7 +4544,7 @@ close_time:
 }
 #endif
 
-#define CONSECUTIVE_COUNT	3
+#define CONSECUTIVE_COUNT	10
 #define VBATDET_MAX_ERR_MV	50
 
 #ifdef CONFIG_VENDOR_EDIT
