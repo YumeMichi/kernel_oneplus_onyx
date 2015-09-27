@@ -698,16 +698,6 @@ not match our unaligned address for < 2.6.24
 #define netdev_priv(dev) dev->priv
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)) */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #define RANDOM32	prandom_u32
-#else
-#define RANDOM32	random32
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0) */
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #define SRANDOM32(entropy)	prandom_seed(entropy)
-#else
-#define SRANDOM32(entropy)	srandom32(entropy)
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0) */
 
-#endif /* _linuxver_h_ */
