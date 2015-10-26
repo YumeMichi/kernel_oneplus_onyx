@@ -41,6 +41,10 @@ config WLAN_FEATURE_11W
 	bool "Enable the WLAN 802.11w Protected Management Frames feature"
 	default n
 
+config WLAN_FEATURE_RX_WAKELOCK
+	bool "Enable RX wake lock feature"
+	default n
+
 config QCOM_TDLS
 	bool "Enable Tunneled Direct Link Setup feature"
 	default n
