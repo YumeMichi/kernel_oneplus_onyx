@@ -53,4 +53,8 @@ config ENABLE_LINUX_REG
 	bool "Enable linux regulatory feature"
 	default n
 
+config WLAN_FEATURE_RX_WAKELOCK
+	bool "Enable RX wake lock feature"
+	default n
+
 endif # PRIMA_WLAN || PRONTO_WLAN
