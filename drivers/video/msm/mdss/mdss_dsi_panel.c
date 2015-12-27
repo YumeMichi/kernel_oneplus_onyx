@@ -432,8 +432,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	pdata->panel_info.blank_state = MDSS_PANEL_BLANK_UNBLANK;
 
-	mdss_livedisplay_update(ctrl, MODE_UPDATE_ALL);
-
 	pr_debug("%s:-\n", __func__);
 	return 0;
 }
