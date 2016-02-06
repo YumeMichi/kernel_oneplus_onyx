@@ -1300,7 +1300,7 @@ static ssize_t msm_actuator_status_show(struct device *dev,
 static ssize_t msm_actuator_attr_set(struct device *dev,
         struct device_attribute *attr, const char *buf, size_t count)
 {
-        int err;
+        int err = 0;
         const char *ptr = buf + 1;
         u8 ch;
         size_t idx = 0;
