@@ -1,6 +1,6 @@
 /**
  * Copyright 2008-2013 OPPO Mobile Comm Corp., Ltd, All rights reserved.
- * VENDOR_EDIT:
+ * CONFIG_MACH_MSM8974_15055:
  * FileName:devinfo.c
  * ModuleName:devinfo
  * Author: wangjc
@@ -56,7 +56,7 @@ int register_device_proc(char *name, char *version, char *manufacture)
 	struct proc_dir_entry *d_entry;
 	struct manufacture_info *info;
 
-	if(!parent) {
+	if (!parent) {
 		parent =  proc_mkdir ("devinfo", NULL);
 		if(!parent) {
 			pr_err("can't create devinfo proc\n");

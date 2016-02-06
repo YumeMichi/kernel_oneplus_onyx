@@ -659,7 +659,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	if (unlikely(f->f_flags & O_PATH))
 		f->f_mode = FMODE_PATH;
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	inode = dentry->d_inode;
 #else
 	inode = f->f_inode = dentry->d_inode;
@@ -741,7 +741,7 @@ cleanup_file:
 	put_filp(f);
 	dput(dentry);
 	mntput(mnt);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	f->f_inode = NULL;
 #endif
 	return ERR_PTR(error);

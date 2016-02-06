@@ -19,7 +19,7 @@
 
 #include <linux/delay.h> //hefaxi@bsp,added delay for burn SIM card
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 int tf_card_status = 0;
 #endif
 
@@ -29,7 +29,7 @@ struct mmc_cd_gpio {
 	char label[0];
 };
 
- int mmc_cd_get_status(struct mmc_host *host)
+int mmc_cd_get_status(struct mmc_host *host)
 {
 	int ret = -ENOSYS;
 	struct mmc_cd_gpio *cd = host->hotplug.handler_priv;
@@ -49,7 +49,7 @@ static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 	struct mmc_cd_gpio *cd = host->hotplug.handler_priv;
 	int status;
 
-#ifdef VENDOR_EDIT/*Add for sd hot plug*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add for sd hot plug*/
     if(host->sdcard_2p95_en)
 		tf_card_status = status = mmc_cd_get_status(host);
 	else
@@ -67,7 +67,7 @@ static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 				"HIGH" : "LOW");
 		cd->status = status;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		if(!host->sdcard_2p95_en)
 			goto out_sdcard_2p95_en;
 

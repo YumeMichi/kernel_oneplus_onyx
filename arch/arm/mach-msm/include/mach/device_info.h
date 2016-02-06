@@ -1,6 +1,6 @@
 /**
  * Copyright 2008-2013 OPPO Mobile Comm Corp., Ltd, All rights reserved.
- * VENDOR_EDIT:
+ * CONFIG_MACH_MSM8974_15055:
  * FileName:devinfo.h
  * ModuleName:devinfo
  * Author: wangjc
@@ -20,8 +20,5 @@ struct manufacture_info
 	char *version;
 	char *manufacture;
 };
-
-int register_device_proc(char *name, char *version, char *manufacture);
-
 
 #endif /*_DEVICE_INFO_H*/

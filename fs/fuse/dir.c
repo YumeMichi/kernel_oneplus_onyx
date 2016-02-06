@@ -433,7 +433,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 			fc->no_create = 1;
 		goto out_free_ff;
 	}
-#ifdef VENDOR_EDIT/*add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*add by liwei*/
 	if (req->private_lower_rw_file != NULL)
 		ff->rw_lower_file = req->private_lower_rw_file;
 #endif

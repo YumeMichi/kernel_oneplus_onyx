@@ -372,7 +372,7 @@ dolby_dap_send_param_return:
 	return rc;
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
 int adm_set_dirac_enable_params(int port_id, uint32_t module_id, uint32_t param_id, int enable)
 {
@@ -448,7 +448,7 @@ fail_cmd:
 	kfree(adm_params);
 	return ret;
 }
-#endif/*VENDOR_EDIT*/
+#endif/*CONFIG_MACH_MSM8974_15055*/
 
 int adm_get_params(int port_id, uint32_t module_id, uint32_t param_id,
 		uint32_t params_length, char *params)

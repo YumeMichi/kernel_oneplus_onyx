@@ -100,8 +100,6 @@ MODULE_VERSION("1.0");
 
 static const char longname[] = "Gadget Android";
 bool is_MTP_mode = false;
-extern bool is_15055_project(void);
-
 
 /* Default vendor and product IDs, overridden by userspace */
 #define VENDOR_ID		0x18D1
@@ -1782,7 +1780,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	if (!config)
 		return -ENOMEM;
 
-#ifndef VENDOR_EDIT//add by jiachenghui for USB VID customized & cdrom,20150619
+#ifndef CONFIG_MACH_MSM8974_15055//add by jiachenghui for USB VID customized & cdrom,20150619
 	config->fsg.nluns = 1;
 	snprintf(name[0], MAX_LUN_NAME, "lun");
 	config->fsg.luns[0].removable = 1;
@@ -1860,15 +1858,12 @@ static int mass_storage_function_bind_config(struct android_usb_function *f,
 	 * If is_MTP_mode is true, it means we only enable cdrom but disable sd mass storage.
 	 * If is_MTP_mode is false, it means we need to enable cdrom and sd mass storage.
 	 */
-	if (is_15055_project()){
-		if (is_MTP_mode) {
-			config->common->nluns= 1;
-			is_MTP_mode = false;
-		} else {
-			config->common->nluns= 2;
-		}
+	if (is_MTP_mode) {
+		config->common->nluns= 1;
+		is_MTP_mode = false;
+	} else {
+		config->common->nluns= 2;
 	}
-
 	return fsg_bind_config(c->cdev, c, config->common);
 }
 

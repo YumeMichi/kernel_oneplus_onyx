@@ -26,7 +26,7 @@
 #include "sd.h"
 #include "sd_ops.h"
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #endif
@@ -1155,7 +1155,7 @@ static int mmc_sd_alive(struct mmc_host *host)
 	return mmc_send_status(host->card, NULL);
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 extern int tf_card_status;
 #endif
 
@@ -1174,7 +1174,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 
 	mmc_rpm_hold(host, &host->card->dev);
 	mmc_claim_host(host);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
     if(tf_card_status == 0){
 		pr_info("Remove sd card,%s,%d\n",__func__,__LINE__);
 //hefaxi@filesystems, 2015/08/07, add for drop power if sdcard not present
@@ -1182,7 +1182,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 			gpio_direction_output(host->sdcard_2p95_en,0);
 		}
 	}
-#endif/*VENDOR_EDIT*/
+#endif/*CONFIG_MACH_MSM8974_15055*/
 	/*
 	 * Just check if our card has been removed.
 	 */

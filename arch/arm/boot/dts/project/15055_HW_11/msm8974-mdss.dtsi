@@ -139,11 +139,11 @@
 		qcom,platform-reset-gpio = <&pm8941_gpios 19 0>; //LCD_REST
 		//qcom,platform-enable-gpio = <&msmgpio 58 0>;//LCD-+ -5V EN
 		qcom,platform-te-gpio = <&msmgpio 12 0>;  //TE
-		/*ifdef VENDOR_EDIT */
+		/*ifdef CONFIG_MACH_MSM8974_15055 */
 		qcom,platform-vci-enable-gpio = <&pm8941_gpios 33 0>;  //VCI
 		qcom,platform-esd-check-gpio = <&msmgpio 28 0>;
 		qcom,platform-err-fg-gpio = <&msmgpio 59 0>;
-		/*endif VENDOR_EDIT */
+		/*endif CONFIG_MACH_MSM8974_15055 */
 		qcom,platform-strength-ctrl = [ff 06];
 		qcom,platform-bist-ctrl = [00 00 b1 ff 00 00];
 		qcom,platform-regulator-settings = [07 09 03 00 20 00 01];

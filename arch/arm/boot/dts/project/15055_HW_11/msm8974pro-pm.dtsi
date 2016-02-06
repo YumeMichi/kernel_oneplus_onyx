@@ -128,7 +128,7 @@
 
 	lpm_levels: qcom,lpm-levels {
 		compatible = "qcom,lpm-levels";
-		/*#ifdef VENDOR_EDIT */
+		/*#ifdef CONFIG_MACH_MSM8974_15055 */
 		/* Modified by yangrujin@oneplus.cn 2014-12-26 */
 		/* for fix system hang or crash after upgrade from android 4.3 to android 5.0 via recovery*/
 		

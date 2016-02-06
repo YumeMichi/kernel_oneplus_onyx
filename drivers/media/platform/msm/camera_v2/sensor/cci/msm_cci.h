@@ -21,7 +21,7 @@
 #include <mach/camera2.h>
 #include "msm_sd.h"
 /*Added by Jinshui.Liu@Camera 20140221 start for cci error*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/wakelock.h>
 #endif
 /*Added by Jinshui.Liu@Camera 20140221 end*/
@@ -149,7 +149,7 @@ struct cci_device {
 	struct regulator *reg_ptr;
 	uint32_t cycles_per_us;
 /*Added by Jinshui.Liu@Camera 20140221 start for cci error*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	struct wake_lock cci_wakelock;
 #endif
 /*Added by Jinshui.Liu@Camera 20140221 end*/

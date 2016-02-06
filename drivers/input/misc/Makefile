@@ -73,5 +73,5 @@ obj-$(CONFIG_BTP_FPC1021)  += fpc1020_main.o fpc1020_capture.o fpc1020_common.o 
 #ranfei add for MXM1120
 obj-$(CONFIG_HALL_MXM1120)  += m1120.o
 #add end
-#VENDOR_EDIT shankai add for tree state keys
+#CONFIG_MACH_MSM8974_15055 shankai add for tree state keys
 obj-$(CONFIG_TRI_STATE_KEY) += tri_state_key.o

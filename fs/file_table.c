@@ -176,7 +176,7 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 		return NULL;
 
 	file->f_path = *path;
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 	file->f_inode = path->dentry->d_inode;
 #endif
 	file->f_mapping = path->dentry->d_inode->i_mapping;
@@ -262,7 +262,7 @@ static void __fput(struct file *file)
 		drop_file_write_access(file);
 	file->f_path.dentry = NULL;
 	file->f_path.mnt = NULL;
-#ifdef VENDOR_EDIT/*Added by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Added by liwei*/
 	file->f_inode = NULL;
 #endif
 	file_free(file);

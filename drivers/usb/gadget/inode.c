@@ -1454,7 +1454,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		if (0 == (u8) w_value) {
 			value = 0;
 			dev->current_config = 0;
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 			// delete by xcb
 			usb_gadget_vbus_draw(gadget, 8 /* mA */ );
 #endif

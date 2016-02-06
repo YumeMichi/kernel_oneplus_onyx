@@ -271,16 +271,16 @@ struct mdss_dsi_ctrl_pdata {
 	int irq_cnt;
 	int rst_gpio;
 	int disp_en_gpio;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //add for samsung_s6e3fa3 vci enable
 	int vci_en_gpio;
 	int esd_check_gpio;
 	int err_fg_gpio;
 #endif
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* 2014/08/10  Add for 14021 lcd enable */
 	int disp_en_gpio76;
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 	int disp_te_gpio;
 	int mode_gpio;
 	int disp_te_gpio_requested;
@@ -321,7 +321,7 @@ struct mdss_dsi_ctrl_pdata {
 	struct mutex cmd_mutex;
 
 	bool ulps;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	int index;
 #endif
 	struct dsi_buf tx_buf;
@@ -398,7 +398,7 @@ int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 int mdss_dsi_register_recovery_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 		struct mdss_panel_recovery *recovery);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //add for samsung_s6e3fa3 vci en
 int mdss_dsi_panel_vci_en(struct mdss_panel_data *pdata, int enable);
 #endif

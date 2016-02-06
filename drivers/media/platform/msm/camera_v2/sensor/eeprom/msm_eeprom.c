@@ -820,7 +820,7 @@ static int msm_eeprom_spi_remove(struct spi_device *sdev)
 }
 
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static void eeprom_read_work(struct work_struct *work)
 {
 	int rc = 0;
@@ -878,7 +878,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	int j = 0;
 #endif
 	uint32_t temp;
@@ -900,7 +900,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	e_ctrl->eeprom_mutex = &msm_eeprom_mutex;
 
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	INIT_WORK(&e_ctrl->read_work, eeprom_read_work);
 #endif
 	e_ctrl->is_supported = 0;
@@ -997,7 +997,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto board_free;
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	rc = msm_camera_power_up(power_info, e_ctrl->eeprom_device_type,
 		&e_ctrl->i2c_client);
 	if (rc) {
@@ -1037,14 +1037,14 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
 	msm_sd_register(&e_ctrl->msm_sd);
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
 #endif
 	CDBG("%s X\n", __func__);
 	return rc;
 
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 power_down:
 	msm_camera_power_down(power_info, e_ctrl->eeprom_device_type,
 		&e_ctrl->i2c_client);

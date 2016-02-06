@@ -1,0 +1,8 @@
+menu "OnePlus board selection"
+
+config MACH_MSM8974_15055
+	bool "OnePlus X"
+	help
+	  Support for the OnePlus X (onyx)
+
+endmenu

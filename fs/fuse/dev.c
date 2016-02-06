@@ -20,7 +20,7 @@
 #include <linux/swap.h>
 #include <linux/splice.h>
 #include <linux/freezer.h>
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include "fuse_shortcircuit.h"
 #endif
 
@@ -1784,7 +1784,7 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	err = copy_out_args(cs, &req->out, nbytes);
 	fuse_copy_finish(cs);
 
-#ifdef VENDOR_EDIT/*Add shortcircuit*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add shortcircuit*/
 fuse_setup_shortcircuit(fc, req);
 #endif
 

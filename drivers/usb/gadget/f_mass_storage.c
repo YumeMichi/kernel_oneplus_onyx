@@ -1393,7 +1393,7 @@ static int do_read_header(struct fsg_common *common, struct fsg_buffhd *bh)
 }
 
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static void _lba_to_msf(u8 *buf, int lba)
 {
 	lba += 150;
@@ -1639,7 +1639,7 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	int		start_track = common->cmnd[6];
 	u8		*buf = (u8 *)bh->buf;
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
- #ifdef VENDOR_EDIT
+ #ifdef CONFIG_MACH_MSM8974_15055
 	int format = (common->cmnd[9] & 0xC0) >> 6;
 #endif
 //end add by jiachenghui for cdrom suport MAC OSX,2015-06-30
@@ -1651,7 +1651,7 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	}
 
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
- #ifdef VENDOR_EDIT
+ #ifdef CONFIG_MACH_MSM8974_15055
 	if (format == 2)
 		return _read_toc_raw(common, bh);
 #endif
@@ -2439,7 +2439,7 @@ static int do_scsi_command(struct fsg_common *common)
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
 				      (0xf<<6) | (1<<1), 1,
 				      "READ TOC");
@@ -2454,7 +2454,7 @@ static int do_scsi_command(struct fsg_common *common)
 		break;
 
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	case READ_CD:
 		common->data_size_from_cmnd = ((common->cmnd[6] << 16)
 						| (common->cmnd[7] << 8)
@@ -3296,7 +3296,7 @@ buffhds_first_it:
 		 i);
 
 //add by jiachenghui for cdrom inquiry strings  customized ,2015-06-19
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	snprintf(common->inquiry_string, sizeof common->inquiry_string, "%s",  "OnePlus Device Driver");
 #endif
 //add by jiachenghui for cdrom inquiry strings  customized ,2015-06-19

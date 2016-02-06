@@ -173,7 +173,7 @@ struct fuse_file_lock {
 #define FUSE_BIG_WRITES		(1 << 5)
 #define FUSE_DONT_MASK		(1 << 6)
 #define FUSE_FLOCK_LOCKS	(1 << 10)
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 #define FUSE_SHORTCIRCUIT	(1 << 31)
 #endif
 
@@ -397,7 +397,7 @@ struct fuse_create_in {
 struct fuse_open_out {
 	__u64	fh;
 	__u32	open_flags;
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	__u32	padding;
 #else
 	int32_t lower_fd;/* lower layer file descriptor */

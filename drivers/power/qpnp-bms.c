@@ -29,7 +29,7 @@
 #include <linux/of_batterydata.h>
 
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/reboot.h>
 
 #include <linux/boot_mode.h>
@@ -190,10 +190,10 @@ struct qpnp_bms_chip {
 	int				default_rbatt_mohm;
 	int				rbatt_capacitive_mohm;
 	int				rbatt_mohm;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	const char		*battery_type; // add by xcb
 	int	chg_done;
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 
 
@@ -233,7 +233,7 @@ struct qpnp_bms_chip {
 	int				last_ocv_temp;
 	int				last_cc_uah;
 	unsigned long			last_soc_change_sec;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	unsigned long			last_battery_absent_sec;
 #endif
 
@@ -328,10 +328,10 @@ static enum power_supply_property msm_bms_power_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	POWER_SUPPLY_PROP_BATTERY_TYPE, // add by xcb
 	POWER_SUPPLY_PROP_BATTERY_CALCULATED_SOC,
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 };
 
@@ -812,7 +812,7 @@ static int get_battery_status(struct qpnp_bms_chip *chip)
 	return POWER_SUPPLY_STATUS_UNKNOWN;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static int get_battery_charge_done(struct qpnp_bms_chip *chip)
 {
 	union power_supply_propval ret = {0,};
@@ -1170,7 +1170,7 @@ static int read_soc_params_raw(struct qpnp_bms_chip *chip,
 		raw->last_good_ocv_uv = chip->last_ocv_uv;
 		chip->new_battery = false;
 	} else if (chip->done_charging) {
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		int ibat_ua, vbat_uv;
 #endif
 		chip->done_charging = false;
@@ -1185,7 +1185,7 @@ static int read_soc_params_raw(struct qpnp_bms_chip *chip,
 		chip->software_cc_uah = 0;
 		chip->software_shdw_cc_uah = 0;
 		chip->last_cc_uah = INT_MIN;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		get_simultaneous_batt_v_and_i(chip, &ibat_ua, &vbat_uv);
 
 		pr_info("EOC Battery full vbat_uv = %d, ibat_ua = %d, batt_temp = %d, last_soc = %d, calculated_soc = %d\n",
@@ -1697,7 +1697,7 @@ static void calculate_soc_params(struct qpnp_bms_chip *chip,
 	if (params->rbatt_mohm != chip->rbatt_mohm) {
 		chip->rbatt_mohm = params->rbatt_mohm;
 		if (chip->bms_psy_registered) {
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 			power_supply_changed(&chip->bms_psy);
 #endif
 		}
@@ -1868,7 +1868,7 @@ static int report_voltage_based_soc(struct qpnp_bms_chip *chip)
 #define SOC_CATCHUP_SEC_PER_PERCENT	60
 #define MAX_CATCHUP_SOC	(SOC_CATCHUP_SEC_MAX / SOC_CATCHUP_SEC_PER_PERCENT)
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 // discharge
 #define SOC_CHANGE_PER_SEC_DISCHARGE_AT_100		300
 #define SOC_CHANGE_PER_SEC_DISCHARGE_AT_99_95	150
@@ -2361,7 +2361,7 @@ static void cv_voltage_check(struct qpnp_bms_chip *chip, int vbat_uv)
 	}
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #define NO_ADJUST_HIGH_SOC_THRESHOLD	90
 #else
 #define NO_ADJUST_HIGH_SOC_THRESHOLD	98
@@ -2730,7 +2730,7 @@ static int calculate_state_of_charge(struct qpnp_bms_chip *chip,
 		 */
 		pr_info("soc = %d before forcing shutdown_soc = %d\n",
 							soc, shutdown_soc);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		previous_soc = soc;
 #endif
 		chip->last_ocv_uv = find_ocv_for_pc(chip, batt_temp,
@@ -2746,7 +2746,7 @@ static int calculate_state_of_charge(struct qpnp_bms_chip *chip,
 					(params.fcc_uah
 						- params.uuc_uah));
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		if ((soc - previous_soc) >= 5) {
 			soc -= 1;
 		}
@@ -2808,7 +2808,7 @@ done_calculating:
 	mutex_unlock(&chip->last_soc_mutex);
 	wake_up_interruptible(&chip->bms_wait_queue);
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	if (new_calculated_soc != previous_soc && chip->bms_psy_registered) {
 		power_supply_changed(&chip->bms_psy);
 		pr_debug("power supply changed\n");
@@ -3624,7 +3624,7 @@ static void charging_ended(struct qpnp_bms_chip *chip)
 static void battery_status_check(struct qpnp_bms_chip *chip)
 {
 	int status = get_battery_status(chip);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	chip->chg_done = get_battery_charge_done(chip);
 #endif
 	mutex_lock(&chip->status_lock);
@@ -3646,7 +3646,7 @@ static void battery_status_check(struct qpnp_bms_chip *chip)
 		} else if (chip->battery_status
 				== POWER_SUPPLY_STATUS_FULL) {
 			pr_info("battery not full any more\n");
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 			get_current_time(&(chip->last_recalc_time));
 			chip->last_soc_change_sec = chip->last_recalc_time;
 #endif
@@ -3689,7 +3689,7 @@ static void battery_insertion_check(struct qpnp_bms_chip *chip)
 	int present = (int)is_battery_present(chip);
 	int insertion_ocv_uv = get_battery_insertion_ocv_uv(chip);
 	int insertion_ocv_taken = (insertion_ocv_uv > 0);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	int time_since_battery_absent_sec;
 #endif
 	mutex_lock(&chip->vbat_monitor_mutex);
@@ -3703,7 +3703,7 @@ static void battery_insertion_check(struct qpnp_bms_chip *chip)
 			if (present) {
 				chip->insertion_ocv_uv = insertion_ocv_uv;
 				setup_vbat_monitoring(chip);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 				// add by xcb for anti shake
 				calculate_delta_time(&(chip->last_battery_absent_sec), &(time_since_battery_absent_sec));
 				if (time_since_battery_absent_sec > 3)
@@ -3780,7 +3780,7 @@ static int qpnp_bms_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		val->intval = chip->charge_cycles;
 		break;
-#ifdef CONFIG_VENDOR_EDIT				
+#ifdef CONFIG_MACH_MSM8974_15055				
 	case POWER_SUPPLY_PROP_BATTERY_TYPE:
 		val->strval = chip->battery_type;
 		break;
@@ -3788,7 +3788,7 @@ static int qpnp_bms_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_BATTERY_CALCULATED_SOC:
 		val->intval = chip->calculated_soc;
 		break;
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 		
 	default:
@@ -3934,7 +3934,7 @@ static void load_shutdown_data(struct qpnp_bms_chip *chip)
 	/* Invalidate the shutdown SoC if any of these conditions hold true */
 	if (chip->ignore_shutdown_soc
 			|| invalid_stored_soc
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 			|| offmode_battery_replaced
 #endif
 			|| shutdown_soc_out_of_limit) {
@@ -4016,7 +4016,7 @@ static int set_battery_data(struct qpnp_bms_chip *chip)
 		if (battery_id < 0) {
 			pr_err("cannot read battery id err = %lld\n",
 							battery_id);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 			kernel_power_off();
 #endif
 			return battery_id;
@@ -4069,7 +4069,7 @@ static int set_battery_data(struct qpnp_bms_chip *chip)
 		}
 	}
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	pr_info("batt_data->batt_id_kohm %dkOhm, batt_data->best_id_kohm %dkOhm.\n", batt_data->batt_id_kohm, batt_data->best_id_kohm);
 	if (get_boot_mode() <= MSM_BOOT_MODE__RECOVERY) {
 		if (batt_data->batt_id_kohm == 0 || batt_data->batt_id_kohm == 0
@@ -4090,9 +4090,9 @@ assign_data:
 	chip->default_rbatt_mohm = batt_data->default_rbatt_mohm;
 	chip->rbatt_capacitive_mohm = batt_data->rbatt_capacitive_mohm;
 	chip->flat_ocv_threshold_uv = batt_data->flat_ocv_threshold_uv;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	chip->battery_type = batt_data->battery_type;
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 
 

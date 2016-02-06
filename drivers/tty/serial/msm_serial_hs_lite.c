@@ -1959,7 +1959,7 @@ static struct platform_driver msm_hsl_platform_driver = {
 static int __init msm_serial_hsl_init(void)
 {
 	int ret;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	pr_info("%s:%d\n",__func__,console_set_on_cmdline);
 	if(!console_set_on_cmdline)
 		return -EPERM;

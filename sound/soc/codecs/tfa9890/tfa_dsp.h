@@ -74,7 +74,7 @@ int tfa98xx_unmute(struct tfa98xx *tfa98xx);
 int tfa98xx_is_pwdn(struct tfa98xx *tfa98xx);
 int tfa98xx_is_calibrated(struct tfa98xx *tfa98xx);
 int tfa98xx_is_amp_running(struct tfa98xx *tfa98xx);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-05-29, add for calibration*/
 int tfa98xx_dsp_get_calibration_impedance(struct tfa98xx *tfa98xx, u32 *re25);
 int tfaRunColdStartup(struct tfa98xx *tfa98xx);

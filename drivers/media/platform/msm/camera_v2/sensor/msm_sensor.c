@@ -559,7 +559,7 @@ static int msm_sensor_get_af_status(struct msm_sensor_ctrl_t *s_ctrl,
 	set the status in the *status variable accordingly*/
 	return 0;
 }
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* longxiaowu@camera 2015-09-19 add for at test */
 static void at_msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 {
@@ -597,7 +597,7 @@ static long msm_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 		pr_err("%s s_ctrl NULL\n", __func__);
 		return -EBADF;
 	}
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* longxiaowu@camera 2015-09-19 add for at test */
 	if (cmd == 0 && arg == NULL)
 	{

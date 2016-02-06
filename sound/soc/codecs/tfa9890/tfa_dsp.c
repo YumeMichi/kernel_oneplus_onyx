@@ -83,14 +83,14 @@
 #define FW_PARAM_GET_STATE		0x84
 #define FW_PARAM_GET_FEATURE_BITS	0x85
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMediaService,2015/10/16,add for recalibration if calibrate failed*/
 static int calibrate_retry =0;
 #endif
 
 int tfa98xx_set_I2S2(struct tfa98xx *tfa98xx);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-08-13, add for mtp recovery*/
 int recoverMtp0 = false;
 
@@ -147,7 +147,7 @@ int tfaRunWriteRegister(struct tfa98xx *tfa98xx, struct nxpTfaRegpatch *reg)
 	return 0;
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-11, repair when MTP 0 fail*/
 int tfa98xx_restore_mtp(struct tfa98xx *tfa98xx)
 {
@@ -723,7 +723,7 @@ static int tfa98xx_startup(struct tfa98xx *tfa98xx)
 {
 	int tries, status, ret;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-11, Modify for MTP repare*/
     struct snd_soc_codec *codec = tfa98xx->codec;
     u16 statusreg = 0;
@@ -749,7 +749,7 @@ static int tfa98xx_startup(struct tfa98xx *tfa98xx)
 	/* power on the sub system */
 	ret = tfa98xx_powerdown(tfa98xx, 0);
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 
 	tfa98xx_set_I2S2(tfa98xx);
 
@@ -954,7 +954,7 @@ int tfa98xx_dsp_power_up(struct tfa98xx *tfa98xx)
 	int ret = 0;
 	int tries, status;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-13, Modify for MTP repare*/
 u16 mtp0;
 struct snd_soc_codec *codec = tfa98xx->codec;
@@ -963,7 +963,7 @@ struct snd_soc_codec *codec = tfa98xx->codec;
 	/* power on the sub system */
 	ret = tfa98xx_powerdown(tfa98xx, 0);
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-13, Modify for dsp_system_stable*/
 	// wait until everything is stable, in case clock has been off
 	for (tries = CFSTABLE_TRIES; tries > 0; tries--) {
@@ -981,7 +981,7 @@ struct snd_soc_codec *codec = tfa98xx->codec;
 	}
 #endif
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	if (tries==0) {
 		// timedout
 		pr_err("DSP subsystem start timed out\n");
@@ -1857,7 +1857,7 @@ int tfa98xx_dsp_get_calibration_impedance(struct tfa98xx *tfa98xx, u32 *re25)
 
 	tfa98xx_convert_bytes2data(3, bytes, data);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-05-29, change for calibration*/
 	/* /2^23*2^(def.SPKRBST_TEMPERATURE_EXP) */
 	*re25 = (TO_FIXED(data[0]) *1000) / (1 << (23 - SPKRBST_TEMPERATURE_EXP));
@@ -2024,7 +2024,7 @@ int setOtc(struct tfa98xx *tfa98xx, int otcOn)
         }
     } while (tries < 300);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-05-29, add for calibration*/
     snd_soc_write(codec, 0x0B, 0x0);
 #endif
@@ -2119,7 +2119,7 @@ int tfaRunSpeakerBoost(struct tfa98xx *tfa98xx, int force)
 		tfa98xx_wait_calibration(tfa98xx, &done);
 		if (!done) {
 			pr_err("Calibration not done!\n");
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMediaService,2015/10/16,add for recalibration if calibrate failed*/
             tfa98xx->dsp_init = TFA98XX_DSP_INIT_RECOVER;
             calibrate_retry++;
@@ -2132,7 +2132,7 @@ int tfaRunSpeakerBoost(struct tfa98xx *tfa98xx, int force)
 			 */
 		} else {
 			pr_info("Calibration done\n");
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMediaService,2015/10/16,add for recalibration if calibrate failed*/
             calibrate_retry = 0;
             tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
@@ -2143,7 +2143,7 @@ int tfaRunSpeakerBoost(struct tfa98xx *tfa98xx, int force)
 		/* already warm, so just pwr on */
 		ret = tfa98xx_dsp_power_up(tfa98xx);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-22,add to avoid sound failed*/
         done = 1;
 #endif
@@ -2152,7 +2152,7 @@ int tfaRunSpeakerBoost(struct tfa98xx *tfa98xx, int force)
     tfa98xx_dsp_get_calibration_impedance(tfa98xx, &re25);
 	pr_debug("imp: %d ohms\n", re25);
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	//zhiguang.su change by nxp
     //Check if device has been calibrated 
     if (!tfa98xx_is_calibrated(tfa98xx)){
@@ -2188,7 +2188,7 @@ int tfaRunSpeakerQuickBoost(struct tfa98xx *tfa98xx, int force)
     //u32 re25;
 	int done;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-18,avoid pop */
 		tfa98xx_set_mute(tfa98xx, Tfa98xx_Mute_Digital);
 #endif
@@ -2266,7 +2266,7 @@ int tfaRunSpeakerQuickBoost(struct tfa98xx *tfa98xx, int force)
 		tfa98xx_wait_calibration(tfa98xx, &done);
 		if (!done) {
 			pr_err("Calibration not done!\n");
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMediaService,2015/10/16,add for recalibration if calibrate failed*/
             tfa98xx->dsp_init = TFA98XX_DSP_INIT_RECOVER;
             calibrate_retry++;
@@ -2278,7 +2278,7 @@ int tfaRunSpeakerQuickBoost(struct tfa98xx *tfa98xx, int force)
 			 * down the DSP
 			 */
 		} else {
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMediaService,2015/10/16,add for recalibration if calibrate failed*/
             tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
             calibrate_retry = 0;
@@ -2294,7 +2294,7 @@ int tfaRunSpeakerQuickBoost(struct tfa98xx *tfa98xx, int force)
 //    tfa98xx_dsp_get_calibration_impedance(tfa98xx, &re25);
 //	pr_debug("imp: %d ohms\n", re25);
 
-//#ifndef VENDOR_EDIT
+//#ifndef CONFIG_MACH_MSM8974_15055
 #if 1
 	//zhiguang.su change by nxp
     //Check if device has been calibrated 
@@ -2318,7 +2318,7 @@ int tfaRunSpeakerQuickBoost(struct tfa98xx *tfa98xx, int force)
     }	
 #endif
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-18,avoid pop */
 //	tfa98xx_unmute(tfa98xx);
 #endif
@@ -2350,7 +2350,7 @@ int tfa98xx_dsp_quickstart(struct tfa98xx *tfa98xx, int profile, int vstep)
 	if (tfaRunSpeakerQuickBoost(tfa98xx, forcecoldboot))
 		return -EINVAL;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	/* zhiguang.su@MultiMedia.AudioDrv on 2015-04-15,add by nxp patch */
 	if(profile == 1)
 	{
@@ -2384,7 +2384,7 @@ if (profile != tfa98xx->profile_current)
 #endif
 
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-18,avoid pop */
     msleep_interruptible(10);
 	tfa98xx_unmute(tfa98xx);
@@ -2416,7 +2416,7 @@ int tfa98xx_dsp_start(struct tfa98xx *tfa98xx, int profile, int vstep)
 	if (tfaRunSpeakerBoost(tfa98xx, forcecoldboot))
 		return -EINVAL;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	/* zhiguang.su@MultiMedia.AudioDrv on 2015-04-15,add by nxp patch */
 	if(profile == 1)
 	{

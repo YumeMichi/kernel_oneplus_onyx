@@ -37,12 +37,12 @@
 #include <linux/usb/f_mtp.h>
 
 //add by jiachenghui for mtp trasfer speed,2015-8-5
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #define MTP_BULK_BUFFER_SIZE       65536
 #else
 //end add by jiachenghui for mtp trasfer speed,2015-8-5
 #define MTP_BULK_BUFFER_SIZE       16384
-#endif /* VENDOR_EDIT *///add by jiachenghui for mtp trasfer speed,2015-8-5
+#endif /* CONFIG_MACH_MSM8974_15055 *///add by jiachenghui for mtp trasfer speed,2015-8-5
 
 #define INTR_BUFFER_SIZE           28
 

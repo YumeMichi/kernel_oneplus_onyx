@@ -36,7 +36,7 @@
 #include <linux/of_gpio.h>
 #include <linux/qpnp/pin.h>
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 // add by xcb
 #include <linux/rtc.h>
 
@@ -320,7 +320,7 @@ struct qpnp_chg_chip {
 	struct qpnp_chg_irq		coarse_det_usb;
 	bool				bat_is_cool;
 	bool				bat_is_warm;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	bool				bat_is_cold;
 	bool				bat_is_overheat;
@@ -329,7 +329,7 @@ struct qpnp_chg_chip {
 	bool				chg_show_temp;
 #endif	
 	bool				chg_done;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	int				chg_status;
 
@@ -342,7 +342,7 @@ struct qpnp_chg_chip {
 	bool				dc_present;
 	bool				batt_present;
 	bool				charging_disabled;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		// add by xcb
 	bool thermal_disable_charge;
 	// add by dl
@@ -362,7 +362,7 @@ struct qpnp_chg_chip {
 	unsigned int			max_bat_chg_current;
 	unsigned int			warm_bat_chg_ma;
 	unsigned int			cool_bat_chg_ma;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	unsigned int			little_cool_bat_chg_ma;
 	unsigned int			little_cold_bat_chg_ma;
@@ -382,7 +382,7 @@ struct qpnp_chg_chip {
 	u8				trim_center;
 	unsigned int			warm_bat_mv;
 	unsigned int			cool_bat_mv;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	unsigned int			little_cool_bat_mv;
 	unsigned int			little_cold_bat_mv;
@@ -398,7 +398,7 @@ struct qpnp_chg_chip {
 	unsigned int			cold_batt_p;
 	int				warm_bat_decidegc;
 	int				cool_bat_decidegc;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	int				cold_bat_decidegc;
 	int				overheat_bat_decidegc;
@@ -450,7 +450,7 @@ struct qpnp_chg_chip {
 	unsigned int			ext_ovp_isns_gpio;
 	unsigned int			usb_trim_default;
 	u8				chg_temp_thresh_default;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	unsigned long	chg_start_sec;
 	bool			time_out;
@@ -458,7 +458,7 @@ struct qpnp_chg_chip {
 
 };
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
+#ifdef CONFIG_MACH_MSM8974_15055/*If the torch is enabled, enable BATFET_LPM mode*/
 static struct qpnp_chg_chip	*chip_temp;
 #endif
 
@@ -1048,7 +1048,7 @@ qpnp_chg_iusb_trim_set(struct qpnp_chg_chip *chip, int trim)
 
 #define IOVP_USB_WALL_TRSH_MA   150
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static int
 oem_qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 {
@@ -1076,7 +1076,7 @@ oem_qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 	if (chip->maxinput_usb_ma)
 		mA = (chip->maxinput_usb_ma) <= mA ? chip->maxinput_usb_ma : mA;
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// modify by dl
 	//chip->last_iusbmax = mA;
 
@@ -1355,7 +1355,7 @@ qpnp_chg_usb_suspend_enable(struct qpnp_chg_chip *chip, int enable)
 			USB_SUSPEND_BIT,
 			enable ? USB_SUSPEND_BIT : 0, 1);
 }
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 static int
 qpnp_chg_charge_en(struct qpnp_chg_chip *chip, int enable)
@@ -1490,7 +1490,7 @@ qpnp_chg_vbatdet_set(struct qpnp_chg_chip *chip, int vbatdet_mv)
 	return qpnp_chg_write(chip, &temp,
 		chip->chgr_base + CHGR_VBAT_DET, 1);
 }
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static void
 qpnp_chg_set_appropriate_vbatdet(struct qpnp_chg_chip *chip)
 {
@@ -1772,7 +1772,7 @@ qpnp_chg_vddmax_get(struct qpnp_chg_chip *chip)
 	return QPNP_CHG_V_MIN_MV + (int)vddmax * QPNP_CHG_V_STEP_MV;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* JEITA compliance logic */
 static void
 qpnp_chg_set_appropriate_vddmax(struct qpnp_chg_chip *chip)
@@ -1909,7 +1909,7 @@ static int
 qpnp_chg_regulator_batfet_set(struct qpnp_chg_chip *chip, bool enable)
 {
 	int rc = 0;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
     enable =1;
 #endif
 
@@ -1975,7 +1975,7 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 			}
 			if (!qpnp_chg_is_dc_chg_plugged_in(chip)) {
 				chip->chg_done = false;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 				chip->resuming_charging = false;
 				chip->chg_show_temp = false;
 
@@ -2024,7 +2024,7 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 		}
 
 		power_supply_set_present(chip->usb_psy, chip->usb_present);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		//if(!usb_present) {
 		//	power_supply_set_online(chip->usb_psy, 0);
 		//	power_supply_set_current_limit(chip->usb_psy, 0);
@@ -2376,7 +2376,7 @@ qpnp_chg_chgr_chg_fastchg_irq_handler(int irq, void *_chip)
 		} else {
 			if (chip->parallel_ovp_mode)
 				switch_parallel_ovp_mode(chip, 0);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 			// modify by xcb
 			if (!chip->bat_is_cool && !chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cold)
 				bypass_vbatdet_comp(chip, 0);
@@ -2420,7 +2420,7 @@ qpnp_batt_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 	case POWER_SUPPLY_PROP_COOL_TEMP:
 	case POWER_SUPPLY_PROP_WARM_TEMP:
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	//add by xcb
 	case POWER_SUPPLY_PROP_COLD_TEMP:
 	case POWER_SUPPLY_PROP_OVERHEAT_TEMP:
@@ -2437,7 +2437,7 @@ qpnp_batt_property_is_writeable(struct power_supply *psy,
 	return 0;
 }
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 
 static int
 qpnp_chg_buck_control(struct qpnp_chg_chip *chip, int enable)
@@ -2601,7 +2601,7 @@ static enum power_supply_property msm_batt_power_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_COOL_TEMP,
 	POWER_SUPPLY_PROP_WARM_TEMP,
-#ifdef CONFIG_VENDOR_EDIT	
+#ifdef CONFIG_MACH_MSM8974_15055	
 	// add by xcb
 	POWER_SUPPLY_PROP_COLD_TEMP,
 	POWER_SUPPLY_PROP_OVERHEAT_TEMP,
@@ -2613,12 +2613,12 @@ static enum power_supply_property msm_batt_power_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_AUTHENTIC,
 #endif
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	POWER_SUPPLY_PROP_CHARGE_TIMEOUT,
 	POWER_SUPPLY_PROP_CHARGE_DONE,
 	POWER_SUPPLY_PROP_CHARGE_OVP,
@@ -2714,7 +2714,7 @@ get_prop_batt_present(struct qpnp_chg_chip *chip)
 {
 	u8 batt_present;
 	int rc;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
  	if (get_boot_mode() == MSM_BOOT_MODE__FACTORY)
 		return 1;
 #endif
@@ -2732,7 +2732,7 @@ get_prop_batt_present(struct qpnp_chg_chip *chip)
 #define BATT_TEMP_HOT	BIT(6)
 #define BATT_TEMP_OK	BIT(7)
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 static int
 get_prop_batt_health(struct qpnp_chg_chip *chip)
 {
@@ -2910,7 +2910,7 @@ get_prop_capacity(struct qpnp_chg_chip *chip)
 				&& charger_in
 				&& !chip->bat_is_cool
 				&& !chip->bat_is_warm
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 				&& !chip->bat_is_cold // add by xcb
 				&& !chip->bat_is_overheat // add by xcb
 				//&& !chip->bat_is_little_cool // add by xcb
@@ -2985,7 +2985,7 @@ get_prop_batt_temp(struct qpnp_chg_chip *chip)
 	return (int)results.physical;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #define BATT_REMOVE_TEMP -400
 #define BATT_OVP_THR 4500000
 
@@ -3077,7 +3077,7 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 								batt_psy);
 	union power_supply_propval ret = {0,};
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	if (!chip->bms_psy) {
 			chip->bms_psy = power_supply_get_by_name("bms");
 			if (chip->bms_psy) {
@@ -3149,7 +3149,7 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 			}
 		}
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		pr_debug("psy changed batt_psy\n");
 		power_supply_changed(&chip->batt_psy);
 #endif
@@ -3159,13 +3159,13 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 skip_set_iusb_max:
 	pr_debug("end of power supply changed\n");
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	pr_debug("psy changed batt_psy\n");
 	power_supply_changed(&chip->batt_psy);
 #endif
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static int
 qpnp_chg_get_vusbin_uv(struct qpnp_chg_chip *chip)
 {
@@ -3216,7 +3216,7 @@ int get_vbat_averaged(struct qpnp_chg_chip *chip, int sample_count)
 
 #endif
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 enum chg_protect_status_type {
 	CHG_PROTECT_CHARGER_VOP=1, //VCHG >5.8V
@@ -3300,7 +3300,7 @@ static int get_prop_authentic(struct qpnp_chg_chip *chip)
 
 #endif
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 static
 int get_prop_temp_status(struct qpnp_chg_chip *chip)
@@ -3343,7 +3343,7 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = get_prop_batt_status(chip);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		if (val->intval == POWER_SUPPLY_STATUS_FULL 
 			&& (!chip->bat_is_cool && !chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cold)
 			&& get_prop_capacity(chip) < 100) {
@@ -3395,7 +3395,7 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_WARM_TEMP:
 		val->intval = chip->warm_bat_decidegc;
 		break;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	case POWER_SUPPLY_PROP_COLD_TEMP:
 		val->intval = chip->cold_bat_decidegc;
@@ -3454,7 +3454,7 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VCHG_LOOP_DBC_BYPASS:
 		val->intval = qpnp_chg_vchg_loop_debouncer_setting_get(chip);
 		break;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		val->intval = qpnp_chg_get_vusbin_uv(chip);
 		break;
@@ -3462,7 +3462,7 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	 val->intval = get_prop_authentic(chip);
 		break;
 #endif
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	case POWER_SUPPLY_PROP_CHARGE_TIMEOUT:
 		val->intval = (int)chip->time_out;
 		break;
@@ -3612,7 +3612,7 @@ static int qpnp_chg_tchg_max_set(struct qpnp_chg_chip *chip, int minutes)
 	u8 temp;
 	int rc;
 	
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// modify by xcb
 	rc = qpnp_chg_masked_write(chip, chip->chgr_base + CHGR_TCHG_MAX_EN,
 			QPNP_CHG_TCHG_EN_MASK, 0, 1);
@@ -3656,7 +3656,7 @@ static int qpnp_chg_tchg_max_set(struct qpnp_chg_chip *chip, int minutes)
 	return 0;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static void
 qpnp_chg_set_appropriate_battery_current(struct qpnp_chg_chip *chip)
 {
@@ -3943,7 +3943,7 @@ qpnp_batt_system_temp_level_set(struct qpnp_chg_chip *chip, int lvl_sel)
 	if (lvl_sel >= 0 && lvl_sel < chip->thermal_levels) {
 		pr_info("system_temp_level %d\n", lvl_sel);
 		chip->therm_lvl_sel = lvl_sel;
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 
 		if (lvl_sel == (chip->thermal_levels - 1)) {
 			/* disable charging if highest value selected */
@@ -3952,7 +3952,7 @@ qpnp_batt_system_temp_level_set(struct qpnp_chg_chip *chip, int lvl_sel)
 			qpnp_chg_buck_control(chip, 1);
 #endif
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 			// modify by dl
 			//if (lvl_sel == 0)
 			//	chip->thermal_limit = false;
@@ -3969,7 +3969,7 @@ qpnp_batt_system_temp_level_set(struct qpnp_chg_chip *chip, int lvl_sel)
 #else
 			qpnp_chg_set_appropriate_battery_current(chip);
 #endif
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 
 		}
 #endif
@@ -3977,7 +3977,7 @@ qpnp_batt_system_temp_level_set(struct qpnp_chg_chip *chip, int lvl_sel)
 	} else {
 		pr_err("Unsupported level selected %d\n", lvl_sel);
 	}
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	power_supply_changed(&chip->batt_psy);
 #endif
 }
@@ -4400,7 +4400,7 @@ static struct regulator_ops qpnp_chg_batfet_vreg_ops = {
 	.is_enabled		= qpnp_chg_regulator_batfet_is_enabled,
 };
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 #define MAX_DELTA_VDD_MAX_MV			80
 #define MIN_DELTA_MV_TO_INCREASE_VDD_MAX	16
@@ -4474,7 +4474,7 @@ qpnp_chg_adjust_vddmax(struct qpnp_chg_chip *chip, int vbat_mv)
 #endif
 
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static int get_current_time(unsigned long *now_tm_sec)
 {
 	struct rtc_time tm;
@@ -4513,7 +4513,7 @@ close_time:
 #define CONSECUTIVE_COUNT	3
 #define VBATDET_MAX_ERR_MV	50
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 #define USBIN_OVP_THR 5800000
 
@@ -4850,7 +4850,7 @@ qpnp_chg_soc_check_work(struct work_struct *work)
 {
 	struct qpnp_chg_chip *chip = container_of(work,
 				struct qpnp_chg_chip, soc_check_work);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	union power_supply_propval ret = {0,};
 	int battery_status, bms_status, soc, charger_in;
 	//int vbat_mv = 0, i = 0;
@@ -4905,7 +4905,7 @@ qpnp_chg_soc_check_work(struct work_struct *work)
 
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 // modify by xcb for different charging current set under different temperature
 #define HYSTERISIS_DECIDEGC 20
@@ -5531,7 +5531,7 @@ qpnp_chg_power_stage_set(struct qpnp_chg_chip *chip, bool reduce)
 	return rc;
 }
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 
 static int
 qpnp_chg_get_vusbin_uv(struct qpnp_chg_chip *chip)
@@ -5740,7 +5740,7 @@ qpnp_batt_power_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_WARM_TEMP:
 		rc = qpnp_chg_configure_jeita(chip, psp, val->intval);
 		break;
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	case POWER_SUPPLY_PROP_COLD_TEMP:
 	case POWER_SUPPLY_PROP_OVERHEAT_TEMP:
@@ -6528,7 +6528,7 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 	OF_PROP_READ(chip, maxinput_usb_ma, "maxinput-usb-ma", rc, 1);
 	OF_PROP_READ(chip, warm_bat_decidegc, "warm-bat-decidegc", rc, 1);
 	OF_PROP_READ(chip, cool_bat_decidegc, "cool-bat-decidegc", rc, 1);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	OF_PROP_READ(chip, cold_bat_decidegc, "cold-bat-decidegc", rc, 1);
 	OF_PROP_READ(chip, overheat_bat_decidegc, "overheat-bat-decidegc", rc, 1);
@@ -6577,7 +6577,7 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 		OF_PROP_READ(chip, cool_bat_chg_ma, "ibatmax-cool-ma", rc, 1);
 		OF_PROP_READ(chip, warm_bat_mv, "warm-bat-mv", rc, 1);
 		OF_PROP_READ(chip, cool_bat_mv, "cool-bat-mv", rc, 1);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		// add by xcb
 		OF_PROP_READ(chip, little_cool_bat_chg_ma, "ibatmax-little-cool-ma", rc, 1);
 		OF_PROP_READ(chip, little_cold_bat_chg_ma, "ibatmax-little-cold-ma", rc, 1);
@@ -6698,7 +6698,7 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		goto fail_chg_enable;
 	}
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
+#ifdef CONFIG_MACH_MSM8974_15055/*If the torch is enabled, enable BATFET_LPM mode*/
     chip_temp = chip;
 #endif
 
@@ -6980,14 +6980,14 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		}
 	}
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb cold_bat_decidegc is minus
 	chip->cold_bat_decidegc = 0 - chip->cold_bat_decidegc;
 #endif
 
 	if ((chip->cool_bat_decidegc || chip->warm_bat_decidegc)
 							&& chip->bat_if_base) {
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		chip->adc_param.low_temp = chip->little_cool_bat_decidegc;
 #else
 		chip->adc_param.low_temp = chip->cool_bat_decidegc;
@@ -7000,7 +7000,7 @@ qpnp_charger_probe(struct spmi_device *spmi)
 						qpnp_chg_adc_notification;
 		chip->adc_param.channel = LR_MUX1_BATT_THERM;
 
-#ifdef CONFIG_VENDOR_EDIT		
+#ifdef CONFIG_MACH_MSM8974_15055		
 		//qpnp_chg_adc_notification_init(chip);
 #endif
 
@@ -7105,7 +7105,7 @@ qpnp_charger_remove(struct spmi_device *spmi)
 	return 0;
 }
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
+#ifdef CONFIG_MACH_MSM8974_15055/*If the torch is enabled, enable BATFET_LPM mode*/
  int qpnp_chg_set_lpm(void){
 	int rc = 0;
 
@@ -7152,7 +7152,7 @@ static int qpnp_chg_suspend(struct device *dev)
 	int rc = 0;
 
 	if (chip->bat_if_base) {
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		rc = qpnp_chg_masked_write(chip,
 			chip->bat_if_base + BAT_IF_VREF_BAT_THM_CTRL,
 			VREF_BATT_THERM_FORCE_ON,

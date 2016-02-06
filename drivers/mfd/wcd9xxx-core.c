@@ -53,7 +53,7 @@
  * registration of Slimbus of I2C bus for each codec
  */
 #define NUM_WCD9XXX_REG_RET	8
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 extern int get_smartpa_project(void);
 #endif
 struct wcd9xxx_i2c {
@@ -1521,7 +1521,7 @@ static int wcd9xxx_slim_probe(struct slim_device *slim)
 	if (slim->dev.of_node) {
 		dev_info(&slim->dev, "Platform data from device tree\n");
 		pdata = wcd9xxx_populate_dt_pdata(&slim->dev);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 if(!get_smartpa_project())
 {
        //liuyan add hpmic 

@@ -1787,7 +1787,7 @@ static int msm_cpp_cfg(struct cpp_device *cpp_dev,
 	if (copy_to_user((void __user *)frame->status, &rc,
 		sizeof(int32_t)))
 		pr_err("error cannot copy error\n");
-#ifdef VENDOR_EDIT  //niqiangbo add for camera memory leak @2015-09-28
+#ifdef CONFIG_MACH_MSM8974_15055  //niqiangbo add for camera memory leak @2015-09-28
 	if(rc < 0)
 	    kfree(frame);
 #endif

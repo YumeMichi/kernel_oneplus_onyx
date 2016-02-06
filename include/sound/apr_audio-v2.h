@@ -309,7 +309,7 @@ struct adm_cmd_set_pp_params_inband_v5 {
 	struct adm_param_data_v5	params;
 } __packed;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
 /* Defined specifically for in-band use, includes params */
 struct adm_cmd_set_pp_params_dirac_v5 {
@@ -331,7 +331,7 @@ struct adm_cmd_set_pp_params_dirac_v5 {
 
 	u32     enable;
 } __packed;
-#endif/*VENDOR_EDIT*/
+#endif/*CONFIG_MACH_MSM8974_15055*/
 
 /* Returns the status and COPP ID to an #ADM_CMD_DEVICE_OPEN_V5 command.
  */

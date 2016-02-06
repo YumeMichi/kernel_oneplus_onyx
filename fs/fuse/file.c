@@ -16,7 +16,7 @@
 #include <linux/compat.h>
 #include <linux/swap.h>
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@filesystems, 2015/06/17, add for reserved memory
 #include <linux/statfs.h>
 #include <linux/namei.h>
@@ -51,7 +51,7 @@ static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 	req->out.args[0].value = outargp;
 	fuse_request_send(fc, req);
 	err = req->out.h.error;
-#ifdef VENDOR_EDIT/*add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*add by liwei*/
 	if (!err && req->private_lower_rw_file != NULL)
 		*lower_file =  req->private_lower_rw_file;
 #endif
@@ -67,7 +67,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
 	if (unlikely(!ff))
 		return NULL;
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 	ff->rw_lower_file = NULL;
 #endif
 	ff->fc = fc;
@@ -163,7 +163,7 @@ int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 	if (!ff)
 		return -ENOMEM;
 
-#ifndef VENDOR_EDIT/*Add by liwei*/
+#ifndef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 	err = fuse_send_open(fc, nodeid, file, opcode, &outarg);
 #else
 	err = fuse_send_open(fc, nodeid, file, opcode, &outarg, &(ff->rw_lower_file));
@@ -256,7 +256,7 @@ void fuse_release_common(struct file *file, int opcode)
 	ff = file->private_data;
 	if (unlikely(!ff))
 		return;
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 		fuse_shortcircuit_release(ff);
 #endif
 	req = ff->reserved_req;
@@ -760,11 +760,11 @@ out:
 static ssize_t fuse_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 				  unsigned long nr_segs, loff_t pos)
 {
-#ifdef VENDOR_EDIT/*add BY liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*add BY liwei*/
 	ssize_t ret_val;
 #endif
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
-#ifdef VENDOR_EDIT/*add BY liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*add BY liwei*/
 	struct fuse_file *ff = iocb->ki_filp->private_data;
 #endif
 
@@ -779,7 +779,7 @@ static ssize_t fuse_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			return err;
 	}
 
-#ifndef VENDOR_EDIT/*add BY liwei*/
+#ifndef CONFIG_MACH_MSM8974_15055/*add BY liwei*/
 	return generic_file_aio_read(iocb, iov, nr_segs, pos);
 #else
 	if (ff && ff->rw_lower_file)
@@ -1000,7 +1000,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	struct fuse_file *ff = file->private_data;
 #endif
 	size_t count = 0;
@@ -1012,7 +1012,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct iov_iter i;
 	loff_t endbyte = 0;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@filesystems, 2015/06/17, add for reserved memory
 	struct kstatfs statfs;
 	u64 avail;
@@ -1100,7 +1100,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	file_update_time(file);
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 	if (ff && ff->rw_lower_file) {
 		/* Use iocb->ki_pos instead of pos to handle the cases of files
 		 * that are opened with O_APPEND. For example if multiple

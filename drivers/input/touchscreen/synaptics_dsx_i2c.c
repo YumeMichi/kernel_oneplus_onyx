@@ -47,7 +47,7 @@
 #define TYPE_B_PROTOCOL
 #endif
 
-//#define VENDOR_EDIT
+//#define CONFIG_MACH_MSM8974_15055
 #define NO_0D_WHILE_2D
 
 //#define REPORT_2D_Z
@@ -100,7 +100,7 @@
 #define Wgestrue            13  // W
 
 // carlo@oneplus.net 2015-05-25, begin.
-#ifdef VENDOR_EDIT_OXYGEN
+#ifdef CONFIG_MACH_MSM8974_15055_OXYGEN
 #define KEY_DOUBLE_TAP          249 // double tap to wake
 #define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
 #define KEY_GESTURE_TWO_SWIPE	251 // swipe two finger vertically to play/pause
@@ -1551,7 +1551,7 @@ static int synaptics_rmi4_proc_smartcover_read(char *page, char **start, off_t o
 
 	return len ;
 }
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //zhanhua.li@BSP.TP,2014/05/07,add smartcover function
 //smartcover proc write function
 static int synaptics_rmi4_open_smartcover( void )
@@ -1611,7 +1611,7 @@ static int synaptics_rmi4_close_smartcover( void )
     printk(KERN_ERR "close smartcover\n");
     return retval;
 }
-#endif/*VENDOR_EDIT*/
+#endif/*CONFIG_MACH_MSM8974_15055*/
 static int synaptics_rmi4_proc_smartcover_write( struct file *filp, const char __user *buff,
 		unsigned long len, void *data ) {
 	int retval;
@@ -1719,7 +1719,7 @@ static int synaptics_rmi4_proc_pdoze_write( struct file *filp, const char __user
 	return len ;
 
 }
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //lifeng@BSP.TP,2015/02/25,add the fixed node to the directory /proc/touchpanel/ start
 static int synaptics_rmi4_vendor_read(char *buf, char **start, off_t off,
 		int count, int *eof, void *data)
@@ -1782,7 +1782,7 @@ static int synaptics_rmi4_init_touchpanel_proc(void)
 	if (proc_entry) {
 		proc_entry->read_proc = synaptics_rmi4_crood_read;
 	}
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	//lifeng@BSP.TP,2015/02/25,add the fixed node to the directory /proc/touchpanel/ start
 	proc_entry = create_proc_entry("vendor_id", 0444, procdir);
 	if (proc_entry) {
@@ -2254,7 +2254,7 @@ static ssize_t synaptics_rmi4_baseline_data(char *buf, bool savefile)
 	y = synaptics_rmi4_i2c_read(syna_ts_data, F54_DATA_BASE_ADDR+3, data_buf,7) ;
 	print_ts(TS_DEBUG,"trx-to-ground raw readback: %x  %x  %x  %x  %x  %x \n",  data_buf[0],data_buf[1],data_buf[2],data_buf[3],data_buf[4],data_buf[5]);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //qiao.hu @EXP.Basic.drv,2014/5/20 modified for touchscreen
 #if defined (CONFIG_OPPO_DEVICE_FIND7) || defined (CONFIG_OPPO_DEVICE_FIND7WX)
 
@@ -2313,7 +2313,7 @@ static ssize_t synaptics_rmi4_baseline_data(char *buf, bool savefile)
 		error_count ++;
 	}
 #endif /*CONFIG_OPPO_DEVICE_FIND7) || defined (CONFIG_OPPO_DEVICE_FIND7WX */
-#endif //VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 
 	//step 5:reset touchpanel and reconfig the device
@@ -2619,7 +2619,7 @@ static unsigned char synaptics_rmi4_update_gesture2(unsigned char *gesture,unsig
 			gesturemode = UnkownGestrue;
 	}
 // carlo@oneplus.net 2015-05-25, begin.
-#ifdef VENDOR_EDIT_OXYGEN
+#ifdef CONFIG_MACH_MSM8974_15055_OXYGEN
 	keycode = UnkownGestrue;
 	// Get key code based on registered gesture.
 	switch (gesture) {

@@ -16,7 +16,7 @@
 #include "msm_sd.h"
 #include "msm_actuator.h"
 #include "msm_cci.h"
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/project_info.h>
 #endif
 DEFINE_MSM_MUTEX(msm_actuator_mutex);
@@ -25,11 +25,11 @@ DEFINE_MSM_MUTEX(msm_actuator_mutex);
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #define MAX_QVALUE  4096
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #define ACTUATOR_KERNEL_DEBUG 1 //20150630@Neil Chen: debug AF code
 #endif
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 //debug for dw9800w driver IC
 struct dw9800w_debug{
 	int x; //reg 0x02
@@ -127,7 +127,7 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 				i2c_byte1 = write_arr[i].reg_addr;
 				i2c_byte2 = value;
 				if (size != (i+1)) {
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 //20150630@Neil Chen: some driver IC need write data-H first, then data-L.
 					i2c_byte2 = value & 0xFF;
 #else
@@ -147,7 +147,7 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 					a_ctrl->i2c_tbl_index++;
 					i++;
 					i2c_byte1 = write_arr[i].reg_addr;
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 //20150630@Neil Chen: some driver IC need write data-H first, then data-L.
 					i2c_byte2 = (value & 0xFF00) >> 8;
 #else
@@ -182,14 +182,14 @@ static int32_t msm_actuator_init_focus(struct msm_actuator_ctrl_t *a_ctrl,
 	int32_t i = 0;
 	enum msm_camera_i2c_reg_addr_type save_addr_type;
 	CDBG("Enter\n");
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
     tinfo.a_ctrl = a_ctrl;
 #endif
 
 	save_addr_type = a_ctrl->i2c_client.addr_type;
 	for (i = 0; i < size; i++) {
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
         //pr_err("[1+] cn_init-before %d/%d (0x%x, %d; 0x%x, %d, %d-%d)\n", i, size, settings[i].reg_addr, settings[i].addr_type, settings[i].reg_data, settings[i].data_type, settings[i].i2c_operation, settings[i].delay);
         if (tinfo.a == 0) {
             if (settings[i].reg_addr == 0x02)
@@ -355,7 +355,7 @@ static int32_t msm_actuator_move_focus(
 	int32_t num_steps = move_params->num_steps;
 	struct msm_camera_i2c_reg_setting reg_setting;
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 	if(tinfo.flag_debug_foc != 0) {
 		pr_err("[1+] skip AF move focus setting from vendor layer.");
 		return rc;
@@ -431,7 +431,7 @@ static int32_t msm_actuator_move_focus(
 		a_ctrl->curr_step_pos = target_step_pos;
 	}
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 	tinfo.cur_step_pos = a_ctrl->curr_step_pos;
 #endif
 	move_params->curr_lens_pos = curr_lens_pos;
@@ -450,7 +450,7 @@ static int32_t msm_actuator_move_focus(
 	return rc;
 }
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 static int32_t msm_actuator_move_focusz_test(
 	struct msm_actuator_ctrl_t *a_ctrl,
 	struct msm_actuator_move_params_t *move_params)
@@ -536,7 +536,7 @@ static int32_t msm_actuator_move_focusz_test(
 		}
 		a_ctrl->curr_step_pos = target_step_pos;
 	}
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 	tinfo.cur_step_pos = a_ctrl->curr_step_pos;
 #endif
 	move_params->curr_lens_pos = curr_lens_pos;
@@ -560,7 +560,7 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 {
 	int32_t rc = 0;
 	uint16_t next_lens_pos = 0;
-	#ifdef VENDOR_EDIT  //niqiangbo@camera add to reduce actuator power down time @2015-09-01
+	#ifdef CONFIG_MACH_MSM8974_15055  //niqiangbo@camera add to reduce actuator power down time @2015-09-01
 	uint16_t init_park_pos = 0;
 	#endif
 	struct msm_camera_i2c_reg_setting reg_setting;
@@ -581,23 +581,19 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 		a_ctrl->park_lens.max_step = a_ctrl->max_code_size;
 
 	next_lens_pos = a_ctrl->step_position_table[a_ctrl->curr_step_pos];
-	#ifdef VENDOR_EDIT  //niqiangbo@camera add to reduce actuator power down time @2015-09-01
-	if(a_ctrl->step_position_table[a_ctrl->total_steps] > 0) {
-	    if(is_15055_project())
-    	    init_park_pos = a_ctrl->step_position_table[a_ctrl->total_steps]/3;
-    	else
-    	    init_park_pos = a_ctrl->step_position_table[a_ctrl->total_steps]/2;
-	}
+	#ifdef CONFIG_MACH_MSM8974_15055  //niqiangbo@camera add to reduce actuator power down time @2015-09-01
+	if(a_ctrl->step_position_table[a_ctrl->total_steps] > 0)
+		init_park_pos = a_ctrl->step_position_table[a_ctrl->total_steps]/3;
 	#endif
 	while (next_lens_pos) {
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	    if(init_park_pos > 0 && next_lens_pos > init_park_pos) {
 	        next_lens_pos = init_park_pos;
 	    } else {
 	#endif
     		next_lens_pos = (next_lens_pos > a_ctrl->park_lens.max_step) ?
     			(next_lens_pos - a_ctrl->park_lens.max_step) : 0;
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 		}
 	#endif
 		a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
@@ -618,11 +614,8 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 		}
 		a_ctrl->i2c_tbl_index = 0;
 		/* Use typical damping time delay to avoid tick sound */
-		#ifdef VENDOR_EDIT
-		if(is_15055_project())
-		    usleep_range(5000, 6000);
-		else
-		    usleep_range(10000, 12000);
+		#ifdef CONFIG_MACH_MSM8974_15055
+		usleep_range(5000, 6000);
 		#else
 		usleep_range(10000, 12000);
 		#endif
@@ -699,14 +692,14 @@ static int32_t msm_actuator_init_step_table(struct msm_actuator_ctrl_t *a_ctrl,
 			}
 			CDBG("step_position_table [%d] %d\n", step_index,
 			a_ctrl->step_position_table[step_index]);
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 			if (tinfo.flag_debug_foc == 2) //cn
 			pr_err("step_position_table [%d] %d\n", step_index,
 			a_ctrl->step_position_table[step_index]);
 #endif
 		}
 	}
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 	if (tinfo.flag_debug_foc == 3) //cn
 		for(step_index=0; step_index <= step_boundary; step_index++)
 			pr_err("step_position_table[%d]=%d.", step_index, a_ctrl->step_position_table[step_index]);
@@ -1111,7 +1104,7 @@ static int msm_actuator_close(struct v4l2_subdev *sd,
 	kfree(a_ctrl->i2c_reg_tbl);
 	a_ctrl->i2c_reg_tbl = NULL;
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
     tinfo.a_ctrl = NULL;
 #endif
 	CDBG("Exit\n");
@@ -1281,7 +1274,7 @@ probe_failure:
 	return rc;
 }
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
 //20150630@Neil Chen: debug AF node
 static ssize_t msm_actuator_status_show(struct device *dev,
         struct device_attribute *attr, char *buf)
@@ -1581,7 +1574,7 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
 	msm_actuator_t->msm_sd.sd.devnode->fops =
 		&msm_actuator_v4l2_subdev_fops;
 
-#if (defined(VENDOR_EDIT) && ACTUATOR_KERNEL_DEBUG)
+#if (defined(CONFIG_MACH_MSM8974_15055) && ACTUATOR_KERNEL_DEBUG)
        drv_sensor_sysfs_init(msm_actuator_t);
 #endif
 	CDBG("Exit\n");

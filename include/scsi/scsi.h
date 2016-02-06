@@ -106,7 +106,7 @@ struct scsi_cmnd;
 #define UNMAP		      0x42
 #define READ_TOC              0x43
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #define READ_CD             0xbe
 #endif
  //end add by jiachenghui for cdrom suport MAC OSX,2015-06-30

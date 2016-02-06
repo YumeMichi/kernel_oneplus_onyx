@@ -46,7 +46,7 @@
 static struct v4l2_subdev *g_cci_subdev;
 
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to aviod ref_count chaos if cci_init and cci_release concurrency happened*/
 static struct mutex ref_count_lock;
 #endif
@@ -491,7 +491,7 @@ static int32_t msm_cci_i2c_read_bytes(struct v4l2_subdev *sd,
 		pr_err("%s:%d Invalid I2C master addr\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to avoid cci read or write if cci_dev is already released*/
 	if (cci_dev->cci_state == CCI_STATE_DISABLED){
 		pr_err("%s:%d cci state is DISABLED!\n", __func__, __LINE__);
@@ -543,7 +543,7 @@ static int32_t msm_cci_i2c_write(struct v4l2_subdev *sd,
 		pr_err("%s:%d Invalid I2C master addr\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to avoid cci read or write if cci_dev is already released*/
 	if (cci_dev->cci_state == CCI_STATE_DISABLED){
 		pr_err("%s:%d cci state is DISABLED!\n", __func__, __LINE__);
@@ -714,7 +714,7 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 	}
 
 /*Added by Jinshui.Liu@Camera 20140221 start for cci error*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	wake_lock(&cci_dev->cci_wakelock);
 #endif
 /*Added by Jinshui.Liu@Camera 20140221 end*/
@@ -823,7 +823,7 @@ static int32_t msm_cci_release(struct v4l2_subdev *sd)
 		cci_dev->master_clk_init[i] = 0;
 
 /*Added by Jinshui.Liu@Camera 20140221 start for cci error*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
     wake_unlock(&cci_dev->cci_wakelock);
 #endif
 /*Added by Jinshui.Liu@Camera 20140221 end*/
@@ -841,7 +841,7 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 	while (retry--) {
 		switch (cci_ctrl->cmd) {
 		case MSM_CCI_INIT:
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to aviod ref_count chaos if cci_init and cci_release concurrency happened*/
 			mutex_lock(&ref_count_lock);
 		rc = msm_cci_init(sd, cci_ctrl);
@@ -851,7 +851,7 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 #endif
 		break;
 	case MSM_CCI_RELEASE:
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to aviod ref_count chaos if cci_init and cci_release concurrency happened*/
 			mutex_lock(&ref_count_lock);
 		rc = msm_cci_release(sd);
@@ -863,7 +863,7 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 #endif
 		break;
 	case MSM_CCI_I2C_READ:
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to aviod ref_count chaos if cci_init and cci_release concurrency happened*/
 			mutex_lock(&ref_count_lock);
 		rc = msm_cci_i2c_read_bytes(sd, cci_ctrl);
@@ -874,7 +874,7 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 		break;
 	case MSM_CCI_I2C_WRITE:
 	case MSM_CCI_I2C_WRITE_SEQ:
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to aviod ref_count chaos if cci_init and cci_release concurrency happened*/
 			mutex_lock(&ref_count_lock);
 			rc = msm_cci_i2c_write(sd, cci_ctrl);
@@ -1304,11 +1304,11 @@ static int __devinit msm_cci_probe(struct platform_device *pdev)
 	CDBG("%s cci subdev %p\n", __func__, &new_cci_dev->msm_sd.sd);
 	CDBG("%s line %d\n", __func__, __LINE__);
 /*Added by Jinshui.Liu@Camera 20140221 start for cci error*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	wake_lock_init(&new_cci_dev->cci_wakelock,WAKE_LOCK_SUSPEND,"msm_cci_wakelock");
 #endif
 /*Added by Jinshui.Liu@Camera 20140221 end*/
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*hufeng 2014-11-05 add to aviod ref_count chaos if cci_init and cci_release concurrency happened*/
 	mutex_init(&ref_count_lock);
 #endif

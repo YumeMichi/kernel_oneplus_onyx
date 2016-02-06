@@ -42,10 +42,6 @@
 #include "kgsl_sync.h"
 #include "adreno.h"
 
-#ifdef VENDOR_EDIT
-//add by huruihuan for tradeoff performence and power
-#include <linux/oneplus.h>
-#endif
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "kgsl."
 
@@ -277,8 +273,7 @@ kgsl_mem_entry_destroy(struct kref *kref)
 	kgsl_mem_entry_detach_process(entry);
 
 	if (entry->memtype != KGSL_MEM_ENTRY_KERNEL)
-		atomic_sub(entry->memdesc.size,
-			&kgsl_driver.stats.mapped);
+		kgsl_driver.stats.mapped -= entry->memdesc.size;
 
 	/*
 	 * Ion takes care of freeing the sglist for us so
@@ -3085,8 +3080,8 @@ static long kgsl_ioctl_map_user_mem(struct kgsl_device_private *dev_priv,
 	/* Adjust the returned value for a non 4k aligned offset */
 	param->gpuaddr = entry->memdesc.gpuaddr + (param->offset & ~PAGE_MASK);
 
-	KGSL_STATS_ADD(param->len, &kgsl_driver.stats.mapped,
-		&kgsl_driver.stats.mapped_max);
+	KGSL_STATS_ADD(param->len, kgsl_driver.stats.mapped,
+		kgsl_driver.stats.mapped_max);
 
 	kgsl_process_add_stats(private, entry->memtype, param->len);
 
@@ -3688,18 +3683,6 @@ static long kgsl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	char ustack[64];
 	void *uptr = NULL;
 
-#ifndef VENDOR_EDIT
-//huruihuan add for regnoize game apps
-    if(!current->group_leader->game_flag && (!memcmp(current->comm, "UnityMain", 9) 
-	    || !memcmp(current->comm, "GLThread", 8) || !memcmp(current->comm, "Thread", 6))
-        && memcmp(current->group_leader->comm, "system_server", 13))
-        {
-            if(governor_dynamic)
-                current->group_leader->game_flag = PROCESS_MAIN_THREAD;
-            current->game_flag = PROCESS_RENDER_THREAD;
-        }
-
-#endif
 	BUG_ON(dev_priv == NULL);
 
 	/* Workaround for an previously incorrectly defined ioctl code.
@@ -4129,15 +4112,6 @@ struct kgsl_driver kgsl_driver  = {
 	 * 8064 and 8974 once the region to be flushed is > 16mb.
 	 */
 	.full_cache_threshold = SZ_16M,
-
-	.stats.vmalloc = ATOMIC_INIT(0),
-	.stats.vmalloc_max = ATOMIC_INIT(0),
-	.stats.page_alloc = ATOMIC_INIT(0),
-	.stats.page_alloc_max = ATOMIC_INIT(0),
-	.stats.coherent = ATOMIC_INIT(0),
-	.stats.coherent_max = ATOMIC_INIT(0),
-	.stats.mapped = ATOMIC_INIT(0),
-	.stats.mapped_max = ATOMIC_INIT(0),
 };
 EXPORT_SYMBOL(kgsl_driver);
 

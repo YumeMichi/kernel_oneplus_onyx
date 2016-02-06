@@ -455,7 +455,7 @@ struct taiko_priv {
 	 */
 	struct list_head reg_save_restore;
 	struct pm_qos_request pm_qos_req;
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	/*liuyan add 2013-11-26 for hpmic regulator*/
 	struct regulator	*cdc_hpmic_switch;
 	int hpmic_regulator_count;
@@ -466,7 +466,7 @@ struct taiko_priv {
 	struct fw_info *fw_data;
 };
 /* OPPO 2013-11-12 xuzhaoan Add begin for American Headset Detect */
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
     struct taiko_priv *priv_headset_type;
 #endif
 /* OPPO 2013-11-12 xuzhaoan Add end */
@@ -551,7 +551,7 @@ static unsigned short tx_digital_gain_reg[] = {
 	TAIKO_A_CDC_TX10_VOL_CTL_GAIN,
 };
 //liuyan 2013-3-13 add for headset detect
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 enum 
 {
 	NO_DEVICE	= 0,
@@ -1548,7 +1548,7 @@ static const struct soc_enum taiko_2_x_ear_pa_gain_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(taiko_2_x_ear_pa_gain_text),
 			taiko_2_x_ear_pa_gain_text);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* xiaojun.lv@PhoneDpt.AudioDrv,2014/3/18,modify for 14001 spk control*/
 static int spkr_put_control(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -1610,7 +1610,7 @@ static int spkr_get_control(struct snd_kcontrol *kcontrol,
 /*liuyan add end*/
 static const struct snd_kcontrol_new taiko_2_x_analog_gain_controls[] = {
 //liuyan 2013-8-12 add power on max2777
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	SOC_SINGLE_EXT("SPKR Enable", 0, 0, 1, 0,
 		                 spkr_get_control, spkr_put_control),
 #endif	
@@ -6358,21 +6358,21 @@ static int taiko_handle_pdata(struct taiko_priv *taiko)
 	}
 
 	/* Set micbias capless mode with tail current */
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	value = (pdata->micbias.bias1_cap_mode == MICBIAS_EXT_BYP_CAP ?
 		 0x00 : 0x16);
 #else
 	value = (pdata->micbias.bias1_cap_mode == MICBIAS_EXT_BYP_CAP ?
 		 0x00 : 0x16);
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 	snd_soc_update_bits(codec, TAIKO_A_MICB_1_CTL, 0x1E, value);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	value = (pdata->micbias.bias2_cap_mode == MICBIAS_EXT_BYP_CAP ?
 		 0x00 : 0x16);
 #else
 	value = (pdata->micbias.bias2_cap_mode == MICBIAS_EXT_BYP_CAP ?
 		 0x00 : 0x16);
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
         if(get_smartpa_project())
              value = 0x16;
 	snd_soc_update_bits(codec, TAIKO_A_MICB_2_CTL, 0x1E, value);
@@ -6732,10 +6732,10 @@ static const struct wcd9xxx_reg_mask_val taiko_codec_reg_init_val[] = {
 
 	/* set DMIC CLK drive strength to 4mA */
 	{TAIKO_A_HDRIVE_OVERRIDE, 0x07, 0x01},
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* liuyan@Onlinerd.driver, 2014/01/15  Add for micbias pull down */
 	{TAIKO_A_MICB_1_CTL,0x01,0x01},
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 };
 
 static void taiko_codec_init_reg(struct snd_soc_codec *codec)
@@ -6813,7 +6813,7 @@ int taiko_hs_detect(struct snd_soc_codec *codec,
 {
 	int rc;
 	struct taiko_priv *taiko = snd_soc_codec_get_drvdata(codec);
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	if(!get_smartpa_project())
 	{
        /*liuyan add for hpmic regulator*/
@@ -7356,7 +7356,7 @@ static int taiko_codec_probe(struct snd_soc_codec *codec)
 	}
         //liuyan 2014-1-10 modify for low frequence nois in
         //pluging headset
-	#ifndef VENDOR_EDIT
+	#ifndef CONFIG_MACH_MSM8974_15055
 	/* init and start mbhc */
 	ret = wcd9xxx_mbhc_init(&taiko->mbhc, &taiko->resmgr, codec,
 				taiko_enable_mbhc_micbias,
@@ -7373,7 +7373,7 @@ static int taiko_codec_probe(struct snd_soc_codec *codec)
 		goto err_hwdep;
 	}
 //liuyan 2013-3-13 add, headset detec
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	if(!get_smartpa_project())
 	{
        /*liuyan add for hpmic regulator*/
@@ -7511,7 +7511,7 @@ static int taiko_codec_probe(struct snd_soc_codec *codec)
 
 	codec->ignore_pmdown_time = 1;
 /* OPPO 2013-11-12 xuzhaoan Add begin for America Headset Detect */
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
     priv_headset_type = taiko;
 #endif
 /* OPPO 2013-11-12 xuzhaoan Add end */
@@ -7524,7 +7524,7 @@ err_hwdep:
 	kfree(taiko->fw_data);
 err_nomem_slimch:
 //luiyan 2013-3-13 add for headset detect
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 switch_dev_unregister(&taiko->mbhc.wcd9xxx_sdev);
 err_switch_dev_register:
 #endif

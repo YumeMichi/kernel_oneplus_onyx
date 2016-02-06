@@ -27,24 +27,6 @@
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
 
-#ifdef VENDOR_EDIT
-/* Mobile Phone Software Dept.Driver, 2014/04/11  Add for AT current for find7s */
-#include <linux/boot_mode.h>
-#endif /*VENDOR_EDIT*/
-#ifdef VENDOR_EDIT
-/* 2014-02-10 Added begin for Find7S */
-#include <linux/pcb_version.h>
-/* 2014-02-10 Added end */
-/* 2013-11-20 Add begin for compatible cmd mode and video mode */
-#define COMMAND_MODE_ENABLE
-/* 2013-11-20 Add end */
-//static unsigned char *mdss_dsi_base;
-#endif
-bool state_suspended;
-
-#ifdef VENDOR_EDIT
-extern bool is_15055_project(void);
-#endif
 static int mdss_dsi_regulator_init(struct platform_device *pdev)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -84,16 +66,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		return 0;
 
 	if (enable) {
-    #ifdef VENDOR_EDIT
-        if (gpio_is_valid(ctrl_pdata->vci_en_gpio)){
-            ret= mdss_dsi_panel_vci_en(pdata, 1);
-            if (ret) {
-                pr_err("%s:Failed to enable vci vregs.rc=%d\n",
-                    __func__, ret);
-            }
-            usleep(2000);
-        }
-    #endif
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data.vreg_config,
 			ctrl_pdata->power_data.num_vreg, 1);
@@ -103,11 +75,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			goto error;
 		}
 
-		if (!pdata->panel_info.mipi.lp11_init
-		#ifdef VENDOR_EDIT
-            || pdata->panel_info.cont_splash_enabled
-        #endif
-            ) {
+		if (!pdata->panel_info.mipi.lp11_init) {
 			ret = mdss_dsi_panel_reset(pdata, 1);
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
@@ -126,8 +94,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 					__func__, ret);
 			goto error;
 		}
-#ifndef VENDOR_EDIT
-/* Mobile Phone Software Dept.Driver, 2014/04/02  Modify for probabilistic blurred screen for find7s */
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data.vreg_config,
 			ctrl_pdata->power_data.num_vreg, 0);
@@ -135,32 +101,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			pr_err("%s: Failed to disable vregs.rc=%d\n",
 				__func__, ret);
 		}
-#else /*VENDOR_EDIT*/
-	if((get_pcb_version() >= HW_VERSION__20&&
-	     get_pcb_version() <HW_VERSION__30) &&
-		get_boot_mode()!= MSM_BOOT_MODE__FACTORY){
-		ret = 0;
-	}
-	else{
-	#ifdef VENDOR_EDIT
-        if(gpio_is_valid(ctrl_pdata->vci_en_gpio)){
-            ret= mdss_dsi_panel_vci_en(pdata, 0);
-            if (ret) {
-                pr_err("%s:Failed to disable vci vregs.rc=%d\n",
-                    __func__, ret);
-            }
-            usleep(1000);
-        }
-    #endif
-		ret = msm_dss_enable_vreg(
-			ctrl_pdata->power_data.vreg_config,
-			ctrl_pdata->power_data.num_vreg, 0);
-		if (ret) {
-			pr_err("%s: Failed to disable vregs.rc=%d\n",
-				__func__, ret);
-		}
-	}
-#endif /*VENDOR_EDIT*/
 	}
 error:
 	return ret;
@@ -197,34 +137,11 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 	of_node = dev->of_node;
 
 	mp->num_vreg = 0;
-#ifndef CONFIG_VENDOR_EDIT
-/* PhoneSW.Driver, 2014/02/10  Modify for Find7S */
 	for_each_child_of_node(of_node, supply_node) {
 		if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
 						26))
 			++mp->num_vreg;
 	}
-#else /*CONFIG_VENDOR_EDIT*/
-    if (is_15055_project()){
-        for_each_child_of_node(of_node, supply_node) {
-            if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
-                            26) && strncmp(supply_node->name, "qcom,platform-supply-entry1", 27))
-                ++mp->num_vreg;
-        }
-    }else if ((get_pcb_version() < HW_VERSION__20)||(get_pcb_version() >= HW_VERSION__30)) { /* For Find7 add 30 for N3*/
-        for_each_child_of_node(of_node, supply_node) {
-            if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
-                            26))
-                ++mp->num_vreg;
-        }
-	} else { /* For Find7S */
-        for_each_child_of_node(of_node, supply_node) {
-            if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
-                            26) && strncmp(supply_node->name, "qcom,platform-supply-entry1", 27))
-                ++mp->num_vreg;
-        }
-	}
-#endif /*CONFIG_VENDOR_EDIT*/
 	if (mp->num_vreg == 0) {
 		pr_debug("%s: no vreg\n", __func__);
 		goto novreg;
@@ -244,14 +161,6 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 		if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
 						26)) {
 			const char *st = NULL;
-#ifdef CONFIG_VENDOR_EDIT
-            /* PhoneSW.Driver, 2014/02/10  Add for Find7S */
-            if (is_15055_project() || ((get_pcb_version() >= HW_VERSION__20)&&(get_pcb_version() < HW_VERSION__30))) {/*add 30 for N3*/
-                if (!strncmp(supply_node->name, "qcom,platform-supply-entry1", 27)){
-                    continue;
-                }
-            }
-#endif /*CONFIG_VENDOR_EDIT*/
 			/* vreg-name */
 			rc = of_property_read_string(supply_node,
 				"qcom,supply-name", &st);
@@ -958,11 +867,8 @@ int mdss_dsi_cont_splash_on(struct mdss_panel_data *pdata)
 	pr_debug("%s+: ctrl=%p ndx=%d\n", __func__,
 				ctrl_pdata, ctrl_pdata->ndx);
 
-#ifndef CONFIG_VENDOR_EDIT
-/* PhoneSW.Driver, 2013/12/26  Delete for panel had initialized */
 	WARN((ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT),
 		"Incorrect Ctrl state=0x%x\n", ctrl_pdata->ctrl_state);
-#endif /*CONFIG_VENDOR_EDIT*/
 
 	mdss_dsi_sw_reset(pdata);
 	mdss_dsi_host_init(pdata);
@@ -1129,8 +1035,6 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		ctrl_pdata->ctrl_state |= CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
-
-		state_suspended = false;
 		break;
 	case MDSS_EVENT_BLANK:
 		if (ctrl_pdata->off_cmds.link_state == DSI_HS_MODE)
@@ -1141,16 +1045,8 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		if (ctrl_pdata->off_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_blank(pdata);
 		rc = mdss_dsi_off(pdata);
-
-		state_suspended = true;
 		break;
 	case MDSS_EVENT_CONT_SPLASH_FINISH:
-	/* 2013-10-18 added begin for continous splash */
-#ifdef VENDOR_EDIT
-		pr_err("%s: MDSS_EVENT_CONT_SPLASH_FINISH\n", __func__);
-		mdss_dsi_on(pdata);
-#endif
-/* 2013-10-18 added end */
 		if (ctrl_pdata->off_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_blank(pdata);
 		ctrl_pdata->ctrl_state &= ~CTRL_STATE_MDP_ACTIVE;
@@ -1174,10 +1070,6 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 			/* Panel is Enabled in Bootloader */
 			rc = mdss_dsi_blank(pdata);
 		}
-/* 2013-10-18 added begin for continous splash */
-#ifdef VENDOR_EDIT
-		 mdss_dsi_off(pdata);
-#endif
 		break;
 	case MDSS_EVENT_ENABLE_PARTIAL_UPDATE:
 		rc = mdss_dsi_ctl_partial_update(pdata);
@@ -1633,13 +1525,7 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	if (!gpio_is_valid(ctrl_pdata->disp_en_gpio))
 		pr_err("%s:%d, Disp_en gpio not specified\n",
 						__func__, __LINE__);
-#ifdef VENDOR_EDIT
-	ctrl_pdata->vci_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-		"qcom,platform-vci-enable-gpio", 0);
-	if (!gpio_is_valid(ctrl_pdata->vci_en_gpio))
-		pr_err("%s:%d, vci_en_gpio gpio not specified\n",
-						__func__, __LINE__);
-#endif
+
 	if (pinfo->type == MIPI_CMD_PANEL) {
 		ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 						"qcom,platform-te-gpio", 0);
@@ -1682,72 +1568,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 					ctrl_pdata->disp_te_gpio);
 	}
 
-#ifdef VENDOR_EDIT
-//##############################################################
-	ctrl_pdata->esd_check_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-		"qcom,platform-esd-check-gpio", 0);
-    if (gpio_is_valid(ctrl_pdata->esd_check_gpio)){
-        rc = gpio_request(ctrl_pdata->esd_check_gpio, "disp_esd");
-		if (rc) {
-			pr_err(" request ESD gpio failed, rc=%d\n",
-			       rc);
-			return -ENODEV;
-		}
-		rc = gpio_tlmm_config(GPIO_CFG(
-				ctrl_pdata->esd_check_gpio, 0,
-				GPIO_CFG_INPUT,
-				GPIO_CFG_PULL_DOWN,
-				GPIO_CFG_2MA),
-				GPIO_CFG_ENABLE);
-
-		if (rc) {
-			pr_err("%s: unable to ESD config tlmm\n",
-				__func__);
-			gpio_free(ctrl_pdata->esd_check_gpio);
-			return -ENODEV;
-		}
-
-		rc = gpio_direction_input(ctrl_pdata->esd_check_gpio);
-		if (rc) {
-			pr_err("set_direction for ESD GPIO failed, rc=%d\n",
-			       rc);
-			gpio_free(ctrl_pdata->esd_check_gpio);
-			return -ENODEV;
-		}
-	}else{
-        pr_err("%s:%d, esd_check_gpio gpio not specified\n",
-						__func__, __LINE__);
-	}
-
-	ctrl_pdata->err_fg_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-		"qcom,platform-err-fg-gpio", 0);
-    if (gpio_is_valid(ctrl_pdata->err_fg_gpio)){
-        rc = gpio_request(ctrl_pdata->err_fg_gpio, "err_fg_gpio");
-		if (rc) {
-			pr_err("request err_fg_gpio failed, rc=%d\n",
-			       rc);
-        }else{
-        rc = gpio_tlmm_config(GPIO_CFG(
-            ctrl_pdata->err_fg_gpio, 0,
-            GPIO_CFG_INPUT,
-            GPIO_CFG_PULL_DOWN,
-            GPIO_CFG_2MA),
-            GPIO_CFG_ENABLE);
-        if (rc) {
-            pr_err("%s: unable to err_fg_gpio\n",
-            __func__);
-            gpio_free(ctrl_pdata->err_fg_gpio);
-        }else{
-                rc = gpio_direction_input(ctrl_pdata->err_fg_gpio);
-                if (rc) {
-                    pr_err("set_direction for err_fg_gpio failed, rc=%d\n",
-                    rc);
-                    gpio_free(ctrl_pdata->err_fg_gpio);
-                }
-            }
-        }
-	}
-#endif
 	ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 			 "qcom,platform-reset-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
@@ -1763,16 +1583,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			pr_info("%s:%d, mode gpio not specified\n",
 							__func__, __LINE__);
 	} else {
-#ifdef VENDOR_EDIT
-/* 2014-02-21 add begin for Find7S */
-	ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-						"qcom,platform-te-gpio", 0);
-		ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-			 "qcom,platform-reset-gpio", 0);
-		ctrl_pdata->disp_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
-		"qcom,platform-enable-gpio", 0);
-/* 2014-02-11 add end */
-#endif
 		ctrl_pdata->mode_gpio = -EINVAL;
 	}
 

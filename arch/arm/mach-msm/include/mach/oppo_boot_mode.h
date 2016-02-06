@@ -1,6 +1,6 @@
 /************************************************************************************
 ** File: - android\kernel\arch\arm\mach-msm\include\mach\oppo_boot.h
-** VENDOR_EDIT
+** CONFIG_MACH_MSM8974_15055
 ** Copyright (C), 2008-2012, OPPO Mobile Comm Corp., Ltd
 ** 
 ** Description:  

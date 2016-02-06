@@ -55,7 +55,7 @@ struct tfa98xx {
 	struct delayed_work delay_work;
 	struct mutex dsp_init_lock;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	//zhiguang.su add 1224	
 	int tfa98xx_int_done;
 	int tfa98xx_Enable;

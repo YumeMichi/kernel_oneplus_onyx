@@ -29,10 +29,10 @@
 		qcom,android-usb-swfi-latency = <1>;
 		qcom,android-usb-uicc-nluns = /bits/ 8 <1>;
                 /*add by jiachenghui for cdrom,20150619*/
-                /*#ifdef VENDOR_EDIT*/
+                /*#ifdef CONFIG_MACH_MSM8974_15055*/
                 qcom,android-usb-cdrom;
                 qcom,android-usb-internal-ums;
-                /*#ifdef VENDOR_EDIT*/
+                /*#ifdef CONFIG_MACH_MSM8974_15055*/
                 /*end add by jiachenghui for cdrom,20150619*/
 	};
 
@@ -1554,7 +1554,7 @@
 			< 2419200000  965000  786 >,
 			< 2457600000  970000  802 >;
 	};
-	/*#ifdef VENDOR_EDITOR*/
+	/*#ifdef CONFIG_MACH_MSM8974_15055OR*/
 /*ruanbanmao@oneplus.cn modify for the clk Tlow of NFC_I2C testing fail, begin. 2015-01-19*/
 	/*i2c@f9928000 { /* BLSP-1 QUP-6 */
 	/*	cell-index = <3>;

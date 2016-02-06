@@ -27,7 +27,7 @@
 #include "xhci.h"
 
 //add by jiachenghui for otg switch, 2015-7-24
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 int otg_switch;
@@ -561,7 +561,7 @@ static void dwc3_otg_notify_host_mode(struct usb_otg *otg, int host_mode)
 		power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_DEVICE);
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 extern int get_boot_mode(void);
 #endif
 static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
@@ -584,7 +584,7 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_CDP;
 	else if (dotg->charger->chg_type == DWC3_DCP_CHARGER ||
 			dotg->charger->chg_type == DWC3_PROPRIETARY_CHARGER
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 			// add by xcb
 			|| dotg->charger->chg_type == DWC3_FLOATED_CHARGER
 #endif
@@ -602,7 +602,7 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 		return 0;
 
 	dev_info(phy->dev, "Avail curr from USB = %u\n", mA);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
       if(get_boot_mode()==MSM_BOOT_MODE__RF){
 		/* Disable charging */
 		if (power_supply_set_online(dotg->psy, false))
@@ -776,7 +776,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 
 		/* Switch to A or B-Device according to ID / BSV */
 		//add by jiachenghui for otg switch, 2015-7-24
-		#ifdef VENDOR_EDIT
+		#ifdef CONFIG_MACH_MSM8974_15055
 		if (!oem_test_id(ID, &dotg->inputs)) {
 		#else
 		//end add by jiachenghui for otg switch, 2015-7-24
@@ -798,7 +798,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 
 	case OTG_STATE_B_IDLE:
 		//add by jiachenghui for otg switch, 2015-7-24
-		#ifdef VENDOR_EDIT
+		#ifdef CONFIG_MACH_MSM8974_15055
 		if (!oem_test_id(ID, &dotg->inputs)) {
 		#else
 		//end add by jiachenghui for otg switch, 2015-7-24
@@ -837,7 +837,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					work = 1;
 					break;
 				case DWC3_SDP_CHARGER:
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 					dwc3_otg_set_power(phy, 500);
 #endif
 					dwc3_otg_start_peripheral(&dotg->otg,
@@ -908,7 +908,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 
 	case OTG_STATE_B_PERIPHERAL:
 		//add by jiachenghui for otg switch, 2015-7-24
-		#ifdef VENDOR_EDIT
+		#ifdef CONFIG_MACH_MSM8974_15055
 		if (!test_bit(B_SESS_VLD, &dotg->inputs) ||
 				!oem_test_id(ID, &dotg->inputs)) {
 		#else
@@ -928,7 +928,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 	case OTG_STATE_A_IDLE:
 		/* Switch to A-Device*/
 		//add by jiachenghui for otg switch, 2015-7-24
-		#ifdef VENDOR_EDIT
+		#ifdef CONFIG_MACH_MSM8974_15055
 		if (oem_test_id(ID, &dotg->inputs)) {
 		#else
 		//end add by jiachenghui for otg switch, 2015-7-24
@@ -968,7 +968,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 
 	case OTG_STATE_A_HOST:
 		//add by jiachenghui for otg switch, 2015-7-24
-		#ifdef VENDOR_EDIT
+		#ifdef CONFIG_MACH_MSM8974_15055
 		if (oem_test_id(ID, &dotg->inputs)) {
 		#else
 		//end add by jiachenghui for otg switch, 2015-7-24
@@ -997,7 +997,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 }
 
 //add by jch for otg swith retest id,2015-7-24
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static void oem_ext_event_notify(struct usb_otg *otg,enum dwc3_ext_events event,enum dwc3_id_state id, bool enable)
 {
 	static bool init;
@@ -1221,7 +1221,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	int ret = 0;
 	struct dwc3_otg *dotg;
 //add by jiachenghui for otg switch, 2015-7-24
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	static struct proc_dir_entry *proc_otg_dir = NULL;
 	otg_switch = 0;
 	proc_otg_dir = proc_mkdir("otg_config", NULL);
@@ -1316,7 +1316,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 		goto err3;
 	}
 //add by jch for otg swith retest id,2015-6-5
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
       gdotg = dotg;//add by jch for otg swith retest id,2015-6-5
 #endif
 //end add by jch for otg swith retest id,2015-6-5

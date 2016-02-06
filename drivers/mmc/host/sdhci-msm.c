@@ -298,7 +298,7 @@ struct sdhci_msm_pltfm_data {
 	int mpm_sdiowakeup_int;
 	int sdiowakeup_irq;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
     int sdcard_2p95_en;
 #endif
@@ -352,7 +352,7 @@ enum vdd_io_level {
 	VDD_IO_SET_LEVEL,
 };
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 extern int tf_card_status;
 extern int mmc_cd_get_status(struct mmc_host *host);
 #endif
@@ -1011,7 +1011,7 @@ static int sdhci_msm_setup_pins(struct sdhci_msm_pltfm_data *pdata, bool enable)
 
 	if (!pdata->pin_data || (pdata->pin_data->cfg_sts == enable))
 		return 0;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	if(tf_card_status==0 && enable && pdata->sdcard_2p95_en)
 		return 0;
 #endif
@@ -1379,7 +1379,7 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 	u32 *clk_table = NULL;
 	enum of_gpio_flags flags = OF_GPIO_ACTIVE_LOW;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
     int sdcard_2p95_en;
 #endif
@@ -1394,7 +1394,7 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 	if (gpio_is_valid(pdata->status_gpio) & !(flags & OF_GPIO_ACTIVE_LOW))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
     if(!of_property_read_u32(np, "sdcard_2p95_en", &sdcard_2p95_en)){
         pdata->sdcard_2p95_en = sdcard_2p95_en;
@@ -1869,7 +1869,7 @@ static int sdhci_msm_setup_vreg(struct sdhci_msm_pltfm_data *pdata,
 			 __func__);
 		goto out;
 	}
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	if(tf_card_status==0 && enable && pdata->sdcard_2p95_en)
 		return 0;
 #endif
@@ -1968,7 +1968,7 @@ static int sdhci_msm_set_vdd_io_vol(struct sdhci_msm_pltfm_data *pdata,
 		return ret;
 
 	vdd_io_reg = pdata->vreg_data->vdd_io_data;
-#ifdef VENDOR_EDIT/*add for sd card hot plug*/
+#ifdef CONFIG_MACH_MSM8974_15055/*add for sd card hot plug*/
 	if((tf_card_status==0) && (level ==VDD_IO_HIGH) && (pdata->sdcard_2p95_en)){
 		return 0;
 	}
@@ -2040,7 +2040,7 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 	int pwr_state = 0, io_level = 0;
 	unsigned long flags;
 
-#ifdef VENDOR_EDIT/*Get sd card detect status*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Get sd card detect status*/
     if(host->mmc->sdcard_2p95_en)
 		tf_card_status = mmc_cd_get_status(host->mmc);
 #endif
@@ -3044,7 +3044,7 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@filesystems, 2015/08/07, add for drop power if sdcard not present
 	if(msm_host->pdata->sdcard_2p95_en){
 		ret = gpio_request_one(msm_host->pdata->sdcard_2p95_en,

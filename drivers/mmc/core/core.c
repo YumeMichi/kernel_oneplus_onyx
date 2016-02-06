@@ -30,7 +30,7 @@
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/gpio.h>
 #endif
 
@@ -117,7 +117,7 @@ MODULE_PARM_DESC(
 		spin_unlock(&stats.lock);				\
 	} while (0);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 struct mmc_cd_gpio {
 	unsigned int gpio;
 	bool status;
@@ -3149,7 +3149,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	if (!mmc_attach_mmc(host))
 		return 0;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
     if(host->sdcard_2p95_en){
 		gpio_direction_output(host->sdcard_2p95_en,0);
 	}
@@ -3239,7 +3239,7 @@ void mmc_rescan(struct work_struct *work)
 
 	mmc_bus_get(host);
 	mmc_rpm_hold(host, &host->class_dev);
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	if(host->sdcard_2p95_en && mmc_cd_get_status(host)){
 		gpio_direction_output(host->sdcard_2p95_en,1);
 		pr_info("Enable sd card power(2.95v)\n");
@@ -3739,7 +3739,7 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		host->rescan_disable = 0;
 		spin_unlock_irqrestore(&host->lock, flags);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@bsp, 2015/09/11, fix the bug that cannot rescan sd card after suspend
 		if(host->sdcard_2p95_en){
 			int status;

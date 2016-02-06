@@ -63,13 +63,13 @@
 			qcom,pull-up = <1>;
 			qcom,s1-timer = <10256>;
 			qcom,s2-timer = <2000>;
-                        //#ifdef VENDOR_EDIT
+                        //#ifdef CONFIG_MACH_MSM8974_15055
                         //modify by yangrujin@bsp 2015/9/10, set s2 reset type to hard reset
 			qcom,s2-type = <7>;
                         //#endif
 			linux,code = <116>;
 		};
-//#ifdef VENDOR_EDIT
+//#ifdef CONFIG_MACH_MSM8974_15055
 // modify by yangrujin@bsp 2015/9/17, comment out because not use inner reset_n
 //		qcom,pon_2 {
 //			qcom,pon-type = <1>;
@@ -205,24 +205,24 @@
 
 	pm8941_chg: qcom,charger {
 		spmi-dev-container;
-//#ifdef CONFIG_VENDOR_EDIT
+//#ifdef CONFIG_MACH_MSM8974_15055
 		//modify by xcb
 		compatible = "oem,qpnp-charger";
-//#endif CONFIG_VENDOR_EDIT
+//#endif CONFIG_MACH_MSM8974_15055
 		#address-cells = <1>;
 		#size-cells = <1>;
 		status = "disabled";
-//#ifdef CONFIG_VENDOR_EDIT
+//#ifdef CONFIG_MACH_MSM8974_15055
 		//add by xcb
 		oem,use-external-charger;
-//#endif CONFIG_VENDOR_EDIT
+//#endif CONFIG_MACH_MSM8974_15055
 
 		/*vendor_edit wangjc change*/
-//#ifdef CONFIG_VENDOR_EDIT
+//#ifdef CONFIG_MACH_MSM8974_15055
 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
 		qcom,vddmax-mv = <4320>;
 		qcom,vddsafe-mv = <4320>;
-//#endif /*CONFIG_VENDOR_EDIT*/
+//#endif /*CONFIG_MACH_MSM8974_15055*/
 		qcom,vinmin-mv = <4400>;
 		qcom,ibatmax-ma = <2000>;
 		qcom,ibatterm-ma = <150>;
@@ -234,11 +234,11 @@
 		qcom,warm-bat-decidegc = <450>;
 		qcom,warm-bat-mv = <4100>;
 		qcom,ibatmax-cool-ma = <900>;
-//#ifdef CONFIG_VENDOR_EDIT
+//#ifdef CONFIG_MACH_MSM8974_15055
 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
 		qcom,little-cool-bat-mv = <4320>;
 		qcom,ibatmax-little-cool-ma = <1400>;
-//#endif /*CONFIG_VENDOR_EDIT*/
+//#endif /*CONFIG_MACH_MSM8974_15055*/
 		qcom,vbatdet-delta-mv = <100>;
 		qcom,resume-soc = <99>;
 		qcom,tchg-mins = <150>;

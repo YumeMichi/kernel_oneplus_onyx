@@ -101,10 +101,10 @@ static ssize_t power_supply_show_property(struct device *dev,
 		return sprintf(buf, "%s\n", type_text[value.intval]);
 	else if (off == POWER_SUPPLY_PROP_SCOPE)
 		return sprintf(buf, "%s\n", scope_text[value.intval]);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	else if (off == POWER_SUPPLY_PROP_BATTERY_TYPE)
 		return sprintf(buf, "%s\n", value.strval);
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
@@ -143,7 +143,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(health),
 	POWER_SUPPLY_ATTR(present),
 	POWER_SUPPLY_ATTR(online),
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	POWER_SUPPLY_ATTR(authentic),
 #endif
@@ -186,7 +186,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(temp),
 	POWER_SUPPLY_ATTR(temp_cool),
 	POWER_SUPPLY_ATTR(temp_warm),
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	POWER_SUPPLY_ATTR(temp_cold),
 	POWER_SUPPLY_ATTR(temp_overheat),
@@ -204,18 +204,18 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(system_temp_level),
 	POWER_SUPPLY_ATTR(resistance),
 	POWER_SUPPLY_ATTR(authenticate),//wangjc add for authentication
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
 	POWER_SUPPLY_ATTR(charge_timeout),
-#endif /*CONFIG_VENDOR_EDIT*/
-#ifdef CONFIG_VENDOR_EDIT
+#endif /*CONFIG_MACH_MSM8974_15055*/
+#ifdef CONFIG_MACH_MSM8974_15055
 	// add by xcb
 	POWER_SUPPLY_ATTR(battery_type),
 	POWER_SUPPLY_ATTR(calculated_soc),
 	POWER_SUPPLY_ATTR(charge_done),
 	POWER_SUPPLY_ATTR(charge_ovp),
 	POWER_SUPPLY_ATTR(constant_charge_current_max),
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 #ifdef CONFIG_PIC1503_FASTCG
 /* jingchun.wang@Onlinerd.Driver,2013/12/22 Add for fastchg*/

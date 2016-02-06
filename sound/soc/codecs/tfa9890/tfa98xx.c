@@ -43,7 +43,7 @@
 
 static int test =0;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-11, repair when MTP 0 fail*/
 extern int recoverMtp0;
 #endif
@@ -69,7 +69,7 @@ struct tfa98xx *g_tfa98xx = NULL;
 EXPORT_SYMBOL_GPL(g_tfa98xx);
 
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-05-29, add for smart pa calibtation*/
 static ssize_t tfa98xx_state_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -101,7 +101,7 @@ static ssize_t tfa98xx_state_show(struct device *dev, struct device_attribute *a
 
     mutex_lock(&tfa98xx->dsp_init_lock);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-11, Modify for MTP recovery*/
         /*
 	     * check the contents of  MTP register for non-zero,
@@ -158,7 +158,7 @@ static ssize_t tfa98xx_state_show(struct device *dev, struct device_attribute *a
 	if (!tfa98xx_dsp_start(tfa98xx, tfa98xx->profile, tfa98xx->vstep))
 		tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-11, Modify for MTP recovery*/
         /*
 	     * check the contents of  MTP register for non-zero,
@@ -257,7 +257,7 @@ int tfa98xx_bulk_write_raw(struct snd_soc_codec *codec, const u8 *data, u8 count
 }
 
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-24,remove monitor,it will cause system crash because of mutex lock*/
 static void tfa98xx_monitor(struct work_struct *work)
 {
@@ -273,7 +273,7 @@ static void tfa98xx_monitor(struct work_struct *work)
 	 */
 	val = snd_soc_read(tfa98xx->codec, TFA98XX_STATUSREG);
 	pr_debug("monitor SYS_STATUS: 0x%04x\n", val);
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 		/* zhiguang.su@MultiMedia.AudioDrv on 2015-04-21, fix bug for sound break off*/
 	if ((TFA98XX_STATUSREG_ACS & val) ||
 		(TFA98XX_STATUSREG_WDS & val) ||
@@ -407,7 +407,7 @@ static int tfa98xx_digital_mute(struct snd_soc_dai *dai, int mute)
 	mutex_lock(&tfa98xx->dsp_init_lock);
 
 	if (mute) {
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-24,remove monitor,it will cause system crash because of mutex lock*/
 		cancel_delayed_work_sync(&tfa98xx->delay_work);
 #endif
@@ -429,7 +429,7 @@ static int tfa98xx_digital_mute(struct snd_soc_dai *dai, int mute)
 		 */
 		tfa98xx_dsp_quickstart(tfa98xx, tfa98xx->profile, tfa98xx->vstep);
 		test = 1;
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-24,remove monitor,it will cause system crash because of mutex lock*/
 		queue_delayed_work(tfa98xx->tfa98xx_wq, &tfa98xx->delay_work, 5*HZ);
 #endif
@@ -525,12 +525,12 @@ int tfa98xx_get_profile_ctl(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_lock(&tfa98xx->dsp_init_lock);
 #endif
 	ucontrol->value.integer.value[0] = tfa98xx->profile;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_unlock(&tfa98xx->dsp_init_lock);
 #endif
@@ -549,19 +549,19 @@ int tfa98xx_set_profile_ctl(struct snd_kcontrol *kcontrol,
     if (tfa98xx->profile == ucontrol->value.integer.value[0])
      return 0;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_lock(&tfa98xx->dsp_init_lock);
 #endif
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-11,change for wave profile */
     tfa98xx->profile = ucontrol->value.integer.value[0];
 	if (tfa98xx_is_amp_running(tfa98xx)) {
 		tfaContWriteProfile(tfa98xx, tfa98xx->profile, prof->vstep);
 	}
 #endif
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_unlock(&tfa98xx->dsp_init_lock);
 #endif
@@ -592,13 +592,13 @@ int tfa98xx_get_vol_ctl(struct snd_kcontrol *kcontrol,
 	int index = tfa98xx->profile;
 	struct tfaprofile *prof = &profiles[index];
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_lock(&tfa98xx->dsp_init_lock);
 #endif
 	ucontrol->value.integer.value[0] = prof->vsteps - prof->vstep - 1;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_unlock(&tfa98xx->dsp_init_lock);
 #endif
@@ -617,7 +617,7 @@ int tfa98xx_set_vol_ctl(struct snd_kcontrol *kcontrol,
 	if (prof->vstep == prof->vsteps - ucontrol->value.integer.value[0] - 1)
 		return 0;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_lock(&tfa98xx->dsp_init_lock);
 #endif
@@ -630,7 +630,7 @@ int tfa98xx_set_vol_ctl(struct snd_kcontrol *kcontrol,
 		tfaContWriteProfile(tfa98xx, tfa98xx->profile, prof->vstep);
 	}
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-07-06,add lock */
 	mutex_unlock(&tfa98xx->dsp_init_lock);
 #endif
@@ -667,7 +667,7 @@ int tfa98xx_set_stop_ctl(struct snd_kcontrol *kcontrol,
 	struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
 
 	if ((ucontrol->value.integer.value[0] != 0) && !tfa98xx_is_pwdn(tfa98xx)) {
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-24,remove monitor,it will cause system crash because of mutex lock*/
 		cancel_delayed_work_sync(&tfa98xx->delay_work);
 #endif
@@ -799,7 +799,7 @@ static int tfa98xx_probe(struct snd_soc_codec *codec)
 	snd_soc_add_codec_controls(codec, tfa98xx_controls, ARRAY_SIZE(tfa98xx_controls));
 
 	dev_info(codec->dev, "tfa98xx codec registered");
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	//zhiguang.su add
 	g_tfa98xx = tfa98xx;
 	//zhiguang.su add end
@@ -863,7 +863,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		goto wq_fail;
 	}
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	//zhiguang.su add 1218
 	tfa98xx->rst_gpio = of_get_named_gpio(np, "reset_gpio",0);
 	ret = gpio_request(tfa98xx->rst_gpio, "tfa reset gpio");
@@ -881,7 +881,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 
 	INIT_WORK(&tfa98xx->init_work, tfa98xx_dsp_init);
 
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*suzhiguang@MultiMedia.AudioDrv, 2015-08-24,remove monitor,it will cause system crash because of mutex lock*/
 	INIT_DELAYED_WORK(&tfa98xx->delay_work, tfa98xx_monitor);
 #endif
@@ -894,13 +894,13 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 		goto codec_fail;
 	}
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*zhiguang.su@MultiMedia.AudioDrv on 2015-05-18,optimize for speed */
 	pr_debug("tfa98xx probed successfully!");
 #endif
 
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* zhiguang.su@MultiMedia.AudioDrv on 2015-05-29, add for smart pa calibtation*/
 	error = sysfs_create_file(&i2c->dev.kobj, &tfa98xx_state_attr.attr);
     if(error < 0)

@@ -1,6 +1,6 @@
 /************************************************************************************
 ** File: - /android/kernel/drivers/input/touchscreen/synaptic_s3203_13095/synaptics_s3203_13095.c
-** VENDOR_EDIT
+** CONFIG_MACH_MSM8974_15055
 ** Copyright (C), 2008-2012, OPPO Mobile Comm Corp., Ltd
 **
 ** Description:
@@ -129,7 +129,7 @@ struct test_header {
 #define Wgestrue            13  // W
 
 // carlo@oneplus.net 2015-05-25, begin.
-#ifdef VENDOR_EDIT_OXYGEN
+#ifdef CONFIG_MACH_MSM8974_15055_OXYGEN
 #define KEY_DOUBLE_TAP          249 // double tap to wake
 #define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
 #define KEY_GESTURE_TWO_SWIPE	251 // swipe two finger vertically to play/pause
@@ -386,7 +386,7 @@ static const struct dev_pm_ops synaptic_pm_ops = {
 };
 
 //add by jiachenghui for boot time optimize 2015-5-13
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static int probe_ret;
 struct synaptics_optimize_data{
 	struct delayed_work work;
@@ -439,17 +439,17 @@ static int oem_synaptics_ts_probe(struct i2c_client *client, const struct i2c_de
 	//spin_unlock_irqrestore(&oem_lock, flags);
 	return probe_ret;
 }
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 //end add by jiachenghui for boot time optimize 2015-5-13
 
 static struct i2c_driver tpd_i2c_driver = {
 //add by jiachenghui for boot time optimize 2015-5-13
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	.probe		= oem_synaptics_ts_probe,
 #else
 //end add by jiachenghui for boot time optimize 2015-5-13
 	.probe		= synaptics_ts_probe,
-#endif /*VENDOR_EDIT*///add by jiachenghui for boot time optimize 2015-5-13
+#endif /*CONFIG_MACH_MSM8974_15055*///add by jiachenghui for boot time optimize 2015-5-13
 	.remove		= synaptics_ts_remove,
 	.id_table	= synaptics_ts_id,
 	.driver = {
@@ -1488,7 +1488,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 	  	}
 
 // carlo@oneplus.net 2015-05-25, begin.
-#ifdef VENDOR_EDIT_OXYGEN
+#ifdef CONFIG_MACH_MSM8974_15055_OXYGEN
 	keyCode = UnkownGestrue;
 	// Get key code based on registered gesture.
 	switch (gesture) {
@@ -1672,11 +1672,11 @@ static void int_touch_s3508(struct synaptics_ts_data *ts,bool insert_flag)
 				points.x = ((buf[i*8+2]&0x0f)<<8) | (buf[i*8+1] & 0xff);
 				points.y = ((buf[i*8+4]&0x0f)<<8) | (buf[i*8+3] & 0xff);
 
-				#ifdef VENDOR_EDIT //shankai@bsp.driver , workaround , fixed the bug that report wrong data when more
+				#ifdef CONFIG_MACH_MSM8974_15055 //shankai@bsp.driver , workaround , fixed the bug that report wrong data when more
 				// than five finger touch at the same time , 2015.7.25
 				if ((points.x > 1080)||(points.y> 1920))
 					return ;
-				#endif //VENDOR_EDIT
+				#endif //CONFIG_MACH_MSM8974_15055
 
 				points.raw_x = buf[i*8+6] & 0x0f;
 				points.raw_y = buf[i*8+7] & 0x0f;
@@ -3848,7 +3848,7 @@ static int init_synaptics_proc(void)
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create TP proc entry\n");
 	}
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	//shankai@BSP.TP,2015/07/25,add the fixed node to the directory /proc/touchpanel/ start
 	prEntry_vendor_id = proc_create( "vendor_id", 0666, prEntry_tp, &tp_vendor_id_proc_fops);
 	if(prEntry_vendor_id == NULL){
@@ -4556,8 +4556,6 @@ static int synaptics_ts_probe(
 	//	printk("TP_DEV = Unkowm\n");
 	//}
 	TPD_DEBUG("synatpitcs_fw: fw_name = %s \n",ts->fw_name);
-	register_device_proc("tp", tp_info.version, tp_info.manufacture);
-	push_component_info(TP, tp_info.version,  tp_info.manufacture);
 	/*disable interrupt*/
 	ret = synaptics_enable_interrupt(ts, 0);
 	if( ret < 0 ){

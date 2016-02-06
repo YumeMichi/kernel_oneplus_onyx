@@ -135,7 +135,7 @@ bq24196_ibatmax_set(struct bq24196_device_info *di, int chg_current)
 		value |= 1;
 		return bq24196_chg_masked_write(di,CHARGE_CURRENT_CTRL,BQ24196_IBATMAX_BITS,value,1);
 	} 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
        /* yangfangbiao@oneplus.cn, 2015/03/15	set charge current 300ma  */
 	else if(chg_current == 300) {
 		value = (1536 - BQ24196_CHG_IBATMAX_MIN)/64;
@@ -143,7 +143,7 @@ bq24196_ibatmax_set(struct bq24196_device_info *di, int chg_current)
 		value |= 1;
 		return bq24196_chg_masked_write(di,CHARGE_CURRENT_CTRL,BQ24196_IBATMAX_BITS,value,1);
 	} 
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 	else if(chg_current == 500) {
 		value = (2496 - BQ24196_CHG_IBATMAX_MIN)/64;
 		value <<= 2;
@@ -156,12 +156,12 @@ bq24196_ibatmax_set(struct bq24196_device_info *di, int chg_current)
 			pr_err("bad ibatmA=%d,default to 512mA\n", chg_current);
 		}
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 // Jingchun.Wang@Phone.Bsp.Driver, 2014/09/30  Add for avoid BATFET OCP when ibat<1024mA 
 		if(chg_current < 1024) {
 			chg_current = BQ24196_CHG_IBATMAX_HRM;
 		}
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 		
 
 		value = (chg_current - BQ24196_CHG_IBATMAX_MIN)/64;
@@ -626,7 +626,7 @@ static struct i2c_driver bq24196_charger_driver = {
 	.id_table	= bq24196_id,
 };
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* add by yangrujin@bsp 2015/9/16, if device is 15055, not register bq24196*/
 bool is_15055_project(void);
 #endif
@@ -636,7 +636,7 @@ static int __init bq24196_charger_init(void)
 {
 	int ret;
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* add by yangrujin@bsp 2015/9/16, if device is 15055, not register bq24196*/
     if(is_15055_project()){
         pr_info("Not register bq24196\n");

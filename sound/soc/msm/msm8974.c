@@ -84,7 +84,7 @@ static void *adsp_state_notifier;
 
 extern int get_smartpa_project(void);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 static int sec_mi2s_bit_format = SNDRV_PCM_FORMAT_S16_LE;
 static int sec_mi2s_sample_rate = SAMPLING_RATE_48KHZ;
 #endif
@@ -116,7 +116,7 @@ static const char *const auxpcm_rate_text[] = {"rate_8000", "rate_16000"};
 static const struct soc_enum msm8974_auxpcm_enum[] = {
 		SOC_ENUM_SINGLE_EXT(2, auxpcm_rate_text),
 };
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* xiaojun.lv@PhoneDpt.AudioDrv, 2014/06/25, add for 14021 sec i2s patch */
 //#define GPIO_SEC_MI2S_MCLK   78
 #define GPIO_SEC_MI2S_SCK    79
@@ -185,13 +185,13 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.mclk_rate = TAIKO_EXT_CLK_RATE,
 	.gpio = 0,
 	.gpio_irq = 0,
-#ifndef VENDOR_EDIT //luyan modify 2013-4-18
+#ifndef CONFIG_MACH_MSM8974_15055 //luyan modify 2013-4-18
 	.gpio_level_insert = 1,
 #else
 	.gpio_level_insert = 0,
 #endif
 	.detect_extn_cable = false,
-#ifdef VENDOR_EDIT //luyan modify micbias to dc
+#ifdef CONFIG_MACH_MSM8974_15055 //luyan modify micbias to dc
 	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET | 1<<MBHC_MICBIAS_ENABLE_REGULAR_HEADSET,
 #else
 	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET,
@@ -208,7 +208,7 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.hw_jack_type = SIX_POLE_JACK,
 
 /* OPPO 2013-10-22 liuyan Modify end */
-#ifdef VENDOR_EDIT  //liuyan add 2013-4-18
+#ifdef CONFIG_MACH_MSM8974_15055  //liuyan add 2013-4-18
        .hpmic_switch_gpio=0,
        .enable_spk_gpio=0,
 	.yda145_ctr_gpio=0,
@@ -230,7 +230,7 @@ struct msm_auxpcm_ctrl {
 
 struct msm8974_asoc_mach_data {
 //liuyan 2013-3-14 add,hp mic switch
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
        int hpmic_switch_gpio;
 	struct regulator	*cdc_spk;
 	int enable_spk_gpio;
@@ -771,7 +771,7 @@ static int msm8974_mclk_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/25,add for enable i2s*/
 static int sec_mi2s_sample_rate_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -872,7 +872,7 @@ static const struct snd_soc_dapm_widget msm8974_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 //liuyan 2013-4-18 modify
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("ANCLeft Headset Mic", NULL),
 #else
@@ -1561,7 +1561,7 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/25,add for enable i2s*/
 static int msm_be_sec_mi2s_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					    struct snd_pcm_hw_params *params)
@@ -1632,7 +1632,7 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("HDMI_RX SampleRate", msm_snd_enum[7],
 			hdmi_rx_sample_rate_get, hdmi_rx_sample_rate_put),
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/25,add for enable i2s*/
 		SOC_ENUM_EXT("SEC_MI2S BitWidth", msm_snd_enum[4],
 				sec_mi2s_bit_format_get, sec_mi2s_bit_format_put),
@@ -1755,7 +1755,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
        struct msm8974_asoc_mach_data *mach_data;
 
 #endif
@@ -1845,7 +1845,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 		}
 	}
 	/* start mbhc */
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 if(!get_smartpa_project())
 {
        mach_data=(struct msm8974_asoc_mach_data*)(rtd->card->drvdata);
@@ -1895,7 +1895,7 @@ if(!get_smartpa_project())
 	gpio_direction_output(mbhc_cfg.yda145_ctr_gpio, 0);
 	printk("%s:yda145_ctr_gpio(%d)\n",__func__,mbhc_cfg.yda145_ctr_gpio);
 	}
-#endif /* VENDOR_EDIT */
+#endif /* CONFIG_MACH_MSM8974_15055 */
 	mbhc_cfg.calibration = def_taiko_mbhc_cal();
 	if (mbhc_cfg.calibration) {
 		err = taiko_hs_detect(codec, &mbhc_cfg);
@@ -1961,7 +1961,7 @@ void *def_taiko_mbhc_cal(void)
 #undef S
 #define S(X, Y) ((WCD9XXX_MBHC_CAL_PLUG_TYPE_PTR(taiko_cal)->X) = (Y))
 	S(v_no_mic, 30);
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 	S(v_hs_max, 2400);
 #else
     S(v_hs_max, 2750);
@@ -1983,7 +1983,7 @@ void *def_taiko_mbhc_cal(void)
 	btn_low = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg, MBHC_BTN_DET_V_BTN_LOW);
 	btn_high = wcd9xxx_mbhc_cal_btn_det_mp(btn_cfg,
 					       MBHC_BTN_DET_V_BTN_HIGH);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	btn_low[0] = -50;
 	btn_high[0] = 70;
 	btn_low[1] = 71;
@@ -2104,7 +2104,7 @@ static struct snd_soc_ops msm8974_be_ops = {
 	.shutdown = msm8974_snd_shudown,
 };
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* xiaojun.lv@PhoneDpt.AudioDrv, 2014/06/25, add for 14021 sec i2s patch */
 static int msm8974_mi2s_free_gpios(void)
 {
@@ -2829,7 +2829,7 @@ static struct snd_soc_dai_link msm8974_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 		.be_id = MSM_FRONTEND_DAI_VOWLAN,
 	},
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s loopback*/
 	{
       .name = "SEC_MI2S Hostless",
@@ -3365,7 +3365,7 @@ static __devinit int msm8974_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 //liuyan 2013-3-14 add,hp mic switch
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
    if(!get_smartpa_project())
 	{
        pdata->hpmic_switch_gpio= of_get_named_gpio(pdev->dev.of_node,
@@ -3457,7 +3457,7 @@ static __devinit int msm8974_asoc_machine_probe(struct platform_device *pdev)
 	} else {
 		dev_info(&pdev->dev, "%s(): No hdmi audio support\n", __func__);
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 		if(get_smartpa_project())
 		{
 	        pr_err("wdd add smartpa\n");
@@ -3497,7 +3497,7 @@ static __devinit int msm8974_asoc_machine_probe(struct platform_device *pdev)
 			ret);
 		goto err;
 	}
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 if(!get_smartpa_project())
 {
 /* xiaojun.lv@Prd.AudioDrv,2014/2/10,add for 14001 regulator*/
@@ -3513,7 +3513,7 @@ if(!get_smartpa_project())
 		    mbhc_cfg.cdc_spk = pdata->cdc_spk;
 		}
 }
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 	/* Parse Primary AUXPCM info from DT */
 	ret = msm8974_dtparse_auxpcm(pdev, &pdata->pri_auxpcm_ctrl,

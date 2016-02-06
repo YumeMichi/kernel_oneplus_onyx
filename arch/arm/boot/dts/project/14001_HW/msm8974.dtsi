@@ -18,11 +18,11 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
-		/*VENDOR_EDIT wangjc del spi0*/
+		/*CONFIG_MACH_MSM8974_15055 wangjc del spi0*/
 		/*spi0 = &spi_0;*/
 		/*spi7 = &spi_7;*/
 		/*OPPO yuyi 2014-03-18 add end for NFC spi clk*/
-		/*ifdef  CONFIG_VENDOR_EDIT*/
+		/*ifdef  CONFIG_MACH_MSM8974_15055*/
 		spi9 = &spi_9;
 		spi8 = &spi_8;
 		/*endif*/
@@ -247,8 +247,8 @@
 		compatible = "qcom,msm-wfd";
 	};
 
-        //#ifdef VENDOR_EDIT
-        //#ifdef CONFIG_VENDOR_EDIT_OP_LASTKMSG
+        //#ifdef CONFIG_MACH_MSM8974_15055
+        //#ifdef CONFIG_MACH_MSM8974_15055_OP_LASTKMSG
         // add by yangrujin@bsp 2015/9/2, support last_kmsg feature
         qcom,ram-console{
                 compatible = "ram-console";
@@ -297,7 +297,7 @@
 		qcom,vdd-voltage-level = <1 5 7>;
 
 		qcom,hsusb-otg-phy-type = <2>;
-		/* #ifndef VENDOR_EDIT */
+		/* #ifndef CONFIG_MACH_MSM8974_15055 */
 		/* Zhilong.Zhang@OnlineRd.Driver, 2013/11/13, Modify for tuning USB PHY eye diagram */	
 		/*qcom,hsusb-otg-phy-init-seq = <0x63 0x81 0xffffffff>;*/
 		/* #else */
@@ -723,7 +723,7 @@
 		qcom,master-id = <84>;
 	};*/
 	/*OPPO yuyi 2014-03-18 add end for NFC spi clk*/
-	/*ifdef  CONFIG_VENDOR_EDIT*/
+	/*ifdef  CONFIG_MACH_MSM8974_15055*/
 	spi_9: spi@f9965000 {
 		compatible = "qcom,spi-qup-v2";
 
@@ -892,13 +892,13 @@
 						   "cdc-vdd-a-1p2v",
 						   "cdc-vddcx-1",
 						   "cdc-vddcx-2";
-		/*VENDOR_EDIT liuyan add 2013-11-26,chinese and america hpmic switch*/
+		/*CONFIG_MACH_MSM8974_15055 liuyan add 2013-11-26,chinese and america hpmic switch*/
 		cdc-hpmic_switch-1-supply = <&pm8941_l24>;
 		/*liuyan add end*/
 		
 			qcom,cdc-micbias-ldoh-v = <0x3>;
 			qcom,cdc-micbias-cfilt1-mv = <1800>;
-			/* VENDOR_EDIT liuyan 2013-3-15 modify,mic bias*/
+			/* CONFIG_MACH_MSM8974_15055 liuyan 2013-3-15 modify,mic bias*/
 			/*qcom,cdc-micbias-cfilt2-mv = <2700>;*/
                         qcom,cdc-micbias-cfilt2-mv = <2000>;
 			/*liuyan modify end*/
@@ -936,7 +936,7 @@
 			"AMIC2", "MIC BIAS2 External",
 			"MIC BIAS2 External", "Headset Mic",
 			
-			/*VENDOR_EDIT liuyan 2013-3-15 modify*/
+			/*CONFIG_MACH_MSM8974_15055 liuyan 2013-3-15 modify*/
 			/*"AMIC3", "MIC BIAS2 External",*/
 			/*"MIC BIAS2 External", "ANCRight Headset Mic",*/
 			/*"AMIC4", "MIC BIAS2 External",*/
@@ -974,7 +974,7 @@
 		qcom,sec-auxpcm-gpio-sync = <&msmgpio 80 0>;
 		qcom,sec-auxpcm-gpio-din  = <&msmgpio 81 0>;
 		qcom,sec-auxpcm-gpio-dout = <&msmgpio 82 0>;
-		/*VENDOR_EDIT liuyan add 2013-3-14,chinese and america hpmic switch*/
+		/*CONFIG_MACH_MSM8974_15055 liuyan add 2013-3-14,chinese and america hpmic switch*/
                 qcom,hpmic-switch-gpio = <&msmgpio 87 0>;
                 qcom,yda145_ctr-gpio = <&msmgpio 77 0>;
                 qcom,yda145_boots-gpio = <&msmgpio 67 0>;
@@ -1025,7 +1025,7 @@
 		qcom,scl-gpio = <&msmgpio 3 0>;
 		qcom,sda-gpio = <&msmgpio 2 0>;
 		qcom,master-id = <86>;
-		/*VENDOR_EDIT wangjc enable*/
+		/*CONFIG_MACH_MSM8974_15055 wangjc enable*/
 		/*status = "disabled";*/
 		status = "ok";
 		/*end add*/
@@ -1048,7 +1048,7 @@
 	};
 
 /*OPPO yuyi 2013-03-22 add begin for nfc*/
-/*#ifdef VENDOR_EDIT */
+/*#ifdef CONFIG_MACH_MSM8974_15055 */
 	i2c_6: i2c@f9928000 {
 		cell-index = <6>;
 		compatible = "qcom,i2c-qup";
@@ -1067,7 +1067,7 @@
 	};
 /*#endif*/
 /*OPPO yuyi 2013-03-22 add end*/
-/*#ifdef VENDOR_EDIT*/
+/*#ifdef CONFIG_MACH_MSM8974_15055*/
 /*wangjc delete*/
 	/*spi_0: spi@f9923000 {
 		compatible = "qcom,spi-qup-v2";
@@ -2064,7 +2064,7 @@
 		compatible = "qcom,msm-dai-mi2s";
 		qcom,msm-dai-q6-mi2s-quat {
 			compatible = "qcom,msm-dai-q6-mi2s";
-			//#ifndef VENDOR_EDIT
+			//#ifndef CONFIG_MACH_MSM8974_15055
 			//xiaojun.lv@PhoneDpt.AudioDrv, modify for 14021 smartPA
 			//qcom,msm-dai-q6-mi2s-dev-id = <3>;
 			//#else
@@ -2208,7 +2208,7 @@
 		rpm-channel-name = "rpm_requests";
 		rpm-channel-type = <15>; /* SMD_APPS_RPM */
 	};
-        /*#ifdef VENDOR_EDIT*/
+        /*#ifdef CONFIG_MACH_MSM8974_15055*/
         /*liuyan 2014-17 fix big at current in ftm sleep mode*/
 
         /*qcom,msm-rng@f9bff000 {
@@ -2506,7 +2506,7 @@
 		qcom,rx-ring-size = <64>;
 	};
 
-	//#ifdef VENDOR_EDIT
+	//#ifdef CONFIG_MACH_MSM8974_15055
 	//WeiHong.Li@OnLineRD.AirService.Module, 2013/10/24, modify for OEM DATA region 
 	/* NOTICE: 
            add region(0x05900000 0x100000) for OEM data ram for NV backup.
@@ -2517,7 +2517,7 @@
 					0xfa00000 0x500000
 					0x05900000 0x100000>; /* Address and Size of Hole */
         };
-	//#endif /* VENDOR_EDIT */
+	//#endif /* CONFIG_MACH_MSM8974_15055 */
 
 	uart7: uart@f995d000 { /*BLSP #2, UART #7 */
 		compatible = "qcom,msm-hsuart-v14";

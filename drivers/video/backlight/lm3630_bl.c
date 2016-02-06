@@ -1,6 +1,6 @@
 /************************************************************
 * Copyright (c) 2013-2013 Mobile communication Corp.ltd.,
-* VENDOR_EDIT
+* CONFIG_MACH_MSM8974_15055
 * Description: Simple driver for Texas Instruments LM3630 Backlight driver chip.
 * Version    : 1.0
 * Date       : 2013-12-09
@@ -28,10 +28,10 @@
 /* 2014-02-10Add begin for Find7S */
 #include <linux/pcb_version.h>
 /* 2014-02-10Add end */
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/boot_mode.h>
 #include <linux/project_info.h>
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 #define REG_CTRL	0x00
 #define REG_CONFIG	0x01
 #define REG_BRT_A	0x03
@@ -51,7 +51,7 @@
 /* 2013-10-24Add end */
 #define INT_DEBOUNCE_MSEC	10
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*Mobile Phone Software Dept.Driver, 2014/03/10  Add for flicker in low backlight */
 static bool pwm_flag = true;
 static int backlight_level;
@@ -59,7 +59,7 @@ extern int cabc_mode;
 static int pre_brightness=0;
 int set_backlight_pwm(int state);
 extern int push_component_info(enum COMPONENT_TYPE type, char *version, char * manufacture);
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 static struct lm3630_chip_data *lm3630_pchip;
 
@@ -418,13 +418,13 @@ static void lm3630_backlight_unregister(struct lm3630_chip_data *pchip)
 	int ret;
 	struct lm3630_chip_data *pchip = lm3630_pchip;
 	pr_debug("%s: bl=%d\n", __func__,bl_level);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 /*Mobile Phone Software Dept.Driver, 2014/04/28  Add for add log for 14001 black screen */
 		if(pre_brightness == 0)
 			{pr_err("%s set brightness :  %d \n",__func__,bl_level);}
 		pre_brightness=bl_level;
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 	if(!pchip){
 		dev_err(pchip->dev, "lm3630_bank_a_update_status pchip is null\n");
@@ -450,13 +450,13 @@ static void lm3630_backlight_unregister(struct lm3630_chip_data *pchip)
 		if (ret < 0)
 			goto out;
 		mdelay(1);
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 
 
 /*Mobile Phone Software Dept.Driver, 2014/04/24  Modify for backlight flick when disable pwm */
 		ret = regmap_write(pchip->regmap,
 				   REG_BRT_A, bl_level);
-#else /*VENDOR_EDIT*/
+#else /*CONFIG_MACH_MSM8974_15055*/
 		if(bl_level>20)
 			{
 
@@ -476,10 +476,10 @@ static void lm3630_backlight_unregister(struct lm3630_chip_data *pchip)
 			ret = regmap_write(pchip->regmap,
 				   REG_BRT_A, 2+(bl_level-1)*9/18);
 			}
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 		if (ret < 0)
 			goto out;
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 
 /*Mobile Phone Software Dept.Driver, 2014/03/10  Add for flicker in low backlight */
@@ -489,7 +489,7 @@ static void lm3630_backlight_unregister(struct lm3630_chip_data *pchip)
 		}else if(bl_level > 0x14 && pwm_flag==false && cabc_mode >0){
 			set_backlight_pwm(1);
 		}
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 	return bl_level;
 out:
@@ -590,7 +590,7 @@ static int lm3630_dt(struct device *dev, struct lm3630_platform_data *pdata)
 }
 #endif
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* add 2013-08-30 for ftm test LCD backlight */
 static ssize_t ftmbacklight_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -613,7 +613,7 @@ static ssize_t ftmbacklight_store(struct device *dev,
 }
     DEVICE_ATTR(ftmbacklight, 0644, NULL, ftmbacklight_store);
 /* add 2013-08-30 for ftm test LCD backlight end */
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 #define LM3630_ENABLE_GPIO   91
 static int lm3630_probe(struct i2c_client *client,
@@ -732,7 +732,7 @@ static int lm3630_probe(struct i2c_client *client,
 	printk("%s:----\n", __func__);
 	dev_err(&client->dev, "LM3630 backlight register OK.\n");
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 
 /* add 2013-08-30 for ftm test LCD backlight */
     ret = device_create_file(&client->dev, &dev_attr_ftmbacklight);
@@ -740,7 +740,7 @@ static int lm3630_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to create node ftmbacklight\n");
 	}
 /* add 2013-08-30 for ftm test LCD backlight end */
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 	return 0;
 #ifdef CONFIG_BL_REGISTER
@@ -762,11 +762,11 @@ static int lm3630_remove(struct i2c_client *client)
 {
 	int ret;
 	struct lm3630_chip_data *pchip = i2c_get_clientdata(client);
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* add 2013-08-30 for ftm test LCD backlight */
     device_remove_file(&client->dev, &dev_attr_ftmbacklight);
 /* add 2013-08-30 for ftm test LCD backlight end */
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 	ret = regmap_write(pchip->regmap, REG_BRT_A, 0);
 	if (ret < 0)
@@ -834,7 +834,7 @@ static int lm3630_resume(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*Mobile Phone Software Dept.Driver, 2014/05/22  Add for reduce current when charge */
 void lm3630_reduce_max_current(void)
 {
@@ -850,11 +850,11 @@ void lm3630_recover_max_current(void)
 	regmap_write(lm3630_pchip->regmap, REG_MAXCU_A, 0x12);
 	regmap_write(lm3630_pchip->regmap, REG_MAXCU_B, 0x12);
 }
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*Mobile Phone Software Dept.Driver, 2014/02/17  Add for set cabc */
 int set_backlight_pwm(int state)
 {
@@ -878,7 +878,7 @@ int set_backlight_pwm(int state)
     //}
     return rc;
 }
-#endif /*VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 
 #ifdef CONFIG_OF

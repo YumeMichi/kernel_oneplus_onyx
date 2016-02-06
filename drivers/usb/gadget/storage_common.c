@@ -780,7 +780,7 @@ static void store_cdrom_address(u8 *dest, int msf, u32 addr)
 }
 
  //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /**
  * fsg_get_toc() - Builds a TOC with required format @format.
  * @curlun: The LUN for which the TOC has to be built

@@ -25,7 +25,7 @@
 
 &soc {
 	i2c@f9928000 { /* BLSP1 QUP6 */
-                //#ifdef VENDOR_EDIT
+                //#ifdef CONFIG_MACH_MSM8974_15055
                 //modify by yangrujin@bsp 2015/9/16, comment nfc because that 15055 has no nfc
 		//nfc-nci@e {
 		//	compatible = "qcom,nfc-nci";

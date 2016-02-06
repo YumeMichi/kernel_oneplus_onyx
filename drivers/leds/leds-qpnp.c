@@ -966,7 +966,7 @@ regulator_turn_off:
 	return 0;
 }
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
+#ifdef CONFIG_MACH_MSM8974_15055/*If the torch is enabled, enable BATFET_LPM mode*/
 extern int qpnp_chg_set_lpm(void);
 #endif
 
@@ -984,7 +984,7 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 
 	/* Set led current */
 	if (val > 0) {
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
+#ifdef CONFIG_MACH_MSM8974_15055/*If the torch is enabled, enable BATFET_LPM mode*/
 		     qpnp_chg_set_lpm();
 #endif
 
@@ -1539,7 +1539,7 @@ static void __qpnp_led_work(struct qpnp_led_data *led,
 	else
 		mutex_lock(&led->lock);
 
-    //#ifdef VENDOR_EDIT
+    //#ifdef CONFIG_MACH_MSM8974_15055
     if(led->id == QPNP_ID_RGB_GREEN || led->id == QPNP_ID_RGB_RED || led->id == QPNP_ID_RGB_BLUE)//modify for O2 have customization
     {
         mdelay(20);//wait for give a chance to change led->cdev.brightness to avoid flash before blink
@@ -2285,7 +2285,7 @@ static ssize_t duty_pcts_store(struct device *dev,
 
 	buffer = (char *)buf;
 
-	#ifndef VENDOR_EDIT
+	#ifndef CONFIG_MACH_MSM8974_15055
 	for (i = 0; i < max_duty_pcts; i++) {
 		if (buffer == NULL)
 			break;
@@ -2314,7 +2314,7 @@ static ssize_t duty_pcts_store(struct device *dev,
 
 	num_duty_pcts = 11;
 
-	#endif /*VENDOR_EDIT*/
+	#endif /*CONFIG_MACH_MSM8974_15055*/
 
 	if (num_duty_pcts >= max_duty_pcts) {
 		dev_err(&led->spmi_dev->dev,

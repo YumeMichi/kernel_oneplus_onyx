@@ -36,7 +36,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 //liuyan 2013-12-26 add for hpmic switch power
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 #include <linux/regulator/consumer.h>
 #endif
 //liuyan add end
@@ -123,7 +123,7 @@
 
 /* RX_HPH_CNP_WG_TIME increases by 0.24ms */
 #define WCD9XXX_WG_TIME_FACTOR_US	240
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/09,add for headset detect*/
 #define WCD9XXX_V_CS_HS_MAX 500
 #define WCD9XXX_V_CS_NO_MIC 5
@@ -186,7 +186,7 @@ enum wcd9xxx_current_v_idx {
 	WCD9XXX_CURRENT_V_B1_HU,
 	WCD9XXX_CURRENT_V_BR_H,
 };
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 extern int get_smartpa_project(void);
 #endif
 static int wcd9xxx_detect_impedance(struct wcd9xxx_mbhc *mbhc, uint32_t *zl,
@@ -869,7 +869,7 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 		mbhc->zl = mbhc->zr = 0;
 		pr_debug("%s: Reporting removal %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
               //liuyan 2013-3-13 add
               switch_set_state(&mbhc->wcd9xxx_sdev,0);
 	       //gpio_set_value(mbhc->mbhc_cfg->hpmic_switch_gpio,0);
@@ -969,7 +969,7 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 
 		pr_debug("%s: Reporting insertion %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
               //liuyan 2013-3-13 add
               switch(mbhc->current_plug){
                case PLUG_TYPE_HEADPHONE:
@@ -2464,7 +2464,7 @@ static void wcd9xxx_mbhc_decide_swch_plug(struct wcd9xxx_mbhc *mbhc)
 			 __func__);
 		return;
 	}
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
         //liuyan 2013-3-13 add
         printk("%s:plug_type:%d,\n",__func__,plug_type);
         //liuyan add end
@@ -3152,7 +3152,7 @@ static void wcd9xxx_correct_swch_plug(struct work_struct *work)
 
 		pr_debug("%s: attempt(%d) current_plug(%d) new_plug(%d)\n",
 			 __func__, retry, mbhc->current_plug, plug_type);
-	#ifdef VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 	       //liuyan 2013-3-13 add
 		printk("%s: attempt(%d) current_plug(%d) new_plug(%d)\n",
 			 __func__, retry, mbhc->current_plug, plug_type);
@@ -3297,7 +3297,7 @@ static void wcd9xxx_swch_irq_handler(struct wcd9xxx_mbhc *mbhc)
 	insert = !wcd9xxx_swch_level_remove(mbhc);
 	pr_debug("%s: Current plug type %d, insert %d\n", __func__,
 		 mbhc->current_plug, insert);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
        //liuyan 2013-3-13 add
 	printk("%s: Current plug type %d, insert %d\n", __func__,
 		 mbhc->current_plug, insert);
@@ -3667,7 +3667,7 @@ irqreturn_t wcd9xxx_dce_handler(int irq, void *data)
 		goto done;
 	}
 //liuan 2013-4-18 add
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
        printk("press button\n");
 #endif
 //liuyan add end
@@ -3839,7 +3839,7 @@ static irqreturn_t wcd9xxx_release_handler(int irq, void *data)
 	bool waitdebounce = true;
 	struct wcd9xxx_mbhc *mbhc = data;
 //liuyan 2013-4-18 add
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
         printk("release button\n");
 #endif
 //liuyan add end
@@ -5109,7 +5109,7 @@ int wcd9xxx_mbhc_init(struct wcd9xxx_mbhc *mbhc, struct wcd9xxx_resmgr *resmgr,
 		ret = snd_jack_set_key(mbhc->button_jack.jack,
 				       SND_JACK_BTN_0,
 				       KEY_MEDIA);
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* xiaojun.lv@Prd.AudioDrv,2014/3/7,add for 14001 headset input key value*/
 /* BTN_1 BTN_2 add for digital mode*/
 		ret = snd_jack_set_key(mbhc->button_jack.jack,

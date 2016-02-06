@@ -47,7 +47,39 @@ endif
 
 # MSM8974
    zreladdr-$(CONFIG_ARCH_MSM8974)	:= 0x00008000
+ifeq ($(CONFIG_MACH_MSM8974_15055),y)
         dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ab-pm8941-mtp_15055_HW_14.dtb
+else
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v1-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v1-fluid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v1-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v1-mtp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v1-rumi.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v1-sim.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.0-1-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.0-1-fluid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.0-1-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.0-1-mtp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= apq8074-v2.0-1-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= apq8074-v2.0-1-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= apq8074-v2.0-1-dragonboard.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= apq8074-v2.2-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= apq8074-v2.2-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= apq8074-v2.2-dragonboard.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.2-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.2-fluid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.2-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974-v2.2-mtp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ab-pm8941-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ab-pm8941-fluid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ab-pm8941-fluid-hbtp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ab-pm8941-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ab-pm8941-mtp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ac-pm8941-cdp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ac-pm8941-liquid.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ac-pm8941-mtp.dtb
+        dtb-$(CONFIG_ARCH_MSM8974)	+= msm8974pro-ac-pma8084-pm8941-mtp.dtb
+endif
 
 # APQ8084
    zreladdr-$(CONFIG_ARCH_APQ8084)	:= 0x00008000

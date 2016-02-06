@@ -15,7 +15,7 @@
 
 &pm8941_lsid1 {
 	pm8941_boost: regulator@a000 {
-/* #ifdef VENDOR_EDIT*/
+/* #ifdef CONFIG_MACH_MSM8974_15055*/
 /* longxiaowu@camera,2015/08/05,modify pm8941_boost from 4.5V to 5V for 15055 */
 /* xiaojun.lv@PhoneDpt.AudioDrv, 2014/03/25, modify pm8941_boost from 5V to 4.5V for 14001 */
 		regulator-min-microvolt = <5000000>;

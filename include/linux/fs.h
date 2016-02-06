@@ -986,7 +986,7 @@ struct file {
 	struct path		f_path;
 #define f_dentry	f_path.dentry
 #define f_vfsmnt	f_path.mnt
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 	struct inode    *f_inode;/*cached value*/
 #endif
 	const struct file_operations	*f_op;
@@ -2224,7 +2224,7 @@ static inline bool execute_ok(struct inode *inode)
 	return (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode);
 }
 
-#ifdef VENDOR_EDIT/*Add by liwei*/
+#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
 static inline struct inode *file_inode(struct file *f)
 {
 	return f->f_inode;

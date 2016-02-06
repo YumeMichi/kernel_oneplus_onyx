@@ -127,11 +127,11 @@ struct bms_battery_data {
 	int			batt_id_kohm;
 
 	
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	int			best_id_kohm;
 
 	const char		*battery_type; // add by xcb
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 };
 

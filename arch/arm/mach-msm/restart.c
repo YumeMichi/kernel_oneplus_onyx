@@ -74,15 +74,15 @@ static void *emergency_dload_mode_addr;
 
 /* Download mode master kill-switch */
 static int dload_set(const char *val, struct kernel_param *kp);
-#ifndef CONFIG_VENDOR_EDIT  
+#ifndef CONFIG_MACH_MSM8974_15055  
 //He Wei@OnLineRD,  2013/08/02, modify for reboot after crash
 static int download_mode = 1;
-#else      /*CONFIG_VENDOR_EDIT*/
+#else      /*CONFIG_MACH_MSM8974_15055*/
 #ifndef RELEASE_DOWNLOAD_MODE_SET
 static int download_mode = 1;
 #else
 static int download_mode = 0;
-#endif   /*CONFIG_VENDOR_EDIT*/
+#endif   /*CONFIG_MACH_MSM8974_15055*/
 #endif
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
@@ -102,7 +102,7 @@ extern char __log_buf[__LOG_BUF_LEN];
 
 typedef unsigned int	uint32;
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 struct boot_shared_imem_cookie_type
 {
   /* First 8 bytes are two dload magic numbers */
@@ -141,7 +141,7 @@ struct boot_shared_imem_cookie_type
 };
 #endif
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //hefaxi@filesystems, 2015/07/03, add for force dump function
 int oem_get_download_mode(void)
 {
@@ -155,30 +155,19 @@ static void set_dload_mode(int on)
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
 		__raw_writel(on ? 0xCE14091A : 0,
 		       dload_mode_addr + sizeof(unsigned int));
-		#ifdef CONFIG_VENDOR_EDIT
-		//Add this to value for dump KMSG.bin
-		__raw_writel(on ? (virt_to_phys(__log_buf)) : 0, dload_mode_addr + sizeof(unsigned int) *10 );
-		__raw_writel(on ? __LOG_BUF_LEN : 0, dload_mode_addr + sizeof(unsigned int) *11 );
-		// #ifdef VENDOR_EDIT
-		// neiltsai, 20150812, add for ram dump kernel version
-		__raw_writel(on ? (virt_to_phys(linux_banner)): 0, dload_mode_addr + sizeof(unsigned int) *12);
-		__raw_writel(on ? (strlen(linux_banner)): 0, dload_mode_addr + sizeof(unsigned int) *13);
-		// neil end
-		// #endif
-		#endif
 		mb();
 		dload_mode_enabled = on;
 	}
 }
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /* OPPO zhanglong modified 2013-08-29 for reboot into quickboot charging */
 /* delete this for compiling warning*/
 static bool get_dload_mode(void)
 {
 	return dload_mode_enabled;
 }
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 static void enable_emergency_dload_mode(void)
 {
@@ -324,7 +313,7 @@ static irqreturn_t resout_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*  2013.07.09 hewei modify begin for restart mode*/
 #define FACTORY_MODE	0x77665504
 #define WLAN_MODE		0x77665505
@@ -333,7 +322,7 @@ static irqreturn_t resout_irq_handler(int irq, void *dev_id)
 #define RECOVERY_MODE   0x77665502
 #define FASTBOOT_MODE   0x77665500
 /*  2013.07.09 hewei modify end for restart mode*/
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 static void msm_restart_prepare(const char *cmd)
 {
@@ -357,7 +346,7 @@ static void msm_restart_prepare(const char *cmd)
 
 	pm8xxx_reset_pwr_off(1);
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*  zhanglong modified 2013-08-29 for reboot into quickboot charging */
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (get_dload_mode() || (cmd != NULL && cmd[0] != '\0'))
@@ -369,9 +358,9 @@ static void msm_restart_prepare(const char *cmd)
     in the shared memory any way. If a hard reset was done, that will be lost.*/ 
     qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 /*  zhanglong modified 2013-08-29 for reboot into quickboot charging end*/
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
-#ifndef CONFIG_VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*  2013.07.09 hewei modify begin for restart mode*/
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
@@ -390,7 +379,7 @@ static void msm_restart_prepare(const char *cmd)
 			__raw_writel(0x77665501, restart_reason);
 		}
 	}
-#else //CONFIG_VENDOR_EDIT
+#else //CONFIG_MACH_MSM8974_15055
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
 			__raw_writel(FASTBOOT_MODE, restart_reason);
@@ -423,16 +412,16 @@ static void msm_restart_prepare(const char *cmd)
 		__raw_writel(0x77665501, restart_reason);
 	}
 /* OPPO 2013.07.09 hewei modify en for restart mode*/
-#endif //CONFIG_VENDOR_EDIT
+#endif //CONFIG_MACH_MSM8974_15055
 
 	flush_cache_all();
 	outer_flush_all();
 }
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /* add by yangrujin@bsp 2015/9/6, flush console to get more log*/
 void arm_machine_flush_console(void);
-#endif /* VENDOR_EDIT*/
+#endif /* CONFIG_MACH_MSM8974_15055*/
 
 void msm_restart(char mode, const char *cmd)
 {
@@ -440,7 +429,7 @@ void msm_restart(char mode, const char *cmd)
 
 	msm_restart_prepare(cmd);
 
-#if (defined(CONFIG_MSM_DLOAD_MODE) && defined(VENDOR_EDIT))
+#if (defined(CONFIG_MSM_DLOAD_MODE) && defined(CONFIG_MACH_MSM8974_15055))
 /* add by yangrujin@bsp 2015/9/6, flush console to get more log*/
     if(in_panic){
         pr_info("%s : flush console and then delay 1s waiting log printing", __func__);
@@ -451,7 +440,7 @@ void msm_restart(char mode, const char *cmd)
         arm_machine_flush_console();
         mdelay(1000);
     }*/
-#endif /* VENDOR_EDIT*/
+#endif /* CONFIG_MACH_MSM8974_15055*/
 
 	if (!use_restart_v2()) {
 		__raw_writel(0, msm_tmr0_base + WDT0_EN);
@@ -512,11 +501,11 @@ static int __init msm_restart_init(void)
 #endif
 	msm_tmr0_base = msm_timer_get_timer0_base();
 	restart_reason = MSM_IMEM_BASE + RESTART_REASON_ADDR;
-	#ifdef CONFIG_VENDOR_EDIT
+	#ifdef CONFIG_MACH_MSM8974_15055
 /* OPPO 2013.07.09 hewei added begin for default restart reason*/
 	__raw_writel(0x7766550a, restart_reason);
 /* OPPO 2013.07.09 hewei added end for default restart reason*/
-	#endif //CONFIG_VENDOR_EDIT
+	#endif //CONFIG_MACH_MSM8974_15055
 	pm_power_off = msm_power_off;
 
 	if (scm_is_call_available(SCM_SVC_PWR, SCM_IO_DISABLE_PMIC_ARBITER) > 0)

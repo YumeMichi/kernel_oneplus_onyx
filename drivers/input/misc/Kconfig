@@ -725,7 +725,7 @@ config SENSORS_CAPELLA_CM36283
 
 endif
 
-#VENDOR_EDIT shankai 2015-06-10 add for switch Profiles by triple state switch key
+#CONFIG_MACH_MSM8974_15055 shankai 2015-06-10 add for switch Profiles by triple state switch key
 config TRI_STATE_KEY
 	default n
 	tristate "switch Profiles by this triple key"

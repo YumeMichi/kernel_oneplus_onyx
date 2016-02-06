@@ -1783,7 +1783,7 @@ static const struct snd_kcontrol_new mi2s_hl_mixer_controls[] = {
 	SOC_SINGLE_EXT("INTERNAL_FM_TX", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 	MSM_BACKEND_DAI_INT_FM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	SOC_SINGLE_EXT("SLIM_0_TX", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 	MSM_BACKEND_DAI_SLIMBUS_0_TX, 1, 0, msm_routing_get_port_mixer,
@@ -2972,7 +2972,7 @@ static const struct snd_kcontrol_new dolby_dap_param_end_point_controls[] = {
 	msm_routing_put_dolby_dap_endpoint_control),
 };
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
 static int msm_routing_get_dirac_enable_param_control(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol) {
@@ -3054,7 +3054,7 @@ static const struct snd_kcontrol_new set_dirac_enable_param_to_set_controls[] = 
 	               0, 4, 0, msm_routing_get_dirac_headset_param_control,
 	               msm_routing_put_dirac_headset_param_control),	
 };
-#endif/*VENDOR_EDIT*/
+#endif/*CONFIG_MACH_MSM8974_15055*/
 
 int msm_routing_get_rms_value_control(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol) {
@@ -3424,7 +3424,7 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("SEC_MI2S_DL_HL",
 		"Secondary MI2S_RX Hostless Playback",
 		0, 0, 0, 0),
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	SND_SOC_DAPM_AIF_OUT("SEC_MI2S_UL_HL", "Secondary MI2S Hostless Capture", 0, 0, 0, 0),
 #endif
@@ -3546,7 +3546,7 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 				&fm_switch_mixer_controls),
 	SND_SOC_DAPM_SWITCH("PCM_RX_DL_HL", SND_SOC_NOPM, 0, 0,
 				&pcm_rx_switch_mixer_controls),
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	SND_SOC_DAPM_SWITCH("SECMI2S_DL_HL", SND_SOC_NOPM, 0, 0,
 				&fm_switch_mixer_controls),
@@ -3854,7 +3854,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{"SEC_MI2S_RX Port Mixer", "PRI_MI2S_TX", "PRI_MI2S_TX"},
 	{"SEC_MI2S_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s loopback*/
 	{"SEC_MI2S_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX Port Mixer"},
@@ -4172,7 +4172,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SLIM1_UL_HL", NULL, "SLIMBUS_1_TX"},
 	{"SLIM3_UL_HL", NULL, "SLIMBUS_3_TX"},
 	{"SLIM4_UL_HL", NULL, "SLIMBUS_4_TX"},
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	{"SECMI2S_DL_HL", "Switch", "SLIM0_DL_HL"},
 	{"SEC_MI2S_RX", NULL, "SECMI2S_DL_HL"},
@@ -4265,7 +4265,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SEC_I2S_RX", NULL, "SEC_I2S_DL_HL"},
 	{"PRI_MI2S_UL_HL", NULL, "PRI_MI2S_TX"},
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_DL_HL"},
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	{"SEC_MI2S_UL_HL", NULL, "SEC_MI2S_TX"},
 #endif
@@ -4654,13 +4654,13 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(platform, msm_voc_session_controls,
 				      ARRAY_SIZE(msm_voc_session_controls));
 
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 //#lifei@OnePlus.MultiMediaService, 2015/09/25 add set/get dsp interface
     snd_soc_add_platform_controls(platform,
 				set_dirac_enable_param_to_set_controls,
 			ARRAY_SIZE(set_dirac_enable_param_to_set_controls));
 
-#endif/*VENDOR_EDIT*/
+#endif/*CONFIG_MACH_MSM8974_15055*/
 
 	return 0;
 }

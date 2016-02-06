@@ -610,7 +610,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.ops = &msm_fe_dai_ops,
 		.name = "PRI_MI2S_TX_HOSTLESS",
 	},
-#ifndef VENDOR_EDIT
+#ifndef CONFIG_MACH_MSM8974_15055
 /*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	{
 		.playback = {

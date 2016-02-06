@@ -45,7 +45,7 @@ struct msm_eeprom_ctrl_t {
 	struct msm_eeprom_board_info *eboard_info;
 	uint32_t subdev_id;
 //Add by longxiaowu@camera 2015/09/15 to reduce the device bring up time
-#ifdef VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 	struct work_struct read_work;
 #endif
 };

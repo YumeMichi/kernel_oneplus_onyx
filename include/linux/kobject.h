@@ -28,12 +28,12 @@
 #include <linux/atomic.h>
 
 #define UEVENT_HELPER_PATH_LEN		256
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef CONFIG_MACH_MSM8974_15055
 // modify by xcb
 #define UEVENT_NUM_ENVP			64	/* number of env pointers */
 #else 
 #define UEVENT_NUM_ENVP			32	/* number of env pointers */
-#endif /*CONFIG_VENDOR_EDIT*/
+#endif /*CONFIG_MACH_MSM8974_15055*/
 
 #define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */
 
