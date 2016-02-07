@@ -106,12 +106,8 @@ snd-soc-timpani-objs := timpani.o
 snd-soc-msm-stub-objs := msm_stub.o
 obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) := msm_hdmi_codec_rx.o
 
-#ifdef CONFIG_MACH_MSM8974_15055
-#wangdongdong@MultiMedia.Audio,2015/04/20,add for smartPA
-#tfa9890
 snd-soc-tfa9890-objs := tfa9890/tfa98xx.o tfa9890/tfa_dsp.o tfa9890/tfa_container.o
-obj-y += snd-soc-tfa9890.o
-#endif
+obj-$(CONFIG_MACH_MSM8974_15055) += snd-soc-tfa9890.o
 
 # Amp
 snd-soc-max9877-objs := max9877.o

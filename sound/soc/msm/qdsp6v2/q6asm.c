@@ -1791,12 +1791,7 @@ static int __q6asm_open_read(struct audio_client *ac,
 	/* Stream prio : High, provide meta info with encoded frames */
 	open.src_endpointype = ASM_END_POINT_DEVICE_MATRIX;
 
-#ifndef CONFIG_MACH_MSM8974_15055
-/*wangdongdong@MultiMediaService,2015/10/27,add qualcomm patch to remove SA+ effect*/
-        open.preprocopo_id = get_asm_topology();
-#else
-        open.preprocopo_id = DEFAULT_POPP_TOPOLOGY;
-#endif
+	open.preprocopo_id = get_asm_topology();
 	if (open.preprocopo_id == 0)
 		open.preprocopo_id = ASM_STREAM_POSTPROC_TOPO_ID_NONE;
 	open.bits_per_sample = bits_per_sample;

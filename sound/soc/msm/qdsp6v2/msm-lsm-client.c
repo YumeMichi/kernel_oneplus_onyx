@@ -135,12 +135,6 @@ static int msm_lsm_ioctl_shared(struct snd_pcm_substream *substream,
 				}
 				pr_debug("%s: Session ID %d\n", __func__,
 					prtd->lsm_client->session);
-/* OPPO 2014-07-25 John.Xu@Audio.Driver Add begin for fix sometime phone will go to sleep when get detect event */
-#ifdef CONFIG_MACH_MSM8974_14001
-				wake_lock_init(&prtd->timeout_wake_lock, WAKE_LOCK_SUSPEND,
-					"SVA timeout wake lock");
-#endif
-/* OPPO 2014-07-25 John.Xu@Audio.Driver Add end */
 			} else {
 				pr_err("%s:Invalid App id for Listen client\n",
 				       __func__);

@@ -185,13 +185,13 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.mclk_rate = TAIKO_EXT_CLK_RATE,
 	.gpio = 0,
 	.gpio_irq = 0,
-#ifndef CONFIG_MACH_MSM8974_15055 //luyan modify 2013-4-18
+#ifndef CONFIG_MACH_MSM8974_15055
 	.gpio_level_insert = 1,
 #else
 	.gpio_level_insert = 0,
 #endif
 	.detect_extn_cable = false,
-#ifdef CONFIG_MACH_MSM8974_15055 //luyan modify micbias to dc
+#ifdef CONFIG_MACH_MSM8974_15055
 	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET | 1<<MBHC_MICBIAS_ENABLE_REGULAR_HEADSET,
 #else
 	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_THRESHOLD_HEADSET,
@@ -206,15 +206,6 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.use_vddio_meas = true,
 	.enable_anc_mic_detect = false,
 	.hw_jack_type = SIX_POLE_JACK,
-
-/* OPPO 2013-10-22 liuyan Modify end */
-#ifdef CONFIG_MACH_MSM8974_15055  //liuyan add 2013-4-18
-       .hpmic_switch_gpio=0,
-       .enable_spk_gpio=0,
-	.yda145_ctr_gpio=0,
-	.yda145_boost_gpio=0,
-       .count_regulator=0,
-#endif
 };
 
 struct msm_auxpcm_gpio {
@@ -229,14 +220,6 @@ struct msm_auxpcm_ctrl {
 };
 
 struct msm8974_asoc_mach_data {
-//liuyan 2013-3-14 add,hp mic switch
-#ifdef CONFIG_MACH_MSM8974_15055
-       int hpmic_switch_gpio;
-	struct regulator	*cdc_spk;
-	int enable_spk_gpio;
-	int yda145_ctr_gpio;
-	int yda145_boost_gpio;
-#endif
 	int mclk_gpio;
 	u32 mclk_freq;
 	int us_euro_gpio;
@@ -871,16 +854,15 @@ static const struct snd_soc_dapm_widget msm8974_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-//liuyan 2013-4-18 modify
+
 #ifndef CONFIG_MACH_MSM8974_15055
 	SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("ANCLeft Headset Mic", NULL),
 #else
-       SND_SOC_DAPM_MIC("Main Mic", NULL),
+	SND_SOC_DAPM_MIC("Main Mic", NULL),
 	SND_SOC_DAPM_MIC("Second Mic", NULL),
 	SND_SOC_DAPM_MIC("ANC Mic", NULL),
 #endif
-//liuyan modify end
 	SND_SOC_DAPM_MIC("Analog Mic4", NULL),
 	SND_SOC_DAPM_MIC("Analog Mic6", NULL),
 	SND_SOC_DAPM_MIC("Analog Mic7", NULL),
@@ -1755,10 +1737,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-#ifdef CONFIG_MACH_MSM8974_15055
-       struct msm8974_asoc_mach_data *mach_data;
 
-#endif
 	/* Taiko SLIMBUS configuration
 	 * RX1, RX2, RX3, RX4, RX5, RX6, RX7, RX8, RX9, RX10, RX11, RX12, RX13
 	 * TX1, TX2, TX3, TX4, TX5, TX6, TX7, TX8, TX9, TX10, TX11, TX12, TX13
@@ -1845,57 +1824,6 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 		}
 	}
 	/* start mbhc */
-#ifdef CONFIG_MACH_MSM8974_15055
-if(!get_smartpa_project())
-{
-       mach_data=(struct msm8974_asoc_mach_data*)(rtd->card->drvdata);
-	mbhc_cfg.hpmic_switch_gpio=mach_data->hpmic_switch_gpio;
-	if (mbhc_cfg.hpmic_switch_gpio) {
-		err = gpio_request(mbhc_cfg.hpmic_switch_gpio, "HPMIC_SWITCH");
-		if (err) {
-			pr_err("%s: Failed to request gpio %d\n", __func__,
-				mbhc_cfg.hpmic_switch_gpio);
-			mbhc_cfg.hpmic_switch_gpio = 0;
-
-		}
-
-	}
-	gpio_direction_output(mbhc_cfg.hpmic_switch_gpio, 1);
-	mbhc_cfg.enable_spk_gpio=mach_data->enable_spk_gpio;
-	if (mbhc_cfg.enable_spk_gpio) {
-		err = gpio_request(mbhc_cfg.enable_spk_gpio, "ENABLE_SPK");
-		if (err) {
-			pr_err("%s: Failed to request gpio %d\n", __func__,
-				mbhc_cfg.enable_spk_gpio);
-			mbhc_cfg.enable_spk_gpio = 0;
-
-		}
-
-	}
-	gpio_direction_output(mbhc_cfg.enable_spk_gpio, 0);
-	printk("%s:enable_spk_gpio(%d)\n",__func__,mbhc_cfg.enable_spk_gpio);
-	//mbhc_cfg.cdc_spk=mach_data->cdc_spk;
-	//liuyan add for dvt
-    mbhc_cfg.yda145_ctr_gpio=mach_data->yda145_ctr_gpio;
-	if (mbhc_cfg.yda145_ctr_gpio) {
-		err = gpio_request(mbhc_cfg.yda145_ctr_gpio, "YDA145_CTR");
-		if (err) {
-			pr_err("%s: Failed to request gpio %d\n", __func__,
-				mbhc_cfg.yda145_ctr_gpio);
-			//mbhc_cfg.yda145_ctr_gpio = 0;
-			gpio_free(mbhc_cfg.yda145_ctr_gpio);
-
-			err = gpio_request(mbhc_cfg.yda145_ctr_gpio, "YDA145_CTR");
-			pr_err("%s: Failed to request gpio %d\n err %d", __func__,
-				mbhc_cfg.yda145_ctr_gpio,err);
-			if(err)
-				mbhc_cfg.yda145_ctr_gpio = 0;
-		}
-	}
-	gpio_direction_output(mbhc_cfg.yda145_ctr_gpio, 0);
-	printk("%s:yda145_ctr_gpio(%d)\n",__func__,mbhc_cfg.yda145_ctr_gpio);
-	}
-#endif /* CONFIG_MACH_MSM8974_15055 */
 	mbhc_cfg.calibration = def_taiko_mbhc_cal();
 	if (mbhc_cfg.calibration) {
 		err = taiko_hs_detect(codec, &mbhc_cfg);
@@ -1964,7 +1892,7 @@ void *def_taiko_mbhc_cal(void)
 #ifndef CONFIG_MACH_MSM8974_15055
 	S(v_hs_max, 2400);
 #else
-    S(v_hs_max, 2750);
+	S(v_hs_max, 2750);
 #endif
 #undef S
 #define S(X, Y) ((WCD9XXX_MBHC_CAL_BTN_DET_PTR(taiko_cal)->X) = (Y))
@@ -3397,41 +3325,7 @@ static __devinit int msm8974_asoc_machine_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
-//liuyan 2013-3-14 add,hp mic switch
-#ifdef CONFIG_MACH_MSM8974_15055
-   if(!get_smartpa_project())
-	{
-       pdata->hpmic_switch_gpio= of_get_named_gpio(pdev->dev.of_node,
-				"qcom,hpmic-switch-gpio", 0);
-	if (pdata->hpmic_switch_gpio < 0) {
-		dev_err(&pdev->dev,
-			"Looking up %s property in node %s failed %d\n",
-			"qcom,hpmic-switch-gpio", pdev->dev.of_node->full_name,
-			pdata->hpmic_switch_gpio);
-		//ret = -ENODEV;
-		//goto err;
-	}
-	 pdata->enable_spk_gpio= of_get_named_gpio(pdev->dev.of_node,
-				"enable_spk-gpio", 0);
-	if (pdata->enable_spk_gpio < 0) {
-		dev_err(&pdev->dev,
-			"Looking up %s property in node %s failed %d\n",
-			"enable_spk-gpio", pdev->dev.of_node->full_name,
-			pdata->enable_spk_gpio);
-		//ret = -ENODEV;
-		//goto err;
-	}
-            pdata->yda145_ctr_gpio= of_get_named_gpio(pdev->dev.of_node,
-				"qcom,yda145_ctr-gpio", 0);
-	        if (pdata->yda145_ctr_gpio < 0) {
-    		  dev_err(&pdev->dev,
-    			"Looking up %s property in node %s failed %d\n",
-    			"qcom,yda145_ctr-gpio", pdev->dev.of_node->full_name,
-    			pdata->yda145_ctr_gpio);
-  	    }
-	}
-#endif
-//liuyan add end
+
 	pdata->mclk_gpio = of_get_named_gpio(pdev->dev.of_node,
 				"qcom,cdc-mclk-gpios", 0);
 	if (pdata->mclk_gpio < 0) {
@@ -3491,28 +3385,16 @@ static __devinit int msm8974_asoc_machine_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "%s(): No hdmi audio support\n", __func__);
 
 #ifdef CONFIG_MACH_MSM8974_15055
-		if(get_smartpa_project())
-		{
-	        pr_err("wdd add smartpa\n");
-			memcpy(msm8974_i2s_dai_links, msm8974_common_dai_links,
-				sizeof(msm8974_common_dai_links));
+		memcpy(msm8974_i2s_dai_links, msm8974_common_dai_links,
+			sizeof(msm8974_common_dai_links));
 
-			memcpy(msm8974_i2s_dai_links + ARRAY_SIZE(msm8974_common_dai_links),
-				msm8974_sec_i2s_dai_link, sizeof(msm8974_sec_i2s_dai_link));
-		
-
-			card->dai_link	= msm8974_i2s_dai_links;
-			card->num_links	= ARRAY_SIZE(msm8974_i2s_dai_links);
-		}
-		else
-		{
-		    pr_err("wdd add no smartpa\n");
-			card->dai_link	= msm8974_common_dai_links;
-			card->num_links	= ARRAY_SIZE(msm8974_common_dai_links);
-		}
+		memcpy(msm8974_i2s_dai_links + ARRAY_SIZE(msm8974_common_dai_links),
+			msm8974_sec_i2s_dai_link, sizeof(msm8974_sec_i2s_dai_link));
+		card->dai_link	= msm8974_i2s_dai_links;
+		card->num_links	= ARRAY_SIZE(msm8974_i2s_dai_links);
 #else
-           card->dai_link	= msm8974_common_dai_links;
-		   card->num_links	= ARRAY_SIZE(msm8974_common_dai_links);
+		card->dai_link	= msm8974_common_dai_links;
+		card->num_links	= ARRAY_SIZE(msm8974_common_dai_links);
 #endif
 	}
 	mutex_init(&cdc_mclk_mutex);
@@ -3530,23 +3412,6 @@ static __devinit int msm8974_asoc_machine_probe(struct platform_device *pdev)
 			ret);
 		goto err;
 	}
-#ifdef CONFIG_MACH_MSM8974_15055
-if(!get_smartpa_project())
-{
-/* xiaojun.lv@Prd.AudioDrv,2014/2/10,add for 14001 regulator*/
-        pdata->cdc_spk= regulator_get(&pdev->dev, "cdc_spk");
-		if (IS_ERR(pdata->cdc_spk)) {
-			pr_err("%s:Failed to get hpmic switch regulator\n",__func__);
-			pdata->cdc_spk= NULL;
-			//ret = -EINVAL;
-		}
-		if(pdata->cdc_spk)
-        {
-    	    printk("%s regulator_enable(pdata->cdc_spk);\n",__func__);
-		    mbhc_cfg.cdc_spk = pdata->cdc_spk;
-		}
-}
-#endif /*CONFIG_MACH_MSM8974_15055*/
 
 	/* Parse Primary AUXPCM info from DT */
 	ret = msm8974_dtparse_auxpcm(pdev, &pdata->pri_auxpcm_ctrl,
