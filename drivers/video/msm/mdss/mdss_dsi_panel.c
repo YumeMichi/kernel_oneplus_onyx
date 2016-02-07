@@ -239,12 +239,12 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_err("gpio request failed\n");
 			return rc;
 		}
-	#ifndef CONFIG_MACH_MSM8974_15055
-		if (!pinfo->panel_power_on)
-	#else
+#ifdef CONFIG_MACH_MSM8974_15055
         if (!pinfo->cont_splash_enabled)
-	#endif
-	    {
+
+#else
+	if (!pinfo->panel_power_on) {
+#endif
 			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
 
