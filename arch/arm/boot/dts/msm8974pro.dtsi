@@ -1552,7 +1552,7 @@
 	};
 
 	i2c@f9928000 { /* BLSP-1 QUP-6 */
-		cell-index = <3>;
+		cell-index = <6>;
 		compatible = "qcom,i2c-qup";
 		reg = <0xf9928000 0x1000>;
 		#address-cells = <1>;
@@ -1565,6 +1565,7 @@
 		qcom,sda-gpio = <&msmgpio 29 0>;
 		qcom,scl-gpio = <&msmgpio 30 0>;
 		qcom,master-id = <86>;
+		qcom,active-only;
 	};
 };
 

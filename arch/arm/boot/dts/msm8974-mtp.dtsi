@@ -151,6 +151,16 @@
 		};
 	};
 
+	i2c@f9928000 {
+		tfa9890@36 {
+			status = "okay";
+			compatible = "nxp,tfa9890";
+			reg = <0x36>;
+			nxp,tfa_max-vol-steps = <0x01>;
+			reset_gpio = <&msmgpio 77 0>;
+		};
+	};
+
 	gen-vkeys {
 		compatible = "qcom,gen-vkeys";
 		label = "atmel_mxt_ts";
