@@ -59,5 +59,6 @@
 		qcom,mdss-dsi-reset-sequence = <1 10>, <0 5>, <1 20>;
 		qcom,mdss-pan-physical-width-dimension = <62>;
 		qcom,mdss-pan-physical-height-dimension = <111>;
+		qcom,ulps-enabled;
 	};
 };
