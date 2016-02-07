@@ -18,18 +18,8 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
-		/*CONFIG_MACH_MSM8974_15055 wangjc del spi0*/
-		/*spi0 = &spi_0;*/
-		/*spi7 = &spi_7;*/
-		/*OPPO yuyi 2014-03-18 add end for NFC spi clk*/
-		/*ifdef  CONFIG_MACH_MSM8974_15055*/
-		/*spi9 = &spi_9;*/
-		spi8 = &spi_8;
-		/*endif*/
-		/*OPPO yuyi 2014-03-18 add end for NFC spi clk*/
-		/*OPPO ranfei 2014-06-18 modify for fpc1021*/
-		spi12 = &spi_12;
-		/*OPPO ranfei modify end*/
+		spi0 = &spi_0;
+		spi7 = &spi_7;
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		sdhc2 = &sdhc_2; /* SDC2 SD card slot */
 		sdhc3 = &sdhc_3; /* SDC3 SDIO slot */
@@ -97,12 +87,6 @@
 			label = "qseecom_mem";
 		};
 
-		param_mem: param_region {
-			linux,contiguous-region;
-			oem,reserve-region;
-			reg = <0x38000000 0x00100000>;
-			label = "param_mem";
-		};
 	};
 
 	soc: soc { };
@@ -141,9 +125,7 @@
 		ngpio = <146>;
 		interrupts = <0 208 0>;
 		qcom,direct-connect-irqs = <8>;
-                /*wangdongdong add different 14001 from 15055*/
                 qcom,smartpa-flags = <1>;
-               /*wangdongdong add end*/
 	};
 
 	wcd9xxx_intc: wcd9xxx-irq {
@@ -247,15 +229,6 @@
 		compatible = "qcom,msm-wfd";
 	};
 
-        //#ifdef CONFIG_MACH_MSM8974_15055
-        //#ifdef CONFIG_MACH_MSM8974_15055_OP_LASTKMSG
-        // add by yangrujin@bsp 2015/9/2, support last_kmsg feature
-        qcom,ram-console{
-                compatible = "ram-console";
-        };
-        //#endif
-        //#endif
-
 	serial@f991f000 {
 		compatible = "qcom,msm-lsuart-v14";
 		reg = <0xf991f000 0x1000>;
@@ -297,12 +270,7 @@
 		qcom,vdd-voltage-level = <1 5 7>;
 
 		qcom,hsusb-otg-phy-type = <2>;
-		/* #ifndef CONFIG_MACH_MSM8974_15055 */
-		/* Zhilong.Zhang@OnlineRd.Driver, 2013/11/13, Modify for tuning USB PHY eye diagram */	
-		/*qcom,hsusb-otg-phy-init-seq = <0x63 0x81 0xffffffff>;*/
-		/* #else */
-		qcom,hsusb-otg-phy-init-seq = <0x44 0x80 0x3F 0x81 0x4D 0x82 0x13 0x83 0xffffffff>;	
-		/* #endif */
+		qcom,hsusb-otg-phy-init-seq = <0x44 0x80 0x3F 0x81 0x4D 0x82 0x13 0x83 0xffffffff>;
 		qcom,hsusb-otg-mode = <1>;
 		qcom,hsusb-otg-otg-control = <1>;
 		qcom,hsusb-otg-disable-reset;
@@ -671,8 +639,8 @@
 
 		qcom,bam-dma-res-pipes = <6>;
 	};
-/*
-	spi_7: spi_epm: spi@f9966000 {
+
+	spi_7: spi_epm: spi@f9966000 { /* BLSP2 QUP4 */
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -693,76 +661,6 @@
 		qcom,ver-reg-exists;
 		qcom,bam-consumer-pipe-index = <18>;
 		qcom,bam-producer-pipe-index = <19>;
-		qcom,master-id = <84>;
-	};*/
-	
-	/*OPPO ranfei 2014-06-18 add spi9 for fpc1021*/
-/*	spi_8: spi@f9964000 {
-		compatible = "qcom,spi-qup-v2";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "spi_physical", "spi_bam_physical";
-		reg = <0xf9964000 0x1000>,
-			<0xf9944000 0x19000>;
-		interrupt-names = "spi_irq", "spi_bam_irq";
-		interrupts = <0 102 0>, <0 239 0>;
-
-		spi-max-frequency = <19200000>;
-		
-		
-		qcom,gpio-mosi = <&msmgpio 45 0>;
-		qcom,gpio-miso = <&msmgpio 46 0>;
-		qcom,gpio-clk  = <&msmgpio 48 0>;
-		qcom,gpio-cs0  = <&msmgpio 47 0>;
-
-		qcom,infinite-mode = <0>;
-		qcom,use-bam;
-		qcom,ver-reg-exists;
-		qcom,bam-consumer-pipe-index = <14>;
-		qcom,bam-producer-pipe-index = <15>;
-		qcom,master-id = <84>;
-	};*/
-	
-		spi_8: spi@f9964000 {
-		compatible = "qcom,spi-qup-v2";
-
-		cell-index = <8>;
-		reg-names = "spi_physical";
-		reg = <0xf9964000 0x1000>;
-		interrupt-names = "spi8_irq";
-		interrupts = <0 102 0>;
-
-		spi-max-frequency = <19200000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		
-		qcom,gpio-mosi = <&msmgpio 45 0>;
-		qcom,gpio-miso = <&msmgpio 46 0>;
-		qcom,gpio-clk  = <&msmgpio 48 0>;
-		qcom,gpio-cs0  = <&msmgpio 47 0>;
-		
-		qcom,master-id = <84>;
-	};
-	/*endif*/
-	/*OPPO yuyi 2014-03-18 add end for NFC spi clk*/
-	spi_12: spi@f9968000 {
-		compatible = "qcom,spi-qup-v2";
-		cell-index = <12>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "spi_physical";
-		reg = <0xf9968000 0x1000>;
-		interrupt-names = "spi12_irq";
-		interrupts = <0 106 0>;
-
-		spi-max-frequency = <9600000>;
-		
-		
-		qcom,gpio-mosi = <&msmgpio 85 0>;
-		qcom,gpio-miso = <&msmgpio 86 0>;
-		qcom,gpio-clk  = <&msmgpio 88 0>;
-		qcom,gpio-cs0  = <&msmgpio 87 0>;
-
 		qcom,master-id = <84>;
 	};
 
@@ -870,16 +768,11 @@
 						   "cdc-vdd-a-1p2v",
 						   "cdc-vddcx-1",
 						   "cdc-vddcx-2";
-		/*CONFIG_MACH_MSM8974_15055 liuyan add 2013-11-26,chinese and america hpmic switch*/
-		cdc-hpmic_switch-1-supply = <&pm8941_l24>;
-		/*liuyan add end*/
+			cdc-hpmic_switch-1-supply = <&pm8941_l24>;
 
 			qcom,cdc-micbias-ldoh-v = <0x3>;
 			qcom,cdc-micbias-cfilt1-mv = <1800>;
-			/* CONFIG_MACH_MSM8974_15055 liuyan 2013-3-15 modify,mic bias*/
-			/*qcom,cdc-micbias-cfilt2-mv = <2700>;*/
-                        qcom,cdc-micbias-cfilt2-mv = <2750>;
-			/*liuyan modify end*/
+			qcom,cdc-micbias-cfilt2-mv = <2750>;
 			qcom,cdc-micbias-cfilt3-mv = <2700>;
 			qcom,cdc-micbias1-cfilt-sel = <0x0>;
 			qcom,cdc-micbias2-cfilt-sel = <0x1>;
@@ -905,7 +798,7 @@
 			    "lpaif_quat_mode_muxsel";
 
 		qcom,audio-routing =
-                        "AIF4 VI", "MCLK",
+			"AIF4 VI", "MCLK",
 			"RX_BIAS", "MCLK",
 			"LDO_H", "MCLK",
 			"AIF4 MAD", "MCLK",
@@ -913,21 +806,12 @@
 			"MIC BIAS1 Internal1", "Handset Mic",
 			"AMIC2", "MIC BIAS2 External",
 			"MIC BIAS2 External", "Headset Mic",
-			
-			/*CONFIG_MACH_MSM8974_15055 liuyan 2013-3-15 modify*/
-			/*"AMIC3", "MIC BIAS2 External",*/
-			/*"MIC BIAS2 External", "ANCRight Headset Mic",*/
-			/*"AMIC4", "MIC BIAS2 External",*/
-			/*"MIC BIAS2 External", "ANCLeft Headset Mic",*/
-			
 			"AMIC3", "MIC BIAS1 External",
 			"MIC BIAS1 External", "Main Mic",
 			"AMIC4", "MIC BIAS1 External",
 			"MIC BIAS1 External", "Second Mic",
 			"AMIC5", "MIC BIAS1 External",
 			"MIC BIAS1 External", "ANC Mic",
-			/*liuyan modify end*/
-			
 			"DMIC1", "MIC BIAS1 External",
 			"MIC BIAS1 External", "Digital Mic1",
 			"DMIC2", "MIC BIAS1 External",
@@ -952,13 +836,6 @@
 		qcom,sec-auxpcm-gpio-sync = <&msmgpio 80 0>;
 		qcom,sec-auxpcm-gpio-din  = <&msmgpio 81 0>;
 		qcom,sec-auxpcm-gpio-dout = <&msmgpio 82 0>;
-		/*CONFIG_MACH_MSM8974_15055 liuyan add 2013-3-14,chinese and america hpmic switch*/
-                qcom,hpmic-switch-gpio = <&msmgpio 87 0>;
-                qcom,yda145_ctr-gpio = <&msmgpio 77 0>;
-                qcom,yda145_boots-gpio = <&msmgpio 67 0>;
-                enable_spk-gpio = <&msmgpio 73 0>; /*liuyan add 2013-8-19,speaker*/
-                cdc_spk-supply = <&pm8941_boost>; /*lvxiaojun add 2014-2-10,14001 yda145 supply*/
-               /*liuyan add end*/
 	};
 
 	spmi_bus: qcom,spmi@fc4c0000 {
@@ -1003,10 +880,7 @@
 		qcom,scl-gpio = <&msmgpio 3 0>;
 		qcom,sda-gpio = <&msmgpio 2 0>;
 		qcom,master-id = <86>;
-		/*CONFIG_MACH_MSM8974_15055 wangjc enable*/
-		/*status = "disabled";*/
 		status = "ok";
-		/*end add*/
 	};
 
 	i2c_2: i2c@f9924000 {
@@ -1025,29 +899,7 @@
 		qcom,sda-gpio = <&msmgpio 6 0>;
 	};
 
-/*OPPO yuyi 2013-03-22 add begin for nfc*/
-/*#ifdef CONFIG_MACH_MSM8974_15055 */
-	i2c_6: i2c@f9928000 {
-		cell-index = <6>;
-		compatible = "qcom,i2c-qup";
-		reg = <0xf9928000 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "qup_phys_addr";
-		interrupts = <0 100 0>;
-		interrupt-names = "qup_err_intr";
-		qcom,i2c-bus-freq = <100000>;
-		qcom,i2c-src-freq = <50000000>;
-		qcom,scl-gpio = <&msmgpio 30 0>;
-		qcom,sda-gpio = <&msmgpio 29 0>;
-		qcom,active-only;
-		qcom,master-id = <86>;
-	};
-/*#endif*/
-/*OPPO yuyi 2013-03-22 add end*/
-/*#ifdef CONFIG_MACH_MSM8974_15055*/
-/*wangjc delete*/
-	/*spi_0: spi@f9923000 {
+	spi_0: spi@f9923000 { /* BLSP1 QUP1 */
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1069,8 +921,8 @@
 		qcom,bam-consumer-pipe-index = <12>;
 		qcom,bam-producer-pipe-index = <13>;
 		qcom,master-id = <86>;
-	};*/
-/*wangjc del end*/
+		status = "disabled";
+	};
 
 	qcom,clock-krait@f9016000 {
 		compatible = "qcom,clock-krait-8974";
@@ -1701,15 +1553,15 @@
 		qcom,cpu-mem-ports = <1 512>, <2 512>;
 		qcom,bw-tbl =
 			<  381 /*  50 MHz */ >,
-			<  600 /*  75 MHz */ >,/* 572  -> 600  */ /* Zhilong.Zhang@OnlineRd.Driver, 2014/06/26, porting from 4.3 */
-			<  800 /* 100 MHz */ >,/* 762  -> 800  */
-			< 1200 /* 150 MHz */ >,/* 1144 -> 1200 */
-			< 1600 /* 200 MHz */ >,/* 1525 -> 1600 */
-			< 2456 /* 307 MHz */ >,/* 2342 -> 2456 */
-			< 3680 /* 460 MHz */ >,/* 3509 -> 3680 */
-			< 4912 /* 614 MHz */ >,/* 4684 -> 4912 */
-			< 6400 /* 800 MHz */ >,/* 6103 -> 6400 */
-			< 7448 /* 931 MHz */ >;/* 7102 -> 7448 */
+			<  572 /*  75 MHz */ >,
+			<  762 /* 100 MHz */ >,
+			< 1144 /* 150 MHz */ >,
+			< 1525 /* 200 MHz */ >,
+			< 2342 /* 307 MHz */ >,
+			< 3509 /* 460 MHz */ >,
+			< 4684 /* 614 MHz */ >,
+			< 6103 /* 800 MHz */ >,
+			< 7102 /* 931 MHz */ >;
 	};
 
 	qcom,kraitbw-l2pm {
@@ -1763,7 +1615,7 @@
 		vbus_dwc3-supply = <&pm8941_mvs1>;
 		qcom,dwc-usb3-msm-dbm-eps = <4>;
 		qcom,vdd-voltage-level = <1 5 7>;
-		qcom,dwc-hsphy-init = <0x00D0D1A7>;/*modfiy by jiachenghui for usb eye diagram tunning,PVT-0x00D0D1A7,2015-7-31*/
+		qcom,dwc-hsphy-init = <0x00D0D1A7>;
 		qcom,misc-ref = <&pm8941_misc>;
 		dwc_usb3-adc_tm = <&pm8941_adc_tm>;
 		qcom,dwc-usb3-msm-tx-fifo-size = <29696>;
@@ -2042,12 +1894,7 @@
 		compatible = "qcom,msm-dai-mi2s";
 		qcom,msm-dai-q6-mi2s-quat {
 			compatible = "qcom,msm-dai-q6-mi2s";
-			//#ifndef CONFIG_MACH_MSM8974_15055
-			//xiaojun.lv@PhoneDpt.AudioDrv, modify for 14021 smartPA
-			//qcom,msm-dai-q6-mi2s-dev-id = <3>;
-			//#else
 			qcom,msm-dai-q6-mi2s-dev-id = <1>;
-			//#endif
 			qcom,msm-mi2s-rx-lines = <1>;
 			qcom,msm-mi2s-tx-lines = <2>;
 		};
@@ -2142,7 +1989,7 @@
 		gpios = <&msmgpio 36 0>, <&msmgpio 37 0>, <&msmgpio 38 0>, <&msmgpio 39 0>, <&msmgpio 40 0>;
 		qcom,has-48mhz-xo;
 		qcom,has-pronto-hw;
-		qcom,wcnss-pm = <11 21 1200 1 1>;
+		qcom,wcnss-pm = <11 19 1200 1 1 6>;
 	};
 
 	qcom,ocmem@fdd00000 {
@@ -2186,10 +2033,8 @@
 		rpm-channel-name = "rpm_requests";
 		rpm-channel-type = <15>; /* SMD_APPS_RPM */
 	};
-        /*#ifdef CONFIG_MACH_MSM8974_15055*/
-        /*liuyan 2014-17 fix big at current in ftm sleep mode*/
 
-        /*qcom,msm-rng@f9bff000 {
+        qcom,msm-rng@f9bff000 {
 		compatible = "qcom,msm-rng";
 		reg = <0xf9bff000 0x200>;
 		qcom,msm-bus,name = "msm-rng-noc";
@@ -2198,20 +2043,7 @@
 		qcom,msm-bus,vectors-KBps =
 				<88 618 0 0>,
 				<88 618 0 800>;
-        };*/
-        /*#else*/
-         qcom,msm-rng@f9bff000 {
-		compatible = "qcom,msm-rng";
-		reg = <0xf9bff000 0x200>;
-		qcom,msm-bus,name = "msm-rng-noc";
-		qcom,msm-bus,num-cases = <2>;
-		qcom,msm-bus,num-paths = <1>;
-		qcom,msm-bus,vectors-KBps =
-				<54 618 0 0>,
-				<54 618 0 800>;
         };
-        /*liuyan fix end*/
-        /*#endif*/
 
 	qseecom: qcom,qseecom@7b00000 {
 		compatible = "qcom,qseecom";
@@ -2238,10 +2070,8 @@
 		compatible = "qcom,msm-watchdog";
 		reg = <0xf9017000 0x1000>;
 		interrupts = <0 3 0>, <0 4 0>;
-		/*qcom,bark-time = <11000>;*/
-		qcom,bark-time = <25000>;
-		/*qcom,pet-time = <10000>;*/
-		qcom,pet-time = <20000>;
+		qcom,bark-time = <11000>;
+		qcom,pet-time = <10000>;
 		qcom,ipi-ping;
 	};
 
@@ -2484,18 +2314,12 @@
 		qcom,rx-ring-size = <64>;
 	};
 
-	//#ifdef CONFIG_MACH_MSM8974_15055
-	//WeiHong.Li@OnLineRD.AirService.Module, 2013/10/24, modify for OEM DATA region 
-	/* NOTICE: 
-           add region(0x05900000 0x100000) for OEM data ram for NV backup.
-         */
         memory_hole: qcom,msm-mem-hole {
                 compatible = "qcom,msm-mem-hole";
                 qcom,memblock-remove = <0x5d00000 0x7d00000
 					0xfa00000 0x500000
 					0x05900000 0x100000>; /* Address and Size of Hole */
         };
-	//#endif /* CONFIG_MACH_MSM8974_15055 */
 
 	uart7: uart@f995d000 { /*BLSP #2, UART #7 */
 		compatible = "qcom,msm-hsuart-v14";
@@ -2595,23 +2419,6 @@
 		compatible = "qcom,bcl";
 	};
 
-/*ruanbanmao@oneplus.cn modify for the clk Tlow of NFC_I2C testing fail, begin. 2015-01-19*/
-/*	i2c@f9928000 { /* BLSP-1 QUP-6 */
-	/*	cell-index = <3>;
-		compatible = "qcom,i2c-qup";
-		reg = <0xf9928000 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "qup_phys_addr";
-		interrupts = <0 100 0>;
-		interrupt-names = "qup_err_intr";
-		qcom,i2c-bus-freq = <400000>;
-		qcom,i2c-src-freq = <19200000>;
-		qcom,scl-gpio = <&msmgpio 30 0>;
-		qcom,sda-gpio = <&msmgpio 29 0>;
-		qcom,master-id = <86>;
-	};*/
-/*ruanbanmao@oneplus.cn modify for the clk Tlow of NFC_I2C testing fail, end. 2015-01-19*/
 	qcom,ssm {
 		compatible = "qcom,ssm";
 		qcom,channel-name = "SSM_RTR";
