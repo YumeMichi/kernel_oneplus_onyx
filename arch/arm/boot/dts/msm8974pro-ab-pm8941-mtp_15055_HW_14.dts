@@ -12,8 +12,8 @@
 
 /dts-v1/;
 
-/include/ "project/15055_HW_14/msm8974pro-ab-pm8941.dtsi"
-/include/ "project/15055_HW_14/msm8974-mtp.dtsi"
+/include/ "msm8974pro-ab-pm8941.dtsi"
+/include/ "msm8974-mtp.dtsi"
 
 / {
 	model = "Qualcomm MSM 8974Pro-AA/AB MTP";
