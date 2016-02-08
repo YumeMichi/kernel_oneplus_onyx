@@ -7596,6 +7596,13 @@ static int taiko_codec_probe(struct snd_soc_codec *codec)
 		goto err_hwdep;
 	}
 
+#ifdef CONFIG_MACH_MSM8974_15055
+	taiko->mbhc.wcd9xxx_sdev.name = "h2w";
+	ret = switch_dev_register(&taiko->mbhc.wcd9xxx_sdev);
+	if (ret)
+		goto err_switch_dev_register;
+#endif
+
 	taiko->codec = codec;
 	for (i = 0; i < COMPANDER_MAX; i++) {
 		taiko->comp_enabled[i] = 0;
@@ -7717,6 +7724,10 @@ err_irq:
 err_hwdep:
 	kfree(taiko->fw_data);
 err_nomem_slimch:
+#ifdef CONFIG_MACH_MSM8974_15055
+	switch_dev_unregister(&taiko->mbhc.wcd9xxx_sdev);
+err_switch_dev_register:
+#endif
 	kfree(taiko);
 	return ret;
 }

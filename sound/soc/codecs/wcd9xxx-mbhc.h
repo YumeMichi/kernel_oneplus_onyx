@@ -12,6 +12,10 @@
 #ifndef __WCD9XXX_MBHC_H__
 #define __WCD9XXX_MBHC_H__
 
+#ifdef CONFIG_MACH_MSM8974_15055
+#include <linux/switch.h>
+#endif
+
 #include "wcd9xxx-resmgr.h"
 #include "wcdcal-hwdep.h"
 
@@ -249,6 +253,9 @@ struct wcd9xxx_mbhc_config {
 	bool use_vddio_meas;
 	bool enable_anc_mic_detect;
 	enum hw_jack_type hw_jack_type;
+#ifdef CONFIG_MACH_MSM8974_15055
+	int headset_type;
+#endif
 };
 
 struct wcd9xxx_cfilt_mode {
@@ -378,6 +385,10 @@ struct wcd9xxx_mbhc {
 #endif
 
 	struct mutex mbhc_lock;
+
+#ifdef CONFIG_MACH_MSM8974_15055
+	struct switch_dev wcd9xxx_sdev;
+#endif
 };
 
 #define WCD9XXX_MBHC_CAL_SIZE(buttons, rload) ( \
