@@ -671,6 +671,12 @@ config UID_CPUTIME
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
 
+config SOUND_CONTROL_HAX_3_GPL
+	tristate "wcd93xx High Performance Headphone Audio Toggle"
+	default y
+	help
+	  High Perf Sound WCD93xx chipset sound control
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
