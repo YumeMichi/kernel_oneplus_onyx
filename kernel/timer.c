@@ -1275,7 +1275,7 @@ static unsigned long cmp_next_hrtimer_event(unsigned long now,
 {
 	ktime_t hr_delta = hrtimer_get_next_event();
 	struct timespec tsdelta;
-	unsigned long delta;
+	u64 delta;
 
 	if (hr_delta.tv64 == KTIME_MAX)
 		return expires;
@@ -1831,10 +1831,10 @@ EXPORT_SYMBOL(msleep_interruptible);
 static int __sched do_usleep_range(unsigned long min, unsigned long max)
 {
 	ktime_t kmin;
-	unsigned long delta;
+	u64 delta;
 
 	kmin = ktime_set(0, min * NSEC_PER_USEC);
-	delta = (max - min) * NSEC_PER_USEC;
+	delta = (u64)(max - min) * NSEC_PER_USEC;
 	return schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
 }
 
