@@ -788,6 +788,9 @@ clk_enable_failed:
 	}
 request_gpio_failed:
 	cci_dev->ref_count--;
+#ifdef CONFIG_VENDOR_EDIT
+	wake_unlock(&cci_dev->cci_wakelock);
+#endif
 	return rc;
 }
 
@@ -800,6 +803,9 @@ static int32_t msm_cci_release(struct v4l2_subdev *sd)
 	if (!cci_dev->ref_count || cci_dev->cci_state != CCI_STATE_ENABLED) {
 		pr_err("%s invalid ref count %d / cci state %d\n",
 			__func__, cci_dev->ref_count, cci_dev->cci_state);
+#ifdef CONFIG_VENDOR_EDIT
+		wake_unlock(&cci_dev->cci_wakelock);
+#endif
 		return -EINVAL;
 	}
 	if (--cci_dev->ref_count) {
