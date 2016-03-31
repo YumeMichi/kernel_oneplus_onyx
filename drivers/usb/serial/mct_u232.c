@@ -398,6 +398,7 @@ static void mct_u232_msr_to_state(unsigned int *control_state,
 
 static int mct_u232_startup(struct usb_serial *serial)
 {
+	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv;
 	struct usb_serial_port *port, *rport;
 
