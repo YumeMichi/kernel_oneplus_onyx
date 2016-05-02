@@ -131,7 +131,7 @@ static void switch_dev_work(struct work_struct *work)
 			keyCode = keyCode_slider_top;
 		}
 	}
-	else if (hw_version == hw_new)
+	else
 	{
 		gpio_set_value(switch_data->key3_gpio, 0);
 		//pr_err("%s  gpio_22get_value(%d)=%d\n",__func__,switch_data->key3_gpio,gpio_get_value(switch_data->key3_gpio));
@@ -145,7 +145,7 @@ static void switch_dev_work(struct work_struct *work)
 			mode = MODE_DO_NOT_DISTURB;
 			keyCode = keyCode_slider_middle;
 		}
-		else if (!gpio_get_value(switch_data->key1_gpio))
+		else
 		{
 			mode = MODE_MUTE;
 			keyCode = keyCode_slider_top;
