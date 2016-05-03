@@ -356,6 +356,63 @@ static int synapitcs_ts_update(struct i2c_client *client, const uint8_t *data, u
 
 
 /*-------------------------------Using Struct----------------------------------*/
+struct synaptics_ts_data {
+	int irq;
+	int irq_gpio;
+	int id1_gpio;
+	int id2_gpio;
+	int id3_gpio;
+	int reset_gpio;
+	int enable2v8_gpio;
+	int max_num;
+	int enable_remote;
+	uint32_t irq_flags;
+	uint32_t max_x;
+    uint32_t max_y;
+	uint32_t max_y_real;
+	uint32_t btn_state;
+    uint32_t pre_finger_state;
+	uint32_t pre_btn_state;
+	struct input_dev *kpd;
+	struct work_struct  work;
+	struct work_struct speed_up_work;
+	struct i2c_client *client;
+	struct input_dev *input_dev;
+	struct hrtimer timer;
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
+	/******power*******/
+	struct regulator *vdd_2v8;
+	struct regulator *vdd_3v0;
+	struct regulator *vcc_i2c_1v8;
+
+	/*pinctrl******/
+	struct device						*dev;
+	struct pinctrl 						*pinctrl;
+	struct pinctrl_state 				*id_pullup;
+	struct pinctrl_state 				*id_pulldown;
+
+	/*******for FW update*******/
+	bool suspended;
+	bool loading_fw;
+	char fw_name[TP_FW_NAME_MAX_LEN];
+	char test_limit_name[TP_FW_NAME_MAX_LEN];
+	char fw_id[12];
+	struct mutex mutex;
+
+	/******gesture*******/
+	int double_enable;
+	int gesture_enable;
+	int is_suspended;
+    atomic_t is_stop;
+    spinlock_t lock;
+	struct wakeup_source syna_isr_ws;
+	spinlock_t isr_lock;
+	bool i2c_awake;
+	struct completion i2c_resume;
+};
+
 struct point_info {
     int x;
     int raw_x;
@@ -431,6 +488,37 @@ static int oem_synaptics_ts_probe(struct i2c_client *client, const struct i2c_de
 #endif /*CONFIG_MACH_MSM8974_15055*/
 //end add by jiachenghui for boot time optimize 2015-5-13
 
+static int synaptics_i2c_resume(struct device *dev)
+{
+	struct synaptics_ts_data *ts = ts_g;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ts->isr_lock, flags);
+	ts->i2c_awake = true;
+	spin_unlock_irqrestore(&ts->isr_lock, flags);
+
+	complete(&ts->i2c_resume);
+
+	return 0;
+}
+
+static int synaptics_i2c_suspend(struct device *dev)
+{
+	struct synaptics_ts_data *ts = ts_g;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ts->isr_lock, flags);
+	ts->i2c_awake = false;
+	spin_unlock_irqrestore(&ts->isr_lock, flags);
+
+	return 0;
+}
+
+static const struct dev_pm_ops synaptics_i2c_pm_ops = {
+	.resume  = synaptics_i2c_resume,
+	.suspend = synaptics_i2c_suspend,
+};
+
 static struct i2c_driver tpd_i2c_driver = {
 //add by jiachenghui for boot time optimize 2015-5-13
 #ifdef CONFIG_MACH_MSM8974_15055
@@ -445,6 +533,7 @@ static struct i2c_driver tpd_i2c_driver = {
 //		.owner  = THIS_MODULE,
 		.name	= TPD_DEVICE,
 		.of_match_table =  synaptics_match_table,
+		.pm = &synaptics_i2c_pm_ops,
 	},
 };
 
@@ -452,59 +541,6 @@ static int vdd_2v8_exist = 1;
 static int vdd_1v8_exist = 1;
 
 
-struct synaptics_ts_data {
-	int irq;
-	int irq_gpio;
-	int id1_gpio;
-	int id2_gpio;
-	int id3_gpio;
-	int reset_gpio;
-	int enable2v8_gpio;
-	int max_num;
-	int enable_remote;
-	uint32_t irq_flags;
-	uint32_t max_x;
-    uint32_t max_y;
-	uint32_t max_y_real;
-	uint32_t btn_state;
-    uint32_t pre_finger_state;
-	uint32_t pre_btn_state;
-	struct input_dev *kpd;
-	struct work_struct  work;
-	struct work_struct speed_up_work;
-	struct i2c_client *client;
-	struct input_dev *input_dev;
-	struct hrtimer timer;
-#if defined(CONFIG_FB)
-	struct notifier_block fb_notif;
-#endif
-	/******power*******/
-	struct regulator *vdd_2v8;
-	struct regulator *vdd_3v0;
-	struct regulator *vcc_i2c_1v8;
-
-	/*pinctrl******/
-	struct device						*dev;
-	struct pinctrl 						*pinctrl;
-	struct pinctrl_state 				*id_pullup;
-	struct pinctrl_state 				*id_pulldown;
-
-	/*******for FW update*******/
-	bool suspended;
-	bool loading_fw;
-	char fw_name[TP_FW_NAME_MAX_LEN];
-	char test_limit_name[TP_FW_NAME_MAX_LEN];
-	char fw_id[12];
-	struct mutex mutex;
-
-	/******gesture*******/
-	int double_enable;
-	int gesture_enable;
-	int is_suspended;
-    atomic_t is_stop;
-    spinlock_t lock;
-
-};
 
 /*Virtual Keys Setting Start*/
 static struct kobject *syna_properties_kobj;
@@ -1888,6 +1924,8 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *data)
 	uint8_t inte = 0;
 	uint8_t i2c_err_count = 0;
 	struct synaptics_ts_data *ts = data;
+	unsigned long flags;
+	bool i2c_active;
 
 	if (ts->loading_fw  || ts->enable_remote)
 		return IRQ_HANDLED;
@@ -1895,8 +1933,20 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *data)
 	memset(buf, 0, sizeof(buf));
 	down(&work_sem);
 
-	if (is_suspend)
-		goto up_semaphore;
+	if (is_suspend) {
+		spin_lock_irqsave(&ts->isr_lock, flags);
+		i2c_active = ts->i2c_awake;
+		spin_unlock_irqrestore(&ts->isr_lock, flags);
+
+		/* I2C bus must be active */
+		if (!i2c_active) {
+			__pm_stay_awake(&ts->syna_isr_ws);
+			/* Wait for I2C to resume before proceeding */
+			INIT_COMPLETION(ts->i2c_resume);
+			wait_for_completion_timeout(&ts->i2c_resume,
+							msecs_to_jiffies(30));
+		}
+	}
 
 	i2c_smbus_write_byte_data(ts->client, 0xff, 0x00 );
 
@@ -1963,6 +2013,10 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *data)
 		int_key_report_s3508(ts);
 up_semaphore:
 	up(&work_sem);
+
+	if (ts->syna_isr_ws.active)
+		__pm_relax(&ts->syna_isr_ws);
+
 	return IRQ_HANDLED;
 }
 #endif
@@ -3543,6 +3597,11 @@ shoud set the irq GPIO
 //		msleep(20);
 	}
 
+	init_completion(&ts->i2c_resume);
+	spin_lock_init(&ts->isr_lock);
+	wakeup_source_init(&ts->syna_isr_ws, "synaptics-isr");
+	ts->i2c_awake = true;
+
 	TPD_DEBUG("synaptic:ts->client->irq is %d\n",ts->client->irq);
 	ret = request_threaded_irq(ts_g->client->irq, NULL,
 				synaptics_ts_irq_handler,
@@ -5007,8 +5066,6 @@ static int synaptics_ts_suspend(struct device *dev)
                 TPD_ERR("synaptics:double_tap end suspend\n");
                 return 0;
             }
-#else
-        is_suspend = 1;
 #endif
 
 	ret = synaptics_enable_interrupt(ts, 0);
@@ -5228,6 +5285,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 			*/
 				TPD_DEBUG("%s : going TP suspend\n", __func__);
 				synaptics_ts_suspend(&ts->client->dev);
+				is_suspend = 1;
 				count_resume = 0;
 			}
 		}
