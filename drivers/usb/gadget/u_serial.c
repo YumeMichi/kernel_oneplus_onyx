@@ -1196,6 +1196,9 @@ static ssize_t debug_read_status(struct file *file, char __user *ubuf,
 	int i = 0;
 	int ret;
 	int result = 0;
+	
+	if (!ui_dev)
+		return -EINVAL;
 
 	tty = ui_dev->port_tty;
 	gser = ui_dev->port_usb;
@@ -1249,6 +1252,9 @@ static ssize_t debug_write_reset(struct file *file, const char __user *buf,
 	struct gs_port *ui_dev = file->private_data;
 	unsigned long flags;
 
+	if (!ui_dev)
+		return -EINVAL;
+	
 	spin_lock_irqsave(&ui_dev->port_lock, flags);
 	ui_dev->nbytes_from_host = ui_dev->nbytes_to_tty =
 			ui_dev->nbytes_from_tty = ui_dev->nbytes_to_host = 0;
@@ -1278,6 +1284,9 @@ static void usb_debugfs_init(struct gs_port *ui_dev, int port_num)
 {
 	char buf[48];
 
+	if (!ui_dev)
+		return;
+	
 	snprintf(buf, 48, "usb_serial%d", port_num);
 	gs_dent = debugfs_create_dir(buf, 0);
 	if (!gs_dent || IS_ERR(gs_dent))
