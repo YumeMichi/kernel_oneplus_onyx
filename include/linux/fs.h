@@ -2231,12 +2231,6 @@ static inline bool execute_ok(struct inode *inode)
 	return (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode);
 }
 
-#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
-static inline struct inode *file_inode(struct file *f)
-{
-	return f->f_inode;
-}
-#endif
 /*
  * get_write_access() gets write permission for a file.
  * put_write_access() releases this write permission.
