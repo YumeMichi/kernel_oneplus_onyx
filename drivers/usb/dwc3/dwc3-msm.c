@@ -2035,6 +2035,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc)
 	atomic_set(&mdwc->in_lpm, 1);
 
 	dev_info(mdwc->dev, "DWC3 in low power mode\n");
+
 	if (mdwc->hs_phy_irq) {
 		/*
 		 * with DCP or during cable disconnect, we dont require wakeup
@@ -2047,6 +2048,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc)
 		}
 		enable_irq(mdwc->hs_phy_irq);
 	}
+
 	return 0;
 }
 
@@ -2186,6 +2188,7 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	}
 
 	dev_info(mdwc->dev, "DWC3 exited from low power mode\n");
+
 	return 0;
 }
 

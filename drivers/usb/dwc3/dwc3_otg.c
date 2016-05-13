@@ -517,8 +517,6 @@ int dwc3_set_ext_xceiv(struct usb_otg *otg, struct dwc3_ext_xceiv *ext_xceiv)
 	return 0;
 }
 
-
-
 static void dwc3_otg_notify_host_mode(struct usb_otg *otg, int host_mode)
 {
 	struct dwc3_otg *dotg = container_of(otg, struct dwc3_otg, otg);
@@ -933,6 +931,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 		queue_delayed_work(system_nrt_wq, &dotg->sm_work, delay);
 }
 
+
 /**
  * dwc3_otg_reset - reset dwc3 otg registers.
  *
@@ -987,6 +986,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	u32	reg;
 	int ret = 0;
 	struct dwc3_otg *dotg;
+
 	dev_dbg(dwc->dev, "dwc3_otg_init\n");
 
 	/*
@@ -1062,6 +1062,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 				dotg->irq, ret);
 		goto err3;
 	}
+
 	pm_runtime_get(dwc->dev);
 
 	return 0;
