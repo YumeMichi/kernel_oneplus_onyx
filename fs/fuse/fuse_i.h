@@ -138,11 +138,6 @@ struct fuse_file {
 
 	/** Has flock been performed on this file? */
 	bool flock:1;
-
-#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
-	/* the read write file */
-	struct file *rw_lower_file;
-#endif
 };
 
 /** One input argument of a request */
@@ -315,11 +310,6 @@ struct fuse_req {
 
 	/** Request is stolen from fuse_file->reserved_req */
 	struct file *stolen_file;
-
-#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
-	/** fuse shortcircuit file  */
-	struct file *private_lower_rw_file;
-#endif
 };
 
 /**
@@ -435,11 +425,6 @@ struct fuse_conn {
 	/** Set if bdi is valid */
 	unsigned bdi_initialized:1;
 
-#ifdef CONFIG_MACH_MSM8974_15055
-   /** Shortcircuited IO. */
-   unsigned shortcircuit_io:1;
-#endif
-
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -513,11 +498,6 @@ struct fuse_conn {
 
 	/** number of dentries used in the above array */
 	int ctl_ndents;
-
-#ifdef CONFIG_MACH_MSM8974_15055
-//hefaxi@filesystems, 2015/06/17, add for reserved memory
-	unsigned reserved_mem;
-#endif
 
 	/** O_ASYNC requests */
 	struct fasync_struct *fasync;

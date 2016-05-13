@@ -20,9 +20,6 @@
 #include <linux/swap.h>
 #include <linux/splice.h>
 #include <linux/freezer.h>
-#ifdef CONFIG_MACH_MSM8974_15055
-#include "fuse_shortcircuit.h"
-#endif
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 MODULE_ALIAS("devname:fuse");
@@ -1783,10 +1780,6 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 
 	err = copy_out_args(cs, &req->out, nbytes);
 	fuse_copy_finish(cs);
-
-#ifdef CONFIG_MACH_MSM8974_15055/*Add shortcircuit*/
-fuse_setup_shortcircuit(fc, req);
-#endif
 
 	spin_lock(&fc->lock);
 	req->locked = 0;

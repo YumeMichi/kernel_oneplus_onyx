@@ -986,9 +986,6 @@ struct file {
 	struct path		f_path;
 #define f_dentry	f_path.dentry
 #define f_vfsmnt	f_path.mnt
-#ifdef CONFIG_MACH_MSM8974_15055/*Add by liwei*/
-	struct inode    *f_inode;/*cached value*/
-#endif
 	const struct file_operations	*f_op;
 
 	/*
