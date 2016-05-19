@@ -105,11 +105,6 @@ struct scsi_cmnd;
 #define WRITE_SAME            0x41
 #define UNMAP		      0x42
 #define READ_TOC              0x43
- //add by jiachenghui for cdrom suport MAC OSX,2015-06-30
-#ifdef CONFIG_MACH_MSM8974_15055
-#define READ_CD             0xbe
-#endif
- //end add by jiachenghui for cdrom suport MAC OSX,2015-06-30
 #define READ_HEADER           0x44
 #define GET_EVENT_STATUS_NOTIFICATION 0x4a
 #define LOG_SELECT            0x4c
