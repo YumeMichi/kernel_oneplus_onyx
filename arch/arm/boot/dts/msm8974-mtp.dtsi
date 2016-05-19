@@ -245,11 +245,11 @@
 	};
 
 	tri_state_key {
-			compatible = "oneplus,tri-state-key";
-			interrupt-parent = <&msmgpio>;
-			tristate,gpio_key2 = <&msmgpio 92 0x00>;
-			tristate,gpio_key1 = <&msmgpio 1 0x00>;
-			tristate,gpio_key3 = <&msmgpio 9 0x00>;
+		compatible = "oneplus,tri-state-key";
+		interrupt-parent = <&msmgpio>;
+		tristate,gpio_key2 = <&msmgpio 92 0x00>;
+		tristate,gpio_key1 = <&msmgpio 1 0x00>;
+		tristate,gpio_key3 = <&msmgpio 9 0x00>;
 	};
 
 	spi@f9923000 {
