@@ -86,7 +86,7 @@ static int __init ram_console_module_init(void)
 	return platform_driver_register(&ram_console_driver);
 }
 
-#ifndef CONFIG_PRINTK
+#if !defined(CONFIG_PRINTK) || defined(CONFIG_MACH_MSM8974_15055)
 #define dmesg_restrict	0
 #endif
 
