@@ -2007,10 +2007,10 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *data)
 			key_press_all_the_time = 0;
 			int_touch_s3508(ts,insert_point);
 		}
+	} else if (inte & 0x10) {
+		int_key_report_s3508(ts);
 	}
 
-	if (inte & 0x10)
-		int_key_report_s3508(ts);
 up_semaphore:
 	up(&work_sem);
 
