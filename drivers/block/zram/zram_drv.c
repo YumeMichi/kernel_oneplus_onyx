@@ -518,8 +518,7 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
 		goto out_error;
 	}
 
-	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM |
-					__GFP_NOWARN);
+	meta->mem_pool = zs_create_pool(pool_name);
 	if (!meta->mem_pool) {
 		pr_err("Error creating memory pool\n");
 		goto out_error;
@@ -723,7 +722,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 			src = uncmem;
 	}
 
-	handle = zs_malloc(meta->mem_pool, clen);
+	handle = zs_malloc(meta->mem_pool, clen, GFP_NOIO | __GFP_HIGHMEM |
+					__GFP_NOWARN);
 	if (!handle) {
 		if (printk_timed_ratelimit(&zram_rs_time,
 					   ALLOC_ERROR_LOG_RATE_MS))
