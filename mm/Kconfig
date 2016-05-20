@@ -408,6 +408,16 @@ config ZPOOL
 	  Compressed memory storage API.  This allows using either zbud or
 	  zsmalloc.
 
+config Z3FOLD
+	tristate "Up to 3x density storage for compressed pages"
+	depends on ZPOOL
+	default n
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to three compressed pages per physical
+	  page. It is a ZBUD derivative so the simplicity and determinism are
+	  still there.
+
 config ZSMALLOC
 	bool "Memory allocator for compressed pages"
 	depends on MMU
