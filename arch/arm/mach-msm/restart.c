@@ -74,15 +74,10 @@ static void *emergency_dload_mode_addr;
 
 /* Download mode master kill-switch */
 static int dload_set(const char *val, struct kernel_param *kp);
-#ifndef CONFIG_MACH_MSM8974_15055  
-//He Wei@OnLineRD,  2013/08/02, modify for reboot after crash
-static int download_mode = 1;
-#else      /*CONFIG_MACH_MSM8974_15055*/
-#ifndef RELEASE_DOWNLOAD_MODE_SET
-static int download_mode = 1;
+#ifdef CONFIG_MACH_MSM8974_15055
+static int download_mode;
 #else
-static int download_mode = 0;
-#endif   /*CONFIG_MACH_MSM8974_15055*/
+static int download_mode = 1;
 #endif
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
