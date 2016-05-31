@@ -146,6 +146,46 @@
 		status = "disabled";
 	};
 
+	qcom,leds@d800 {
+		status = "disabled";
+	};
+
+	qcom,leds@d900 {
+		status = "disabled";
+	};
+
+	qcom,leds@da00 {
+		status = "disabled";
+	};
+
+	qcom,leds@db00 {
+		status = "disabled";
+	};
+
+	qcom,leds@dc00 {
+		status = "disabled";
+	};
+
+	qcom,leds@dd00 {
+		status = "disabled";
+	};
+
+	qcom,leds@de00 {
+		status = "disabled";
+	};
+
+	qcom,leds@df00 {
+		status = "disabled";
+	};
+
+	qcom,leds@e000 {
+		status = "disabled";
+	};
+
+	qcom,leds@e100 {
+		status = "disabled";
+	};
+
 	qcom,leds@e200 {
 		status = "disabled";
 
