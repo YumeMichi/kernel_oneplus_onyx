@@ -58,6 +58,7 @@ struct boost_policy {
 	struct ib_config ib;
 	struct workqueue_struct *wq;
 	uint8_t enabled;
+	bool device_awake;
 };
 
 static struct boost_policy *boost_policy_g;
@@ -215,8 +216,16 @@ static int fb_unblank_boost(struct notifier_block *nb,
 	int *blank = evdata->data;
 
 	/* Only boost for unblank (i.e. when device is woken) */
-	if (val != FB_EVENT_BLANK || *blank != FB_BLANK_UNBLANK)
+	if (val != FB_EVENT_BLANK)
 		return NOTIFY_OK;
+
+	/* Keep track of suspend state */
+	if (*blank == FB_BLANK_UNBLANK) {
+		b->device_awake = 1;
+	} else {
+		b->device_awake = 0;
+		return NOTIFY_OK;
+	}
 
 	if (!is_driver_enabled(b))
 		return NOTIFY_OK;
@@ -241,6 +250,12 @@ static void cpu_ib_input_event(struct input_handle *handle, unsigned int type,
 	struct boost_policy *b = handle->handler->private;
 	enum boost_status ib_status;
 	bool do_boost;
+
+	/* Anticipate device wake-up and boost early */
+	if (!b->device_awake) {
+		queue_work(b->wq, &b->fb.boost_work);
+		return;
+	}
 
 	spin_lock(&b->lock);
 	ib_status = b->ib.running;
