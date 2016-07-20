@@ -411,6 +411,8 @@ struct synaptics_ts_data {
 	spinlock_t isr_lock;
 	bool i2c_awake;
 	struct completion i2c_resume;
+
+	ktime_t timestamp;
 };
 
 struct point_info {
@@ -1681,6 +1683,12 @@ static void int_touch_s3508(struct synaptics_ts_data *ts,bool insert_flag)
 			TPD_ERR("synaptics_int_touch: i2c_transfer failed\n");
 			return;
 		}
+
+		input_event(ts->input_dev, EV_SYN, SYN_TIME_SEC,
+				ktime_to_timespec(ts->timestamp).tv_sec);
+		input_event(ts->input_dev, EV_SYN, SYN_TIME_NSEC,
+				ktime_to_timespec(ts->timestamp).tv_nsec);
+
 		for( i = 0; i < ts->max_num; i++ ){
 				points.x = ((buf[i*8+2]&0x0f)<<8) | (buf[i*8+1] & 0xff);
 				points.y = ((buf[i*8+4]&0x0f)<<8) | (buf[i*8+3] & 0xff);
@@ -1931,6 +1939,8 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *data)
 							msecs_to_jiffies(30));
 		}
 	}
+
+	ts->timestamp = ktime_get();
 
 	i2c_smbus_write_byte_data(ts->client, 0xff, 0x00 );
 
