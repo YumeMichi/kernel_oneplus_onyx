@@ -54,8 +54,6 @@
 		qcom,mdss-dsi-t-clk-pre = <0x3e>;
 		qcom,mdss-dsi-bl-min-level = <1>;
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,mdss-dsi-lp11-init;
-		qcom,mdss-dsi-init-delay-us = <6000>;
 		qcom,mdss-dsi-reset-sequence = <1 5>, <0 1>, <1 10>;
 		qcom,mdss-pan-physical-width-dimension = <62>;
 		qcom,mdss-pan-physical-height-dimension = <111>;
