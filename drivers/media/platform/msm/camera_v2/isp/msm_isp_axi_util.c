@@ -483,7 +483,7 @@ void msm_isp_notify(struct vfe_device *vfe_dev, uint32_t event_type,
 		vfe_dev->axi_data.src_info[frame_src].frame_id++;
 		if (vfe_dev->axi_data.src_info[frame_src].frame_id == 0)
 			vfe_dev->axi_data.src_info[frame_src].frame_id = 1;
-			break;
+		break;
 	default:
 		break;
 	}

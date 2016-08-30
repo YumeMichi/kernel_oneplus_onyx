@@ -972,17 +972,17 @@ static int synaptics_enable_interrupt_for_gesture(struct synaptics_ts_data *ts, 
 		else
 			reportbuf[2] &= 0xfd ;
 
-			status_int = (ret & 0xF8) | 0x04;
-			/*enable gpio wake system through intterrupt*/
-			enable_irq_wake(ts->client->irq);
-			gesture = UnkownGestrue ;
-			/*clear interrupt bits for previous touch*/
-			TPD_DEBUG("clear interrupt bits for previous touch\n");
-			ret = i2c_smbus_write_i2c_block_data( ts->client, F12_2D_CTRL20, 3, &(reportbuf[0x0]) );
-			if( ret < 0 ){
-				TPD_ERR("%s :Failed to write report buffer\n", __func__);
-				return -1;
-			}
+		status_int = (ret & 0xF8) | 0x04;
+		/*enable gpio wake system through intterrupt*/
+		enable_irq_wake(ts->client->irq);
+		gesture = UnkownGestrue ;
+		/*clear interrupt bits for previous touch*/
+		TPD_DEBUG("clear interrupt bits for previous touch\n");
+		ret = i2c_smbus_write_i2c_block_data( ts->client, F12_2D_CTRL20, 3, &(reportbuf[0x0]) );
+		if( ret < 0 ){
+			TPD_ERR("%s :Failed to write report buffer\n", __func__);
+			return -1;
+		}
 //	}
 	return 0;
 }
