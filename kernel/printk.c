@@ -252,6 +252,9 @@ static u32 clear_idx;
 static u64 syslog_seq;
 static u32 syslog_idx;
 
+static unsigned int user_log_level = 2;
+module_param(user_log_level, uint, S_IRUGO | S_IWUSR);
+
 /* human readable text of the record */
 static char *log_text(const struct log *msg)
 {
@@ -408,6 +411,10 @@ static ssize_t devkmsg_writev(struct kiocb *iocb, const struct iovec *iv,
 		i = simple_strtoul(line+1, &endp, 10);
 		if (endp && endp[0] == '>') {
 			level = i & 7;
+			if (level > user_log_level) {
+				ret = 0;
+				goto out;
+			}
 			if (i >> 3)
 				facility = i >> 3;
 			endp++;
