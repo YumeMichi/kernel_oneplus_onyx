@@ -42,6 +42,7 @@
 #include "msm_isp_util.h"
 #include "msm_camera_io_util.h"
 #include <linux/debugfs.h>
+#include <linux/ratelimit.h>
 
 #define MSM_CPP_DRV_NAME "msm_cpp"
 
@@ -2228,7 +2229,7 @@ long msm_cpp_subdev_ioctl(struct v4l2_subdev *sd,
 			&buff_mgr_info);
 		if (rc < 0) {
 			rc = -EAGAIN;
-			pr_err("error getting buffer rc:%d\n", rc);
+			pr_err_ratelimited("error getting buffer rc:%d\n", rc);
 			break;
 		}
 		buff_mgr_info.frame_id = frame_info.frame_id;
