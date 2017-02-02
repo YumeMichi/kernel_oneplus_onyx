@@ -113,7 +113,7 @@ struct test_header {
 #define DTAP_DETECT_S3203     0x01
 
 
-#define UnkownGestrue       0
+#define UnknownGesture       0
 #define DouTap              1   // double tap
 #define UpVee               2   // V
 #define DownVee             3   // ^
@@ -128,12 +128,13 @@ struct test_header {
 #define Mgestrue            12  // M
 #define Wgestrue            13  // W
 
-#define KEY_DOUBLE_TAP          KEY_WAKEUP // double tap to wake
-#define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
-#define KEY_GESTURE_TWO_SWIPE	251 // swipe two finger vertically to play/pause
-#define KEY_GESTURE_V           252 // draw v to toggle flashlight
-#define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
-#define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
+#define KEY_DOUBLE_TAP          KEY_WAKEUP // double tap
+#define KEY_GESTURE_CIRCLE      250 // draw circle
+#define KEY_GESTURE_TWO_SWIPE	251 // swipe two finger vertically
+#define KEY_GESTURE_UP_ARROW    252 // draw up arrow
+#define KEY_GESTURE_DOWN_ARROW  253 // draw down arrow
+#define KEY_GESTURE_LEFT_ARROW  254 // draw left arrow
+#define KEY_GESTURE_RIGHT_ARROW 255 // draw right arrow
 
 #define BIT0 (0x1 << 0)
 #define BIT1 (0x1 << 1)
@@ -402,7 +403,13 @@ struct synaptics_ts_data {
 	struct mutex mutex;
 
 	/******gesture*******/
-	int double_enable;
+	int double_tap_enable;
+	int double_swipe_enable;
+	int up_arrow_enable;
+	int down_arrow_enable;
+	int left_arrow_enable;
+	int right_arrow_enable;
+	int letter_o_enable;
 	int gesture_enable;
 	int is_suspended;
     atomic_t is_stop;
@@ -541,8 +548,6 @@ static struct i2c_driver tpd_i2c_driver = {
 
 static int vdd_2v8_exist = 1;
 static int vdd_1v8_exist = 1;
-
-
 
 /*Virtual Keys Setting Start*/
 static struct kobject *syna_properties_kobj;
@@ -906,7 +911,7 @@ static int synaptics_enable_interrupt_for_gesture(struct synaptics_ts_data *ts, 
 			status_int = (ret & 0xF8) | 0x04;
 			/*enable gpio wake system through intterrupt*/
 			enable_irq_wake(ts->client->irq);
-			gesture = UnkownGestrue ;
+			gesture = UnknownGesture ;
 			/*clear interrupt bits for previous touch*/
 			ret = i2c_smbus_read_byte_data(ts->client, F01_RMI_DATA01);
 			if(ret < 0) {
@@ -975,7 +980,7 @@ static int synaptics_enable_interrupt_for_gesture(struct synaptics_ts_data *ts, 
 		status_int = (ret & 0xF8) | 0x04;
 		/*enable gpio wake system through intterrupt*/
 		enable_irq_wake(ts->client->irq);
-		gesture = UnkownGestrue ;
+		gesture = UnknownGesture;
 		/*clear interrupt bits for previous touch*/
 		TPD_DEBUG("clear interrupt bits for previous touch\n");
 		ret = i2c_smbus_write_i2c_block_data( ts->client, F12_2D_CTRL20, 3, &(reportbuf[0x0]) );
@@ -1482,7 +1487,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
                         (regswipe == 0x44) ? Up2DownSwip      :
                         (regswipe == 0x48) ? Down2UpSwip      :
                         (regswipe == 0x80) ? DouSwip          :
-                        UnkownGestrue;
+                        UnknownGesture;
             break;
         case DTAP_DETECT:
 			gesture = DouTap;
@@ -1492,44 +1497,52 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 						(gesture_buffer[2] == 0x02) ? UpVee    :
 						(gesture_buffer[2] == 0x04) ? RightVee :
 						(gesture_buffer[2] == 0x08) ? LeftVee  :
-						UnkownGestrue;
+						UnknownGesture;
 
             break;
         case UNICODE_DETECT:
 			gesture =   (gesture_buffer[2] == 0x77 && gesture_buffer[3] == 0x00) ? Wgestrue :
 					    (gesture_buffer[2] == 0x6d && gesture_buffer[3] == 0x00) ? Mgestrue :
-                        UnkownGestrue;
+                        UnknownGesture;
 			break;
 		case 0:
-			gesture = UnkownGestrue;
+			gesture = UnknownGesture;
 
 	  	}
 
-	keyCode = UnkownGestrue;
+	keyCode = UnknownGesture;
 	// Get key code based on registered gesture.
 	switch (gesture) {
 		case DouTap:
+			if(ts->double_tap_enable)
 			keyCode = KEY_DOUBLE_TAP;
 			break;
 		case UpVee:
-			keyCode = KEY_GESTURE_V;
+			if(ts->down_arrow_enable)
+			keyCode = KEY_GESTURE_DOWN_ARROW;
 			break;
 		case DownVee:
-			keyCode = KEY_GESTURE_V;
+			if(ts->up_arrow_enable)
+			keyCode = KEY_GESTURE_UP_ARROW;
 			break;
 		case LeftVee:
-			keyCode = KEY_GESTURE_RIGHT_V;
+			if(ts->right_arrow_enable)
+			keyCode = KEY_GESTURE_RIGHT_ARROW;
 			break;
 		case RightVee:
-			keyCode = KEY_GESTURE_LEFT_V;
+			if(ts->left_arrow_enable)
+			keyCode = KEY_GESTURE_LEFT_ARROW;
 			break;
 		case Circle:
+			if(ts->letter_o_enable)
 			keyCode = KEY_GESTURE_CIRCLE;
 			break;
 		case DouSwip:
+			if(ts->double_swipe_enable)
 			keyCode = KEY_GESTURE_TWO_SWIPE;
 			break;
 		default:
+			keyCode = 0;
 			break;
 	}
 
@@ -1549,14 +1562,14 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 
 
 	synaptics_get_coordinate_point(ts);
-	if((gesture == DouTap && DouTap_gesture)||(gesture == RightVee && RightVee_gesture)\
-        ||(gesture == LeftVee && LeftVee_gesture)||(gesture == UpVee && UpVee_gesture)\
-        ||(gesture == Circle && Circle_gesture)||(gesture == DouSwip && DouSwip_gesture)){
-        gesture_upload = gesture;
-		input_report_key(ts->input_dev, keyCode, 1);
-		input_sync(ts->input_dev);
-		input_report_key(ts->input_dev, keyCode, 0);
-		input_sync(ts->input_dev);
+	if(gesture != UnknownGesture ){
+		gesture_upload = gesture;
+			if (keyCode != 0) {
+				input_report_key(ts->input_dev, keyCode, 1);
+				input_sync(ts->input_dev);
+				input_report_key(ts->input_dev, keyCode, 0);
+				input_sync(ts->input_dev);
+			}
     }else{
 		//if(is_project(OPPO_14005) || is_project(OPPO_15011)){
 			ret = i2c_smbus_read_i2c_block_data( ts->client, F12_2D_CTRL20, 3, &(reportbuf[0x0]) );
@@ -3507,9 +3520,10 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	set_bit(KEY_F4 , ts->input_dev->keybit);//doulbe-tap resume
 	set_bit(KEY_DOUBLE_TAP, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_CIRCLE, ts->input_dev->keybit);
-	set_bit(KEY_GESTURE_V, ts->input_dev->keybit);
-	set_bit(KEY_GESTURE_LEFT_V, ts->input_dev->keybit);
-	set_bit(KEY_GESTURE_RIGHT_V, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_UP_ARROW, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_DOWN_ARROW, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_RIGHT_ARROW, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_LEFT_ARROW, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_TWO_SWIPE, ts->input_dev->keybit);
 		set_bit(KEY_MENU , ts->input_dev->keybit);
 		set_bit(KEY_HOMEPAGE , ts->input_dev->keybit);
@@ -3837,131 +3851,48 @@ static int tp_key_reverse_write_func(struct file *file, const char __user *buffe
 
 	return count;
 }
-static ssize_t double_tap_enable_read_func(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char page[PAGESIZE];
-	ret = sprintf(page, "%d\n", DouTap_gesture);
-	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
-	return ret;
+
+#define TS_ENABLE_FOPS(type) \
+static ssize_t tp_##type##_read_func(struct file *file, char __user *user_buf, size_t count, loff_t *ppos) \
+{ \
+	int ret = 0; \
+	char page[PAGESIZE]; \
+	if(!ts_g) \
+		return ret; \
+	ret = sprintf(page, "%d\n", ts_g->type##_enable); \
+	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page)); \
+	return ret; \
+} \
+static ssize_t tp_##type##_write_func(struct file *file, const char __user *buffer, size_t count, loff_t *ppos) \
+{ \
+	int ret = 0; \
+	char buf[10]; \
+	if( count > 2) \
+		return count; \
+	if( copy_from_user(buf, buffer, count) ){ \
+		printk(KERN_INFO "%s: read proc input error.\n", __func__); \
+		return count; \
+	} \
+	sscanf(buf, "%d", &ret); \
+	if(!ts_g) \
+		return count; \
+	ts_g->type##_enable = !!ret; \
+	return count; \
+} \
+static const struct file_operations tp_##type##_proc_fops = { \
+	.write = tp_##type##_write_func, \
+	.read =  tp_##type##_read_func, \
+	.open = simple_open, \
+	.owner = THIS_MODULE, \
 }
 
-static ssize_t double_tap_enable_write_func(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	struct synaptics_ts_data *ts = ts_g;
-
-	sscanf(buf, "%d", &ret);
-
-	DouTap_gesture = ret;
-	if (DouTap_gesture || Circle_gesture || UpVee_gesture ||
-                (LeftVee_gesture && RightVee_gesture && DouSwip_gesture))
-	{
-		ts->double_enable = 1;
-		atomic_set(&double_enable, 1);
-	}
-	else
-	{
-		ts->double_enable = 0;
-		atomic_set(&double_enable, 0);
-	}
-	return count;
-}
-
-static ssize_t camera_enable_read_func(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char page[PAGESIZE];
-	ret = sprintf(page, "%d\n", Circle_gesture);
-	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
-	return ret;
-}
-
-static ssize_t camera_enable_write_func(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	struct synaptics_ts_data *ts = ts_g;
-
-	sscanf(buf, "%d", &ret);
-
-	Circle_gesture = ret;
-	if (DouTap_gesture || Circle_gesture || UpVee_gesture ||
-                (LeftVee_gesture && RightVee_gesture && DouSwip_gesture))
-	{
-		ts->double_enable = 1;
-		atomic_set(&double_enable, 1);
-	}
-	else
-	{
-		ts->double_enable = 0;
-		atomic_set(&double_enable, 0);
-	}
-	return count;
-}
-
-static ssize_t music_enable_read_func(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char page[PAGESIZE];
-	ret = sprintf(page, "%d\n", LeftVee_gesture && RightVee_gesture && DouSwip_gesture);
-	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
-	return ret;
-}
-
-static ssize_t music_enable_write_func(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	struct synaptics_ts_data *ts = ts_g;
-
-	sscanf(buf, "%d", &ret);
-
-	DouSwip_gesture = ret;
-	LeftVee_gesture = ret;
-	RightVee_gesture = ret;
-	if (DouTap_gesture || Circle_gesture || UpVee_gesture ||
-				(LeftVee_gesture && RightVee_gesture && DouSwip_gesture))
-	{
-		ts->double_enable = 1;
-		atomic_set(&double_enable, 1);
-	}
-	else
-	{
-		ts->double_enable = 0;
-		atomic_set(&double_enable, 0);
-	}
-	return count;
-}
-
-static ssize_t flashlight_enable_read_func(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	char page[PAGESIZE];
-	ret = sprintf(page, "%d\n", UpVee_gesture);
-	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
-	return ret;
-}
-
-static ssize_t flashlight_enable_write_func(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
-{
-	int ret = 0;
-	struct synaptics_ts_data *ts = ts_g;
-
-	sscanf(buf, "%d", &ret);
-
-	UpVee_gesture = ret;
-	if (DouTap_gesture || Circle_gesture || UpVee_gesture ||
-                (LeftVee_gesture && RightVee_gesture && DouSwip_gesture))
-	{
-		ts->double_enable = 1;
-		atomic_set(&double_enable, 1);
-	}
-	else
-	{
-		ts->double_enable = 0;
-		atomic_set(&double_enable, 0);
-	}
-	return count;
-}
+TS_ENABLE_FOPS(double_tap);
+TS_ENABLE_FOPS(double_swipe);
+TS_ENABLE_FOPS(up_arrow);
+TS_ENABLE_FOPS(down_arrow);
+TS_ENABLE_FOPS(left_arrow);
+TS_ENABLE_FOPS(right_arrow);
+TS_ENABLE_FOPS(letter_o);
 
 // chenggang.li@BSP.TP modified for oppo 2014-08-08 create node
 /******************************start****************************/
@@ -4000,36 +3931,6 @@ static const struct file_operations i2c_device_test_fops = {
 	.open = simple_open,
 	.owner = THIS_MODULE,
 };
-
-
-static const struct file_operations double_tap_enable_proc_fops = {
-	.write = double_tap_enable_write_func,
-	.read =  double_tap_enable_read_func,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-};
-
-static const struct file_operations camera_enable_proc_fops = {
-	.write = camera_enable_write_func,
-	.read =  camera_enable_read_func,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-};
-
-static const struct file_operations music_enable_proc_fops = {
-	.write = music_enable_write_func,
-	.read =  music_enable_read_func,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-};
-
-static const struct file_operations flashlight_enable_proc_fops = {
-	.write = flashlight_enable_write_func,
-	.read =  flashlight_enable_read_func,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-};
-
 
 //wangwenxue@BSP add for change baseline_test to "proc\touchpanel\baseline_test"  begin
 static const struct file_operations tp_baseline_test_proc_fops = {
@@ -4105,25 +4006,43 @@ static int init_synaptics_proc(void)
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 	}
 
-	prEntry_tmp = proc_create("double_tap_enable", 0666, prEntry_tp, &double_tap_enable_proc_fops);
+	prEntry_tmp = proc_create("double_tap_enable", 0666, prEntry_tp, &tp_double_tap_proc_fops);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 	}
 
-	prEntry_tmp = proc_create("camera_enable", 0666, prEntry_tp, &camera_enable_proc_fops);
+	prEntry_tmp = proc_create("double_swipe_enable", 0666, prEntry_tp, &tp_double_swipe_proc_fops);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 	}
 
-	prEntry_tmp = proc_create("music_enable", 0666, prEntry_tp, &music_enable_proc_fops);
+	prEntry_tmp = proc_create("up_arrow_enable", 0666, prEntry_tp, &tp_up_arrow_proc_fops);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 	}
 
-	prEntry_tmp = proc_create("flashlight_enable", 0666, prEntry_tp, &flashlight_enable_proc_fops);
+	prEntry_tmp = proc_create("down_arrow_enable", 0666, prEntry_tp, &tp_down_arrow_proc_fops);
+	if(prEntry_tmp == NULL){
+		ret = -ENOMEM;
+		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
+	}
+
+	prEntry_tmp = proc_create("left_arrow_enable", 0666, prEntry_tp, &tp_left_arrow_proc_fops);
+	if(prEntry_tmp == NULL){
+		ret = -ENOMEM;
+		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
+	}
+
+	prEntry_tmp = proc_create("right_arrow_enable", 0666, prEntry_tp, &tp_right_arrow_proc_fops);
+	if(prEntry_tmp == NULL){
+		ret = -ENOMEM;
+		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
+	}
+
+	prEntry_tmp = proc_create("letter_o_enable", 0666, prEntry_tp, &tp_letter_o_proc_fops);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
@@ -4707,7 +4626,7 @@ static int synaptics_ts_probe(
 	atomic_set(&is_touch, 0);
        atomic_set(&is_key_touch, 0);
 #ifdef SUPPORT_GESTURE
-	atomic_set(&double_enable, 0);
+	atomic_set(&double_enable, 1);
 #endif
 	atomic_set(&key_reverse, 0);
 
