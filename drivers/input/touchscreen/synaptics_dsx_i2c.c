@@ -4917,7 +4917,7 @@ struct synaptics_optimize_data{
 };
 static struct synaptics_optimize_data optimize_data;
 
-static void synaptics_oneplus_func(struct work_struct *work)
+static void __devinit synaptics_oneplus_func(struct work_struct *work)
 {
 	int retval;
 	struct i2c_client *client_optimize = optimize_data.client;
