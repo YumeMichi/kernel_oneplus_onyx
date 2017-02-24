@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, 2016-2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -835,6 +835,8 @@ static int msm_compr_playback_close(struct snd_pcm_substream *substream)
 			SNDRV_PCM_STREAM_PLAYBACK);
 	q6asm_audio_client_free(prtd->audio_client);
 	kfree(prtd);
+	runtime->private_data = NULL;
+
 	return 0;
 }
 
@@ -855,6 +857,8 @@ static int msm_compr_capture_close(struct snd_pcm_substream *substream)
 				SNDRV_PCM_STREAM_CAPTURE);
 	q6asm_audio_client_free(prtd->audio_client);
 	kfree(prtd);
+	runtime->private_data = NULL;
+
 	return 0;
 }
 
