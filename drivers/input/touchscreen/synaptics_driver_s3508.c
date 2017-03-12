@@ -4682,12 +4682,12 @@ static int synaptics_ts_probe(
 	/***power_init*****/
 
 	mutex_init(&ts->mutex);
-	synaptics_wq = create_singlethread_workqueue("synaptics_wq");
+	synaptics_wq = alloc_ordered_workqueue("synaptics_wq", WQ_HIGHPRI);
     if( !synaptics_wq ){
         ret = -ENOMEM;
 		goto err_alloc_data_failed;
     }
-	speedup_resume_wq = create_singlethread_workqueue("speedup_resume_wq");
+	speedup_resume_wq = alloc_ordered_workqueue("speedup_resume_wq", WQ_HIGHPRI);
 	if( !speedup_resume_wq ){
          ret = -ENOMEM;
 		goto err_alloc_data_failed;
