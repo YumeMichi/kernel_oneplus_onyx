@@ -2983,7 +2983,8 @@ static void calculate_soc_work(struct work_struct *work)
 				calculate_soc_delayed_work.work);
 
 	recalculate_soc(chip);
-	schedule_delayed_work(&chip->calculate_soc_delayed_work,
+	queue_delayed_work(system_power_efficient_wq,
+		&chip->calculate_soc_delayed_work,
 		round_jiffies_relative(msecs_to_jiffies
 		(get_calculation_delay_ms(chip))));
 }
@@ -3002,7 +3003,7 @@ static void configure_vbat_monitor_low(struct qpnp_bms_chip *chip)
 			wake_lock(&chip->low_voltage_wake_lock);
 			cancel_delayed_work_sync(
 					&chip->calculate_soc_delayed_work);
-			schedule_delayed_work(
+			queue_delayed_work(system_power_efficient_wq,
 					&chip->calculate_soc_delayed_work, 0);
 		}
 		chip->vbat_monitor_params.state_request =
@@ -4814,8 +4815,9 @@ static int bms_resume(struct device *dev)
 
 	if (time_until_next_recalc == 0)
 		bms_stay_awake(&chip->soc_wake_source);
-	schedule_delayed_work(&chip->calculate_soc_delayed_work,
-		round_jiffies_relative(msecs_to_jiffies
+		queue_delayed_work(system_power_efficient_wq,
+			&chip->calculate_soc_delayed_work,
+			round_jiffies_relative(msecs_to_jiffies
 		(time_until_next_recalc)));
 	return 0;
 }
