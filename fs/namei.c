@@ -1834,6 +1834,9 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	int fput_needed;
 	struct file *file;
 
+	if (!*name)
+		flags &= ~LOOKUP_RCU;
+
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
