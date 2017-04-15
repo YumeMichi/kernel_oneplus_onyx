@@ -128,13 +128,13 @@ struct test_header {
 #define Mgesture            12  // M
 #define Wgesture            13  // W
 
-#define KEY_DOUBLE_TAP          KEY_WAKEUP // double tap
+#define KEY_DOUBLE_TAP          249 // double tap
 #define KEY_GESTURE_CIRCLE      250 // draw circle
 #define KEY_GESTURE_TWO_SWIPE   251 // swipe two finger vertically
-#define KEY_GESTURE_UP_ARROW    252 // draw up arrow
-#define KEY_GESTURE_DOWN_ARROW  253 // draw down arrow
-#define KEY_GESTURE_LEFT_ARROW  254 // draw left arrow
-#define KEY_GESTURE_RIGHT_ARROW 255 // draw right arrow
+#define KEY_GESTURE_DOWN_ARROW  252 // draw down arrow
+#define KEY_GESTURE_LEFT_ARROW  253 // draw left arrow
+#define KEY_GESTURE_RIGHT_ARROW 254 // draw right arrow
+#define KEY_GESTURE_UP_ARROW    255 // draw up arrow
 #define KEY_GESTURE_LETTER_W    256 // draw letter "W"
 #define KEY_GESTURE_LETTER_M    257 // draw letter "M"
 #define KEY_GESTURE_LTR_SWIPE   258 // swipe left to right
