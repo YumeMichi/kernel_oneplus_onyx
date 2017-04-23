@@ -12,12 +12,7 @@
 
 /include/ "msm8974-camera-sensor-mtp.dtsi"
 /include/ "msm8974-leds.dtsi"
-/include/ "dsi-panel-jdi-1080p-cmd.dtsi"
-/include/ "dsi-panel-jdi-1080p-video.dtsi"
 
-/include/ "dsi-panel-truly-1080p-video.dtsi"
-/include/ "dsi-panel-sharp-1080p-cmd.dtsi"
-/include/ "dsi-panel-truly-1080p-cmd.dtsi"
 /include/ "msm8974-regulator.dtsi" /*ranfei add*/
 / {
 	aliases {
@@ -30,31 +25,9 @@
 		status = "ok";
 	};
 
-/*
-	¡qcom,mdss_dsi@fd922800 {
-		qcom,dsi-pref-prim-pan = <&dsi_tosh_720_vid>;
-	};
-*/
-
-
-
-	/*qcom,mdss_dsi@fd922800 {
-		qcom,dsi-pref-prim-pan = <&dsi_jdi_1080_cmd>;
-	};*/
-
-
 	qcom,mdss_dsi@fd922800 {
 		qcom,dsi-pref-prim-pan = <&dsi_samsung_s6e3fa3_1080p_cmd>;
 	};
-
-
-
-/*
-	qcom,mdss_dsi@fd922800 {
-		qcom,dsi-pref-prim-pan = <&dsi_jdi_1080_vid>;
-	};
-*/
-	
 
 	qcom,mdss_mdp@fd900000 {
 		qcom,mdss-pref-prim-intf = "dsi";
@@ -1004,34 +977,3 @@ gpio@e000 { /* GPIO 33 */
 		qcom,channel-type = <0x1540>;
 	};
 };*/
-
-
-
-/*
-&dsi_tosh_720_vid {
-       qcom,cont-splash-enabled;
-};
-
-&dsi_generic_720p_cmd {
-       qcom,cont-splash-enabled;
-};
-
-&dsi_jdi_1080_vid {
-       qcom,cont-splash-enabled;
-};
-*/
-
-
-
-&dsi_jdi_1080_cmd {
-       qcom,cont-splash-enabled;
-};
-
-//&dsi_jdi_1080_vid {
-      // qcom,cont-splash-enabled;
-//};
-
-
-
-
-

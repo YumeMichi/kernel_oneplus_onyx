@@ -10,17 +10,6 @@
  * GNU General Public License for more details.
  */
 
-/include/ "dsi-panel-orise-720p-video.dtsi"
-/include/ "dsi-panel-toshiba-720p-video.dtsi"
-/include/ "dsi-panel-sharp-qhd-video.dtsi"
-/include/ "dsi-panel-generic-720p-cmd.dtsi"
-/include/ "dsi-panel-jdi-1080p-video.dtsi"
-/include/ "dsi-panel-jdi-dualmipi0-video.dtsi"
-/include/ "dsi-panel-jdi-dualmipi1-video.dtsi"
-/include/ "dsi-panel-jdi-dualmipi0-cmd.dtsi"
-/include/ "dsi-panel-jdi-dualmipi1-cmd.dtsi"
 /*#ifdef VENDOR_EDIT*/
-/include/ "dsi-panel-sharp-1080p-cmd.dtsi"
-/include/ "dsi-panel-truly-1080p-cmd.dtsi"
 /include/ "dsi-panel-samsung_s6e3fa3_1080p_cmd.dtsi"
 /*#endif*/
