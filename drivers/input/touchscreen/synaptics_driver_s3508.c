@@ -558,7 +558,7 @@ static struct device_attribute attrs_oppo[] = {
 static ssize_t cap_vk_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf){
       /* LEFT: search: CENTER: menu ,home:search 412, RIGHT: BACK */
 	return sprintf(buf,
-        	__stringify(EV_KEY) ":" __stringify(KEY_APPSELECT)   ":%d:%d:%d:%d"
+        	__stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":%d:%d:%d:%d"
         ":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)   ":%d:%d:%d:%d"
         ":" __stringify(EV_KEY) ":" __stringify(KEY_BACK)   ":%d:%d:%d:%d"
         "\n",LCD_WIDTH/6,button_map[2],button_map[0],button_map[1],LCD_WIDTH/2,button_map[2],button_map[0],button_map[1],LCD_WIDTH*5/6,button_map[2],button_map[0],button_map[1]);
@@ -1640,19 +1640,14 @@ static void int_touch_s3203(struct synaptics_ts_data *ts)
 }
 #endif
 
-#ifdef VENDOR_EDIT //WayneChang, 2015/11/13, Change MENU key to APPSELECT key
-#define REP_KEY_APPSELECT (atomic_read(&key_reverse)?(KEY_BACK):(KEY_APPSELECT))
-#define REP_KEY_BACK (atomic_read(&key_reverse)?(KEY_APPSELECT):(KEY_BACK))
-#else
 #define REP_KEY_MENU (atomic_read(&key_reverse)?(KEY_BACK):(KEY_MENU))
 #define REP_KEY_BACK (atomic_read(&key_reverse)?(KEY_MENU):(KEY_BACK))
-#endif
 
 #ifdef VENDOR_EDIT
 #ifdef SUPPORT_VIRTUAL_KEY //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
 struct completion key_cm;
 bool key_back_pressed = 0;
-bool key_appselect_pressed = 0;
+bool key_menu_pressed = 0;
 bool key_home_pressed = 0;
 bool virtual_key_enable = false;
 #endif
@@ -1669,10 +1664,10 @@ static void int_touch_s3508(struct synaptics_ts_data *ts,bool insert_flag)
 	uint8_t finger_status = 0;
         bool valid_event = 0;
 #ifdef SUPPORT_VIRTUAL_KEY //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
-	bool key_appselect_check = false;
+	bool key_menu_check = false;
 	bool key_back_check = false;
 	bool key_home_check = false;
-	bool key_pressed = key_appselect_pressed || key_back_pressed || key_home_pressed;
+	bool key_pressed = key_menu_pressed || key_back_pressed || key_home_pressed;
 #endif
 
     struct point_info points;
@@ -1722,13 +1717,13 @@ static void int_touch_s3508(struct synaptics_ts_data *ts,bool insert_flag)
 			    }
 			    if(virtual_key_enable){
 				    if (!finger_status){
-				        if (key_appselect_pressed && !key_appselect_check){
+				        if (key_menu_pressed && !key_menu_check){
 				            points.x = 0xb5;
 				            points.y = 0x7e5;
 				            points.z = 0x33;
 				            points.raw_x = 4;
 				            points.raw_y = 6;
-				            key_appselect_check = true;
+				            key_menu_check = true;
 				            //points.status = 1;
 				            finger_status =  true;
 				        }else if (key_back_pressed && !key_back_check){
@@ -1846,20 +1841,12 @@ static void int_key_report_s3508(struct synaptics_ts_data *ts)
 			if((ret & 0x01) && !(ts->pre_btn_state & 0x01))//menu
 			{
 				if( 0 == atomic_read(&is_touch) ){
-					#ifdef VENDOR_EDIT //shankai, 2016/06/07, Change MENU key to APPSELECT key
-					input_report_key(ts->input_dev, REP_KEY_APPSELECT, 1);
-					#else
 					input_report_key(ts->input_dev, REP_KEY_MENU, 1);
-					#endif  
 					input_sync(ts->input_dev);
                      atomic_set(&is_key_touch, 1);
 				}
 			}else if(!(ret & 0x01) && (ts->pre_btn_state & 0x01)){
-				#ifdef VENDOR_EDIT //shankai, 2016/06/07, Change MENU key to APPSELECT key
-				input_report_key(ts->input_dev, REP_KEY_APPSELECT, 0);
-				#else
 				input_report_key(ts->input_dev, REP_KEY_MENU, 0);
-				#endif
 				input_sync(ts->input_dev);
                             atomic_set(&is_key_touch, 0);
 			}
@@ -1927,11 +1914,11 @@ static void int_virtual_key_report_s3508(struct synaptics_ts_data *ts)
 			if((ret & 0x01) && !(ts->pre_btn_state & 0x01))//menu
 			{
 				if( 0 == atomic_read(&is_touch) ){
-					key_appselect_pressed = 1;
+					key_menu_pressed = 1;
 		                        atomic_set(&is_key_touch, 1);
 				}
 			}else if(!(ret & 0x01) && (ts->pre_btn_state & 0x01)){
-				key_appselect_pressed = 0;
+				key_menu_pressed = 0;
 				key_up_report = true;
                             	atomic_set(&is_key_touch, 0);
 			}
@@ -3637,11 +3624,7 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 #endif
 	set_bit(BTN_TOUCH, ts->input_dev->keybit);
 	set_bit(KEY_SEARCH, ts->input_dev->keybit);
-	#ifdef VENDOR_EDIT //shankai, 2016/6/7, Change MENU key to APPSELECT key
-    set_bit(KEY_APPSELECT, ts->input_dev->keybit);
-	#else
 	set_bit(KEY_MENU, ts->input_dev->keybit);
-	#endif
 	set_bit(KEY_HOME, ts->input_dev->keybit);
 	set_bit(KEY_BACK, ts->input_dev->keybit);
 	input_set_drvdata(ts->input_dev, ts);
@@ -5217,7 +5200,7 @@ if( ts_g->reset_gpio > 0 )
 		goto ERR_RESUME;
 	}
 	is_suspend = 0;
-	key_appselect_pressed = 0;
+	key_menu_pressed = 0;
 	key_home_pressed = 0;
  	key_back_pressed = 0;
 
