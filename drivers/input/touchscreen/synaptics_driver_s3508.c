@@ -433,7 +433,7 @@ static const struct i2c_device_id synaptics_ts_id[] = {
 };
 
 static struct of_device_id synaptics_match_table[] = {
-	{ .compatible = "synaptics,oppo",},
+	{ .compatible = "synaptics,oem",},
 	{ },
 };
 
