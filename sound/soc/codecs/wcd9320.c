@@ -4853,7 +4853,11 @@ int reg_access(unsigned int reg)
 		case TAIKO_A_CDC_TX8_VOL_CTL_GAIN:
 		case TAIKO_A_CDC_TX9_VOL_CTL_GAIN:
 		case TAIKO_A_CDC_TX10_VOL_CTL_GAIN:
-			ret = 0;
+			if (soundcontrol.lock)
+				ret = 0;
+			break;
+		default:
+			break;
 		}
 
 	return ret;
@@ -7701,8 +7705,8 @@ void update_headphones_volume_boost(unsigned int vol_boost)
 		taiko_read(soundcontrol.snd_control_codec,
 		TAIKO_A_CDC_RX1_VOL_CTL_B2_CTL));
 
-	pr_info("Sound Control: Boosted Headphones RX2 value %d\n", 
-		taiko_read(soundcontrol.snd_control_codec, 
+	pr_info("Sound Control: Boosted Headphones RX2 value %d\n",
+		taiko_read(soundcontrol.snd_control_codec,
 		TAIKO_A_CDC_RX2_VOL_CTL_B2_CTL));
 }
 
@@ -7733,8 +7737,8 @@ void update_headset_boost(unsigned int vol_boost)
 		taiko_read(soundcontrol.snd_control_codec,
 		TAIKO_A_RX_HPH_R_GAIN));
 
-	pr_info("Sound Control: Boosted Headset L value %d\n", 
-		taiko_read(soundcontrol.snd_control_codec, 
+	pr_info("Sound Control: Boosted Headset L value %d\n",
+		taiko_read(soundcontrol.snd_control_codec,
 		TAIKO_A_RX_HPH_L_GAIN));
 }
 
@@ -7774,9 +7778,9 @@ void update_mic_gain(unsigned int vol_boost)
 		TAIKO_A_CDC_TX7_VOL_CTL_GAIN, boosted_val);
 	soundcontrol.lock = true;
 
-		pr_info("Sound Control: Boosted Mic value %d\n",
-		taiko_read(soundcontrol.snd_control_codec,
-		TAIKO_A_CDC_TX7_VOL_CTL_GAIN));
+	pr_info("Sound Control: Boosted Mic value %d\n",
+                taiko_read(soundcontrol.snd_control_codec,
+                TAIKO_A_CDC_TX7_VOL_CTL_GAIN));
 }
 
 static int taiko_codec_probe(struct snd_soc_codec *codec)
