@@ -20,6 +20,7 @@
 #include <linux/cpumask.h>
 #include <linux/slab.h>
 #include <linux/hrtimer.h>
+#include <linux/fb.h>
 #include <linux/input.h>
 
 #define DEBUG 0
@@ -28,6 +29,7 @@
 #define ASMP_ENABLED			true
 #define DEFAULT_BOOST_LOCK_DUR		500 * 1000L
 #define DEFAULT_NR_CPUS_BOOSTED		2
+#define DEFAULT_MAX_CPUS_SCREENOFF	2
 #define DEFAULT_UPDATE_RATE		20
 #define MIN_INPUT_INTERVAL		150 * 1000L
 #define DEFAULT_MIN_BOOST_FREQ		1497600
@@ -42,6 +44,8 @@ static DEFINE_PER_CPU(struct asmp_cpudata_t, asmp_cpudata);
 static struct delayed_work asmp_work;
 static struct workqueue_struct *asmp_workq;
 static bool enabled_switch = ASMP_ENABLED;
+static struct work_struct suspend, resume;
+static struct notifier_block notify;
 
 static struct asmp_param_struct {
 	unsigned int delay;
@@ -53,6 +57,7 @@ static struct asmp_param_struct {
 	unsigned int cycle_down;
 	unsigned int cpus_boosted;
 	unsigned int min_boost_freq;
+ 	unsigned int max_cpus_screenoff;
 	bool enabled;
 	u64 boost_lock_dur;
 } asmp_param = {
@@ -67,17 +72,11 @@ static struct asmp_param_struct {
 	.cpus_boosted = DEFAULT_NR_CPUS_BOOSTED,
 	.enabled = ASMP_ENABLED,
 	.boost_lock_dur = DEFAULT_BOOST_LOCK_DUR,
+	.max_cpus_screenoff = DEFAULT_MAX_CPUS_SCREENOFF,
 };
 
 static u64 last_boost_time;
 static unsigned int cycle = 0;
-
-/*
- * suspend mode, if set = 1 hotplug will sleep,
- * if set = 0, then hoplug will be active all the time.
- */
-static unsigned int hotplug_suspend = 1;
-module_param_named(hotplug_suspend, hotplug_suspend, uint, 0644);
 
 static void reschedule_hotplug_work(void)
 {
@@ -270,9 +269,52 @@ static struct input_handler autosmp_input_handler = {
 	.id_table	= autosmp_ids,
 };
 
+static void asmp_lcd_suspend(struct work_struct *work)
+{
+	unsigned int cpu;
+
+	cancel_delayed_work_sync(&asmp_work);
+
+	for_each_online_cpu(cpu)
+		if (cpu && num_online_cpus() > asmp_param.max_cpus_screenoff)
+			cpu_down(cpu);
+}
+
+static __ref void asmp_lcd_resume(struct work_struct *work)
+{
+	queue_delayed_work_on(0, asmp_workq, &asmp_work, msecs_to_jiffies(asmp_param.delay));
+}
+
+static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				queue_work_on(0, asmp_workq, &resume);
+				break;
+			case FB_BLANK_POWERDOWN:
+			case FB_BLANK_HSYNC_SUSPEND:
+			case FB_BLANK_VSYNC_SUSPEND:
+			case FB_BLANK_NORMAL:
+				queue_work_on(0, asmp_workq, &suspend);
+				break;
+		}
+	}
+
+	return 0;
+}
+
 static int hotplug_start(void)
 {
 	int ret = 0;
+
+	notify.notifier_call = fb_notifier_callback;
+	if (fb_register_client(&notify) != 0)
+		pr_info("%s: Failed to register FB notifier callback\n", __func__);
 
 	asmp_workq =
 		alloc_workqueue("autosmp_wq",
@@ -291,6 +333,8 @@ static int hotplug_start(void)
 		goto err;
 	}
 
+	INIT_WORK(&resume, asmp_lcd_resume);
+	INIT_WORK(&suspend, asmp_lcd_suspend);
 	INIT_DELAYED_WORK(&asmp_work, asmp_work_fn);
 	max_min_check();
 	reschedule_hotplug_work();
@@ -309,6 +353,7 @@ static void __ref hotplug_stop(void)
 
 	input_unregister_handler(&autosmp_input_handler);
 	flush_workqueue(asmp_workq);
+	fb_unregister_client(&notify);
 	cancel_delayed_work_sync(&asmp_work);
 	destroy_workqueue(asmp_workq);
 
@@ -317,6 +362,32 @@ static void __ref hotplug_stop(void)
 		if (cpu_is_offline(cpu))
 			cpu_up(cpu);
 }
+
+static __ref int set_max_cpus_screenoff(const char *val, const struct kernel_param *kp)
+{
+	int ret = 0;
+	unsigned int i;
+
+	ret = kstrtouint(val, 10, &i);
+	if (ret)
+		return -EINVAL;
+	if (i < 1 || i > asmp_param.max_cpus || i > num_possible_cpus())
+		return -EINVAL;
+	if (i > asmp_param.max_cpus)
+		asmp_param.max_cpus_screenoff = asmp_param.max_cpus;
+
+	ret = param_set_uint(val, kp);
+
+	return ret;
+}
+
+static struct kernel_param_ops max_cpus_screenoff_ops = {
+	.set = set_max_cpus_screenoff,
+	.get = param_get_uint,
+};
+
+module_param_cb(max_cpus_screenoff, &max_cpus_screenoff_ops, &asmp_param.max_cpus_screenoff, 0644);
+MODULE_PARM_DESC(enabled, "hotplug/unplug cpu cores based on cpu load");
 
 static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 {
