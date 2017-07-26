@@ -5,6 +5,7 @@
  * Copyright (C) 2016 Joe Maples <joe@frap129.org>
  *           (C) 2012 Brandon Berhent <bbedward@gmail.com
  *           (C) 2012 Miguel Boton <mboton@gmail.com>
+ *	     (C) 2017 Sudokamikaze <pulshencode@outlook.com> Maple workaround for 3.4
  *
  * Maple uses a first come first serve style algorithm with seperated read/write
  * handling to allow for read biases. By prioritizing reads, simple tasks should improve
@@ -262,22 +263,14 @@ maple_latter_request(struct request_queue *q, struct request *rq)
 	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
 
-static int maple_init_queue(struct request_queue *q, struct elevator_type *e)
+static void *maple_init_queue(struct request_queue *q)
 {
 	struct maple_data *mdata;
-	struct elevator_queue *eq;
-
-	eq = elevator_alloc(q, e);
-	if (!eq)
-		return -ENOMEM;
 
 	/* Allocate structure */
 	mdata = kmalloc_node(sizeof(*mdata), GFP_KERNEL, q->node);
-	if (!mdata) {
-		kobject_put(&eq->kobj);
-		return -ENOMEM;
-	}
-	eq->elevator_data = mdata;
+	if (!mdata)
+		return NULL;
 
 	/* Initialize fifo lists */
 	INIT_LIST_HEAD(&mdata->fifo_list[SYNC][READ]);
@@ -295,10 +288,7 @@ static int maple_init_queue(struct request_queue *q, struct elevator_type *e)
 	mdata->writes_starved = writes_starved;
 	mdata->sleep_latency_multiple = sleep_latency_multiple;
 
-	spin_lock_irq(q->queue_lock);
-	q->elevator = eq;
-	spin_unlock_irq(q->queue_lock);
-	return 0;
+	return mdata;
 }
 
 static void
