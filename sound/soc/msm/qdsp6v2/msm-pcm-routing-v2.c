@@ -4298,11 +4298,6 @@ static int msm_pcm_routing_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (mux >= e->max) {
-		pr_err("%s: Invalid mux value %d\n", __func__, mux);
-		return -EINVAL;
-	}
-
 	mutex_lock(&routing_lock);
 	msm_bedais[be_id].sample_rate = params_rate(params);
 	msm_bedais[be_id].channel = params_channels(params);
