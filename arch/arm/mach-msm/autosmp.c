@@ -269,6 +269,18 @@ static struct input_handler autosmp_input_handler = {
 	.id_table	= autosmp_ids,
 };
 
+/* Bring online each possible CPU up to max_cpus cores */
+static void __ref up_all(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		if (cpu_is_offline(cpu) && num_online_cpus() < asmp_param.max_cpus)
+			cpu_up(cpu);
+
+	asmp_param.delay = 0;
+}
+
 static void asmp_lcd_suspend(struct work_struct *work)
 {
 	unsigned int cpu;
@@ -282,6 +294,7 @@ static void asmp_lcd_suspend(struct work_struct *work)
 
 static __ref void asmp_lcd_resume(struct work_struct *work)
 {
+	up_all();
 	queue_delayed_work_on(0, asmp_workq, &asmp_work, msecs_to_jiffies(asmp_param.delay));
 }
 
@@ -362,32 +375,6 @@ static void __ref hotplug_stop(void)
 		if (cpu_is_offline(cpu))
 			cpu_up(cpu);
 }
-
-static __ref int set_max_cpus_screenoff(const char *val, const struct kernel_param *kp)
-{
-	int ret = 0;
-	unsigned int i;
-
-	ret = kstrtouint(val, 10, &i);
-	if (ret)
-		return -EINVAL;
-	if (i < 1 || i > asmp_param.max_cpus || i > num_possible_cpus())
-		return -EINVAL;
-	if (i > asmp_param.max_cpus)
-		asmp_param.max_cpus_screenoff = asmp_param.max_cpus;
-
-	ret = param_set_uint(val, kp);
-
-	return ret;
-}
-
-static struct kernel_param_ops max_cpus_screenoff_ops = {
-	.set = set_max_cpus_screenoff,
-	.get = param_get_uint,
-};
-
-module_param_cb(max_cpus_screenoff, &max_cpus_screenoff_ops, &asmp_param.max_cpus_screenoff, 0644);
-MODULE_PARM_DESC(enabled, "hotplug/unplug cpu cores based on cpu load");
 
 static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 {
@@ -514,6 +501,32 @@ static ssize_t store_cpus_boosted(struct device *dev,
 	return count;
 }
 
+static ssize_t show_max_cpus_screenoff(struct device *dev,
+				 struct device_attribute *asmp_attributes,
+				 char *buf)
+{
+	return sprintf(buf, "%u\n", asmp_param.max_cpus_screenoff);
+}
+
+static ssize_t store_max_cpus_screenoff(struct device *dev,
+				  struct device_attribute *asmp_attributes,
+				  const char *buf, size_t count)
+{
+	int ret = 0;
+	unsigned int val;
+
+	ret = sscanf(buf, "%u", &val);
+	if (ret)
+		return -EINVAL;
+	if (val < 1 || val > asmp_param.max_cpus || val > num_possible_cpus())
+		return -EINVAL;
+	if (val > asmp_param.max_cpus)
+		asmp_param.max_cpus_screenoff = asmp_param.max_cpus;
+
+	asmp_param.max_cpus_screenoff = val;
+
+	return count;
+}
 
 static ssize_t show_min_boost_freq(struct device *dev,
 				   struct device_attribute *asmp_attributes,
@@ -541,6 +554,8 @@ static ssize_t store_min_boost_freq(struct device *dev,
 static DEVICE_ATTR(boost_lock_duration, 644, show_boost_lock_duration,
 		   store_boost_lock_duration);
 static DEVICE_ATTR(cpus_boosted, 644, show_cpus_boosted, store_cpus_boosted);
+static DEVICE_ATTR(max_cpus_screenoff, 644, show_max_cpus_screenoff,
+		   store_max_cpus_screenoff);
 static DEVICE_ATTR(min_boost_freq, 644, show_min_boost_freq,
 		   store_min_boost_freq);
 
@@ -554,6 +569,7 @@ static struct attribute *asmp_attributes[] = {
 	&cycle_down.attr,
 	&dev_attr_boost_lock_duration.attr,
 	&dev_attr_cpus_boosted.attr,
+	&dev_attr_max_cpus_screenoff.attr,
 	&dev_attr_min_boost_freq.attr,
 	NULL
 };
