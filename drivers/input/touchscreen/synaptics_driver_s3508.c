@@ -1723,8 +1723,8 @@ static void int_touch_s3203(struct synaptics_ts_data *ts)
 }
 #endif
 
-#define REP_KEY_MENU (atomic_read(&key_reverse)?(KEY_BACK):(KEY_MENU))
-#define REP_KEY_BACK (atomic_read(&key_reverse)?(KEY_MENU):(KEY_BACK))
+#define REP_KEY_BACK (atomic_read(&key_reverse)?(KEY_BACK):(KEY_MENU))
+#define REP_KEY_MENU (atomic_read(&key_reverse)?(KEY_MENU):(KEY_BACK))
 
 static bool insert_point =0;//for swipe the control panel
 static void int_touch_s3508(struct synaptics_ts_data *ts,bool insert_flag)
