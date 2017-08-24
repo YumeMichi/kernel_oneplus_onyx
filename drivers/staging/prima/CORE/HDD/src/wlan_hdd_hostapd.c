@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, 2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -409,6 +409,11 @@ static int hdd_hostapd_driver_command(hdd_adapter_t *pAdapter,
        hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
        tANI_U8 filterType = 0;
        tANI_U8 *value;
+
+       ret = hdd_drv_cmd_validate(command, 8);
+       if (ret)
+           goto exit;
+
        value = command + 9;
 
        /* Convert the value from ascii to integer */
@@ -449,6 +454,10 @@ static int hdd_hostapd_driver_command(hdd_adapter_t *pAdapter,
    }
    else if (strncasecmp(command, "DISABLE_CA_EVENT", 16) == 0)
    {
+       ret = hdd_drv_cmd_validate(command, 16);
+       if (ret)
+           goto exit;
+
        ret = hdd_enable_disable_ca_event(pHddCtx, command, 16);
    }
 
