@@ -23,6 +23,7 @@
 #include <linux/freezer.h>
 #include <linux/fs.h>
 #include <linux/list.h>
+#include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
