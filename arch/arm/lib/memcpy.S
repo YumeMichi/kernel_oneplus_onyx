@@ -40,6 +40,11 @@
 	stmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
 	.endm
 
+	.macro ldstr8w ptrl ptrw reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
+	ldmia \ptrl!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
+	stmia \ptrw!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
+	.endm
+
 	.macro str1b ptr reg cond=al abort
 	str\cond\()b \reg, [\ptr], #1
 	.endm
