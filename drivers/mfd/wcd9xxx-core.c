@@ -1723,11 +1723,11 @@ if(!get_smartpa_project())
 		("wcd9310_slimbus_interface_device", 0);
 	if (!IS_ERR(debugfs_wcd9xxx_dent)) {
 		debugfs_peek = debugfs_create_file("peek",
-		S_IFREG | S_IRUGO, debugfs_wcd9xxx_dent,
+		S_IFREG | S_IRUSR, debugfs_wcd9xxx_dent,
 		(void *) "peek", &codec_debug_ops);
 
 		debugfs_poke = debugfs_create_file("poke",
-		S_IFREG | S_IRUGO, debugfs_wcd9xxx_dent,
+		S_IFREG | S_IRUSR, debugfs_wcd9xxx_dent,
 		(void *) "poke", &codec_debug_ops);
 	}
 #endif
