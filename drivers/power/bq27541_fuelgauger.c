@@ -45,6 +45,41 @@
 extern char *BQ27541_HMACSHA1_authenticate(char *Message,char *Key,char *result);
 #endif //CONFIG_VENDOR_EDIT
 
+#ifdef CONFIG_VENDOR_EDIT
+static int get_current_time(unsigned long *now_tm_sec)
+{
+	struct rtc_time tm;
+	struct rtc_device *rtc;
+	int rc;
+
+	rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+	if (rtc == NULL) {
+		pr_err("%s: unable to open rtc device (%s)\n",
+			__FILE__, CONFIG_RTC_HCTOSYS_DEVICE);
+		return -EINVAL;
+	}
+
+	rc = rtc_read_time(rtc, &tm);
+	if (rc) {
+		pr_err("Error reading rtc device (%s) : %d\n",
+			CONFIG_RTC_HCTOSYS_DEVICE, rc);
+		goto close_time;
+	}
+
+	rc = rtc_valid_tm(&tm);
+	if (rc) {
+		pr_err("Invalid RTC time (%s): %d\n",
+			CONFIG_RTC_HCTOSYS_DEVICE, rc);
+		goto close_time;
+	}
+	rtc_tm_to_time(&tm, now_tm_sec);
+
+close_time:
+	rtc_class_close(rtc);
+	return rc;
+}
+#endif
+
 #ifdef CONFIG_OPPO_MSM_14021
 /* OPPO 2014-06-23 sjc Add begin for 14021 */
 static int mcu_en_gpio = 0;
@@ -1777,20 +1812,17 @@ static int bq27541_battery_remove(struct i2c_client *client)
 }
 
 #ifdef VENDOR_EDIT
-extern int msmrtc_alarm_read_time(struct rtc_time *tm);
 static int bq27541_battery_suspend(struct i2c_client *client, pm_message_t message)
 {
 	int ret=0;
-	struct rtc_time	rtc_suspend_rtc_time;
 	struct bq27541_device_info *di = i2c_get_clientdata(client);
 
 	atomic_set(&di->suspended, 1);
-	ret = msmrtc_alarm_read_time(&rtc_suspend_rtc_time);
+	ret = get_current_time(&di->rtc_suspend_time);
 	if (ret < 0) {
 		pr_err("%s: Failed to read RTC time\n", __func__);
 		return 0;
 	}
-	rtc_tm_to_time(&rtc_suspend_rtc_time, &di->rtc_suspend_time);
 
 	return 0;
 }
@@ -1801,16 +1833,14 @@ static int bq27541_battery_resume(struct i2c_client *client)
 {
 	int ret=0;
 	int suspend_time;
-	struct rtc_time	rtc_resume_rtc_time;
 	struct bq27541_device_info *di = i2c_get_clientdata(client);
 
 	atomic_set(&di->suspended, 0);
-	ret = msmrtc_alarm_read_time(&rtc_resume_rtc_time);
+	ret = get_current_time(&di->rtc_resume_time);
 	if (ret < 0) {
 		pr_err("%s: Failed to read RTC time\n", __func__);
 		return 0;
 	}
-	rtc_tm_to_time(&rtc_resume_rtc_time, &di->rtc_resume_time);
 	suspend_time =  di->rtc_resume_time - di->rtc_suspend_time;
 
 	/*update pre capacity when sleep time more than 1minutes*/
