@@ -532,9 +532,6 @@ static void dwc3_otg_notify_host_mode(struct usb_otg *otg, int host_mode)
 		power_supply_set_scope(dotg->psy, POWER_SUPPLY_SCOPE_DEVICE);
 }
 
-#ifdef CONFIG_MACH_MSM8974_15055
-extern int get_boot_mode(void);
-#endif
 static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 {
 	static int power_supply_type;
@@ -555,10 +552,6 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_CDP;
 	else if (dotg->charger->chg_type == DWC3_DCP_CHARGER ||
 			dotg->charger->chg_type == DWC3_PROPRIETARY_CHARGER
-#ifdef CONFIG_MACH_MSM8974_15055
-			// add by xcb
-			|| dotg->charger->chg_type == DWC3_FLOATED_CHARGER
-#endif
 			)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_DCP;
 	else
@@ -573,18 +566,7 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 		return 0;
 
 	dev_info(phy->dev, "Avail curr from USB = %u\n", mA);
-#ifdef CONFIG_MACH_MSM8974_15055
-      if(get_boot_mode()==MSM_BOOT_MODE__RF){
-		/* Disable charging */
-		if (power_supply_set_online(dotg->psy, false))
-			goto psy_error;
-		/* Set max current limit */
-		if (power_supply_set_current_limit(dotg->psy, 0))
-			goto psy_error;	 
-    }else if (dotg->charger->max_power <= 2 && mA > 2) {
-#else
 	if (dotg->charger->max_power <= 2 && mA > 2) {
-#endif
 		/* Enable charging */
 		if (power_supply_set_online(dotg->psy, true))
 			goto psy_error;
@@ -796,9 +778,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					work = 1;
 					break;
 				case DWC3_SDP_CHARGER:
-#ifdef CONFIG_MACH_MSM8974_15055
-					dwc3_otg_set_power(phy, 500);
-#endif
 					dwc3_otg_start_peripheral(&dotg->otg,
 									1);
 					phy->state = OTG_STATE_B_PERIPHERAL;
