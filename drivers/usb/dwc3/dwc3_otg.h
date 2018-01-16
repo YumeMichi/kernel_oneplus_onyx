@@ -22,12 +22,7 @@
 #include <linux/usb/otg.h>
 #include "power.h"
 
-#ifdef CONFIG_MACH_MSM8974_15055
-//modify by xcb
-#define DWC3_IDEV_CHG_MAX 1800
-#else
 #define DWC3_IDEV_CHG_MAX 1500
-#endif
 
 struct dwc3_charger;
 
