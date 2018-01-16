@@ -1606,11 +1606,7 @@ composite_suspend(struct usb_gadget *gadget)
 
 	cdev->suspended = 1;
 
-#ifndef CONFIG_MACH_MSM8974_15055
-// delete by xcb
 	usb_gadget_vbus_draw(gadget, 2);
-#endif
-
 }
 
 static void
