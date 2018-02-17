@@ -1198,7 +1198,7 @@ retry_encrypt:
 			if (err == -ENOMEM) {
 				/* flush pending ios and wait for a while */
 				f2fs_flush_merged_bios(F2FS_I_SB(inode));
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				congestion_wait(BLK_RW_ASYNC, msecs_to_jiffies(20));
 				gfp_flags |= __GFP_NOFAIL;
 				err = 0;
 				goto retry_encrypt;
