@@ -281,8 +281,4 @@ endif # NETWORK_FILESYSTEMS
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 
-#ifdef CONFIG_MACH_MSM8974_15055
-#Zhilong.Zhang@OnlineRd.Driver, 2014/02/26, Add for exfat filesystem
-source "fs/exfat/Kconfig"
-#endif /*CONFIG_MACH_MSM8974_15055*/
 endmenu
