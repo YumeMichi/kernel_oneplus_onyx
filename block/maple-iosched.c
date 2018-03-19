@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/display_state.h>
+#include <linux/fb.h>
 
 #define MAPLE_IOSCHED_PATCHLEVEL	(8)
 
@@ -46,7 +46,11 @@ struct maple_data {
 	int fifo_expire[2][2];
 	int fifo_batch;
 	int writes_starved;
-  int sleep_latency_multiple;
+	int sleep_latency_multiple;
+
+	/* Display state */
+	struct notifier_block fb_notifier;
+	bool display_on;
 };
 
 static inline struct maple_data *
@@ -79,7 +83,6 @@ maple_add_request(struct request_queue *q, struct request *rq)
 	struct maple_data *mdata = maple_get_data(q);
 	const int sync = rq_is_sync(rq);
 	const int dir = rq_data_dir(rq);
-	const bool display_on = is_display_on();
 
 	/*
 	 * Add request to the proper fifo list and set its
@@ -88,10 +91,10 @@ maple_add_request(struct request_queue *q, struct request *rq)
 
    	/* inrease expiration when device is asleep */
    	unsigned int fifo_expire_suspended = mdata->fifo_expire[sync][dir] * sleep_latency_multiple;
-   	if (display_on && mdata->fifo_expire[sync][dir]) {
+   	if (mdata->display_on && mdata->fifo_expire[sync][dir]) {
    		rq_set_fifo_time(rq, jiffies + mdata->fifo_expire[sync][dir]);
    		list_add_tail(&rq->queuelist, &mdata->fifo_list[sync][dir]);
-   	} else if (!display_on && fifo_expire_suspended) {
+   	} else if (!mdata->display_on && fifo_expire_suspended) {
    		rq_set_fifo_time(rq, jiffies + fifo_expire_suspended);
    		list_add_tail(&rq->queuelist, &mdata->fifo_list[sync][dir]);
    	}
@@ -207,7 +210,6 @@ maple_dispatch_requests(struct request_queue *q, int force)
 	struct maple_data *mdata = maple_get_data(q);
 	struct request *rq = NULL;
 	int data_dir = READ;
-	const bool display_on = is_display_on();
 
 	/*
 	 * Retrieve any expired request after a batch of
@@ -219,9 +221,9 @@ maple_dispatch_requests(struct request_queue *q, int force)
 	/* Retrieve request */
 	if (!rq) {
 		/* Treat writes fairly while suspended, otherwise allow them to be starved */
-		if (display_on && mdata->starved >= mdata->writes_starved)
+		if (mdata->display_on && mdata->starved >= mdata->writes_starved)
 			data_dir = WRITE;
-		else if (!display_on && mdata->starved >= 1)
+		else if (!mdata->display_on && mdata->starved >= 1)
 			data_dir = WRITE;
 
 		rq = maple_choose_request(mdata, data_dir);
@@ -263,6 +265,32 @@ maple_latter_request(struct request_queue *q, struct request *rq)
 	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
 
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct maple_data *mdata = container_of(self,
+						struct maple_data, fb_notifier);
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				mdata->display_on = true;
+				break;
+			case FB_BLANK_POWERDOWN:
+			case FB_BLANK_HSYNC_SUSPEND:
+			case FB_BLANK_VSYNC_SUSPEND:
+			case FB_BLANK_NORMAL:
+				mdata->display_on = false;
+				break;
+		}
+	}
+
+	return 0;
+}
+
 static void *maple_init_queue(struct request_queue *q)
 {
 	struct maple_data *mdata;
@@ -271,6 +299,9 @@ static void *maple_init_queue(struct request_queue *q)
 	mdata = kmalloc_node(sizeof(*mdata), GFP_KERNEL, q->node);
 	if (!mdata)
 		return NULL;
+
+	mdata->fb_notifier.notifier_call = fb_notifier_callback;
+	fb_register_client(&mdata->fb_notifier);
 
 	/* Initialize fifo lists */
 	INIT_LIST_HEAD(&mdata->fifo_list[SYNC][READ]);
@@ -295,6 +326,8 @@ static void
 maple_exit_queue(struct elevator_queue *e)
 {
 	struct maple_data *mdata = e->elevator_data;
+
+	fb_unregister_client(&mdata->fb_notifier);
 
 	/* Free structure */
 	kfree(mdata);
