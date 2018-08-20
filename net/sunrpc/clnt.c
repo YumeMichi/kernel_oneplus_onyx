@@ -236,7 +236,7 @@ static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 	spin_lock(&sn->rpc_client_lock);
 	list_for_each_entry(clnt, &sn->all_clients, cl_clients) {
 		if (clnt->cl_program->pipe_dir_name == NULL)
-			break;
+			continue;
 		if (rpc_clnt_skip_event(clnt, event))
 			continue;
 		if (atomic_inc_not_zero(&clnt->cl_count) == 0)
@@ -1288,6 +1288,8 @@ call_reserveresult(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -ENOMEM:
+		rpc_delay(task, HZ >> 2);
 	case -EAGAIN:	/* woken up; retry */
 		task->tk_action = call_reserve;
 		return;
@@ -1329,13 +1331,18 @@ call_refreshresult(struct rpc_task *task)
 	task->tk_action = call_refresh;
 	switch (status) {
 	case 0:
-		if (rpcauth_uptodatecred(task))
+		if (rpcauth_uptodatecred(task)) {
 			task->tk_action = call_allocate;
-		return;
+			return;
+		}
+		/* Use rate-limiting and a max number of retries if refresh
+		 * had status 0 but failed to update the cred.
+		 */
 	case -ETIMEDOUT:
 		rpc_delay(task, 3*HZ);
 	case -EAGAIN:
 		status = -EACCES;
+	case -EKEYEXPIRED:
 		if (!task->tk_cred_retry)
 			break;
 		task->tk_cred_retry--;
