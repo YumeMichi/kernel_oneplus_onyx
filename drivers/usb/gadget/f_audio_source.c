@@ -26,7 +26,7 @@
 #define SAMPLE_RATE 44100
 #define FRAMES_PER_MSEC (SAMPLE_RATE / 1000)
 
-#define IN_EP_MAX_PACKET_SIZE	256
+#define IN_EP_MAX_PACKET_SIZE 256
 
 /* Number of requests to allocate */
 #define IN_EP_REQ_COUNT 4
@@ -43,7 +43,6 @@ static struct usb_interface_descriptor audio_source_ac_interface_desc = {
 	.bInterfaceClass =	USB_CLASS_AUDIO,
 	.bInterfaceSubClass =	USB_SUBCLASS_AUDIOCONTROL,
 };
-
 
 #define UAC_DT_AC_HEADER_LENGTH	UAC_DT_AC_HEADER_SIZE(AUDIO_NUM_INTERFACES)
 /* 1 input terminal, 1 output terminal and 1 feature unit */
@@ -621,11 +620,17 @@ audio_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	audio_source_ac_interface_desc.bInterfaceNumber = status;
 
+	/* AUDIO_AC_INTERFACE */
+	audio_source_ac_header_desc.baInterfaceNr[0] = status;
+
 	status = usb_interface_id(c, f);
 	if (status < 0)
 		goto fail;
 	as_interface_alt_0_desc.bInterfaceNumber = status;
 	as_interface_alt_1_desc.bInterfaceNumber = status;
+
+	/* AUDIO_AS_INTERFACE */
+	audio_source_ac_header_desc.baInterfaceNr[1] = status;
 
 	status = -ENODEV;
 
