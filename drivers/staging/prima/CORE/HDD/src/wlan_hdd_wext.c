@@ -3017,7 +3017,6 @@ static void hdd_get_station_statistics_cb(void *stats, void *context)
 
 	summary_stats = (tCsrSummaryStatsInfo *)stats;
 	class_a_stats  = (tCsrGlobalClassAStatsInfo *)(summary_stats + 1);
-
 	priv = hdd_request_priv(request);
 
 	/* copy over the stats. do so as a struct copy */
@@ -6916,7 +6915,7 @@ void hdd_wmm_tx_snapshot(hdd_adapter_t *pAdapter)
              for ( j=0; j< NUM_TX_QUEUES; j++)
              {
                 spin_lock_bh(&pPeerInfo->ibssStaInfo[i].wmm_tx_queue[j].lock);
-                hddLog(LOGE, "HDD TxQueue Info For AC: %d Count: %d PrevAdress:%p, NextAddress:%p",
+                hddLog(LOGE, "HDD TxQueue Info For AC: %d Count: %d PrevAdress:%pK, NextAddress:%pK",
                        j, pPeerInfo->ibssStaInfo[i].wmm_tx_queue[j].count,
                        pPeerInfo->ibssStaInfo[i].wmm_tx_queue[j].anchor.prev,
                        pPeerInfo->ibssStaInfo[i].wmm_tx_queue[j].anchor.next);
@@ -10810,7 +10809,7 @@ int hdd_register_wext(struct net_device *dev)
 
 int hdd_UnregisterWext(struct net_device *dev)
 {
-   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"In %s %p", __func__, dev);
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"In %s %pK", __func__, dev);
    if (dev != NULL)
    {
        rtnl_lock();
