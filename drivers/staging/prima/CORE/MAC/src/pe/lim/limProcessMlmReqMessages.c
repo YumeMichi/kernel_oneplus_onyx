@@ -1668,7 +1668,7 @@ limMlmAddBss (
             pAddBssParams->rateSet.numRates = SIR_MAC_RATESET_EID_MAX;
     }
     vos_mem_copy(pAddBssParams->rateSet.rate,
-                 pMlmStartReq->rateSet.rate, pMlmStartReq->rateSet.numRates);
+                 pMlmStartReq->rateSet.rate, pAddBssParams->rateSet.numRates);
 
     pAddBssParams->nwType = pMlmStartReq->nwType;
 
@@ -1703,7 +1703,7 @@ limMlmAddBss (
     }
     vos_mem_copy(pAddBssParams->ssId.ssId,
                  pMlmStartReq->ssId.ssId,
-                 pMlmStartReq->ssId.length);
+                pAddBssParams->ssId.length);
 
     pAddBssParams->bHiddenSSIDEn = pMlmStartReq->ssidHidden;
     limLog( pMac, LOGE, FL( "TRYING TO HIDE SSID %d" ),pAddBssParams->bHiddenSSIDEn);
