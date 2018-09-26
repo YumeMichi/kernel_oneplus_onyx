@@ -590,19 +590,6 @@ module_param_string(table_name, table_name, sizeof(table_name), S_IRUGO);
 static unsigned int pvs_config_ver;
 module_param(pvs_config_ver, uint, S_IRUGO);
 
-#ifdef CONFIG_MACH_MSM8974_15055
-#define UNDERCLOCKED_MAXFREQ_HZ	1958400000
-static bool no_cpu_underclock;
-
-static int __init get_cpu_underclock(char *unused)
-{
-	no_cpu_underclock = true;
-
-	return 0;
-}
-__setup("no_underclock", get_cpu_underclock);
-#endif
-
 static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -717,20 +704,6 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 			rows = ret;
 		}
 	}
-
-#ifdef CONFIG_MACH_MSM8974_15055
-	/* Underclock for better UX */
-	if (!no_cpu_underclock) {
-		while (rows--) {
-			if (freq[rows - 1] == UNDERCLOCKED_MAXFREQ_HZ)
-				break;
-			if (freq[rows - 1] < UNDERCLOCKED_MAXFREQ_HZ) {
-				rows++;
-				break;
-			}
-		}
-	}
-#endif
 
 	krait_update_uv(uv, rows, pvs ? 25000 : 0);
 
