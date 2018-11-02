@@ -82,6 +82,13 @@ static atomic_t call_count = ATOMIC_INIT(1);
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
+#define ZYGOTE32_BIN	"/system/bin/app_process32"
+static atomic_t zygote32_pid;
+bool is_zygote_pid(pid_t pid)
+{
+	return atomic_read(&zygote32_pid) == pid;
+}
+
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
 	BUG_ON(!fmt);
@@ -1604,6 +1611,11 @@ static int do_execve_common(const char *filename,
 	if (d_is_su(file->f_dentry) && capable(CAP_SYS_ADMIN)) {
 		current->flags |= PF_SU;
 		su_exec();
+	}
+
+	if (capable(CAP_SYS_ADMIN)) {
+		if (unlikely(!strcmp(filename, ZYGOTE32_BIN)))
+			atomic_set(&zygote32_pid, current->pid);
 	}
 
 	/* execve succeeded */
