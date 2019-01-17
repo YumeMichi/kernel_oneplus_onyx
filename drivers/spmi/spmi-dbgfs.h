@@ -17,9 +17,6 @@
 #ifdef CONFIG_DEBUG_FS
 int spmi_dfs_add_controller(struct spmi_controller *ctrl);
 int spmi_dfs_del_controller(struct spmi_controller *ctrl);
-struct dentry *spmi_dfs_create_file(struct spmi_controller *ctrl,
-					const char *name, void *data,
-					const struct file_operations *fops);
 #else
 static inline int spmi_dfs_add_controller(struct spmi_controller *ctrl)
 {
@@ -29,12 +26,10 @@ static inline int spmi_dfs_del_controller(struct spmi_controller *ctrl)
 {
 	return 0;
 }
-static inline struct dentry *spmi_dfs_create_file(struct spmi_controller *ctrl,
-					const char *name, void *data,
-					const struct file_operations *fops)
-{
-	return NULL;
-}
 #endif
+
+struct dentry *spmi_dfs_create_file(struct spmi_controller *ctrl,
+					const char *name, void *data,
+					const struct file_operations *fops);
 
 #endif /* _SPMI_DBGFS_H */
