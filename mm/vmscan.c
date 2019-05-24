@@ -44,6 +44,7 @@
 #include <linux/oom.h>
 #include <linux/prefetch.h>
 #include <linux/debugfs.h>
+#include <linux/simple_lmk.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -2608,6 +2609,8 @@ loop_again:
 		all_zones_ok = 1;
 		balanced = 0;
 
+		simple_lmk_decide_reclaim(sc.priority);
+
 		/*
 		 * Scan in the highmem->dma direction for the highest
 		 * zone which needs scanning
@@ -2871,6 +2874,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 
 	/* Try to sleep for a short interval */
 	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
+		simple_lmk_stop_reclaim();
 		remaining = schedule_timeout(HZ/10);
 		finish_wait(&pgdat->kswapd_wait, &wait);
 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
@@ -2881,6 +2885,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 	 * go fully to sleep until explicitly woken up.
 	 */
 	if (!sleeping_prematurely(pgdat, order, remaining, classzone_idx)) {
+		simple_lmk_stop_reclaim();
 		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
 
 		/*
