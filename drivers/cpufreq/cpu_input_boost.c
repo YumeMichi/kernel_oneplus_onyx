@@ -195,7 +195,7 @@ static int do_cpu_boost(struct notifier_block *nb,
 		}
 	}
 
-	if (pcpu->state)
+	if (pcpu->state && b->ib.freq[policy->cpu ? 1 : 0] > user_min_freq)
 		policy->min = min(policy->max,
 				b->ib.freq[policy->cpu ? 1 : 0]);
 	else
