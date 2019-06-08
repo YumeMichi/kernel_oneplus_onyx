@@ -136,6 +136,14 @@ static unsigned int max_freq_hysteresis;
 
 static bool io_is_busy;
 
+/*
+ * Boost to specified frequency if the delta between the previous load
+ * and the current load is high enough.
+ */
+static bool delta_boost = true;
+
+static unsigned int delta_boost_freq = 0;
+
 /* Round to starting jiffy of next evaluation window */
 static u64 round_to_nw_start(u64 jif)
 {
@@ -384,7 +392,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	unsigned long flags;
 	unsigned int this_hispeed_freq;
 	bool boosted;
-	bool jump_to_max = false;
+	bool delta_do_boost = false;
 
 	if (!down_read_trylock(&pcpu->enable_sem))
 		return;
@@ -411,15 +419,18 @@ static void cpufreq_interactive_timer(unsigned long data)
 	new_load_pct = cpu_load * 100 / max(1, pcpu->prev_load);
 	pcpu->prev_load = cpu_load;
 
-	if (cpu_load >= NEW_TASK_LOAD_T &&
+	if (delta_boost && cpu_load >= NEW_TASK_LOAD_T &&
 			new_load_pct >= NEW_TASK_RATIO) {
 		if (pcpu->policy->cur >= pcpu->policy->max) {
 			spin_unlock_irqrestore(&pcpu->target_freq_lock, flags);
 			goto rearm;
 		}
 
-		jump_to_max = true;
-		new_freq = pcpu->policy->max;
+		delta_do_boost = true;
+		if (delta_boost_freq < pcpu->policy->min || delta_boost_freq >= pcpu->policy->max)
+			new_freq = pcpu->policy->max;
+		else
+			new_freq = delta_boost_freq;
 	} else if ((go_hispeed_load && go_hispeed_load < 100 &&
 			cpu_load >= go_hispeed_load) || boosted) {
 		if (pcpu->policy->cur < this_hispeed_freq) {
@@ -489,7 +500,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	 * expires (or the indefinite boost is turned off).
 	 */
 
-	if (!boosted || (!jump_to_max && new_freq > this_hispeed_freq)) {
+	if (!boosted || (!delta_do_boost && new_freq > this_hispeed_freq)) {
 		pcpu->floor_freq = new_freq;
 		pcpu->floor_validate_time = now;
 	}
