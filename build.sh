@@ -20,7 +20,7 @@ DEFCONFIG="msm8974-perf_defconfig"
 KERNEL_DIR=`pwd`
 AK_DIR="$HOME/Workspace/AnyKernel3"
 ZIP_MOVE="$HOME/Workspace/AK-releases"
-ZIMAGE_DIR="$KERNEL_DIR/out/arch/arm/boot"
+ZIMAGE_DIR="$KERNEL_DIR/arch/arm/boot"
 
 # Functions
 function clean_all {
@@ -37,7 +37,7 @@ function make_kernel {
 
 function make_boot {
     echo
-    cp -vr $ZIMAGE_DIR/Image.gz-dtb $AK_DIR/Image.gz-dtb    
+    cp -vr $ZIMAGE_DIR/zImage-dtb $AK_DIR/Image.gz-dtb
 }
 
 function make_zip {
