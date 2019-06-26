@@ -8,6 +8,11 @@
 ** Date : 2013/10/15	
 ** Author: yuyi@Dep.Group.Module
 ** 
+
+** --------------------------- Revision History: --------------------------------
+** <author>		                      <data> 	<version >  <desc>
+** ------------------------------------------------------------------------------
+** Yuyi@Driver.NFC  2014/05/24   1.1	    modify clk_name for nfc input clock 
 ****************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -31,6 +36,8 @@
 /*OPPO yuyi 2013-10-24 add begin for nfc_devinfo*/
 #include <linux/pcb_version.h>
 #include <mach/device_info.h>
+#include <linux/clk.h>
+#include <linux/of_gpio.h>
 /*OPPO yuyi 2013-10-24 add end for nfc_devinfo*/
 
 #define MAX_BUFFER_SIZE	512
@@ -64,15 +71,16 @@ struct pn544_dev
 	unsigned int 		ven_gpio;
 	unsigned int 		firm_gpio;
 	unsigned int		irq_gpio;
+	unsigned int		clk_req_gpio;
 	bool				irq_enabled;
 	spinlock_t			irq_enabled_lock;
 };
 
 /*OPPO yuyi 2013-10-24 add begin for nfc_devinfo*/
 struct manufacture_info nfc_info = {
-	.version = "pn65o",
+	.version = "pn65T",
 	.manufacture = "NXP",
-};		
+};
 /*OPPO yuyi 2013-10-24 add end for nfc_devinfo*/
 
 /*OPPO yuyi 2013-03-22 add begin     from 12025 board-8064.c*/
@@ -370,6 +378,9 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 	int ret;
 	struct pn544_i2c_platform_data *platform_data;
 	struct pn544_dev *pn544_dev;
+/*OPPO yuyi 2014-02-24 add begin for nfc pn65T*/
+	struct clk*p65T_clk = NULL;
+/*OPPO yuyi 2014-02-24 add begin for nfc pn65T*/
 	
 	if(0) {
 		printk(" nfc  pn544_probe  yuyi\n");
@@ -385,6 +396,9 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 	platform_data = client->dev.platform_data;
 
 /*OPPO yuyi 2013-10-24 add begin for nfc_devinfo*/
+//	platform_data->clk_req_gpio = of_get_named_gpio(client->dev.of_node, "pn544,clk_req-gpio", 0);
+//	printk("yuyi,pn544_parse_dt pdata->clk_req_gpio = %d\n",platform_data->clk_req_gpio );
+	
 	register_device_proc("nfc", nfc_info.version, nfc_info.manufacture);
 /*OPPO yuyi 2013-10-24 add end for nfc_devinfo*/
 	if (platform_data == NULL) 
@@ -422,6 +436,41 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 		pr_err("gpio_nfc_firm request error\n");	
 		return  -ENODEV;
 	}
+/*OPPO yuyi 2014-02-24 add begin for nfc pn65T*/	
+/*	if ((gpio_is_valid(platform_data->clk_req_gpio))) {
+		ret = gpio_request(platform_data->clk_req_gpio, "nfc_clk_req");
+		if (ret)
+		{
+			pr_err("gpio_nfc_clk_req request error\n");	
+			return  -ENODEV;
+		}
+*/		
+
+/*OPPO yuyi 2014-05-24 modify begin for rename clock name from core_clk to cxo_out_d1*/
+#ifndef VENDOR_EDIT
+		p65T_clk  = clk_get(&client->dev, "core_clk");
+#else 
+		p65T_clk  = clk_get(&client->dev, "cxo_out_d1");
+#endif
+/*OPPO yuyi 2014-05-24 modify end for rename clock name from core_clk to cxo_out_d1*/
+		if (p65T_clk == NULL) {
+			printk("yuyi,pn65T clk error!");
+			goto err_exit;
+		}
+
+		ret = clk_prepare_enable(p65T_clk);
+		printk("yuyi,clk_prepare_enable,return ret = %d",ret);
+		if (ret){
+			p65T_clk = NULL;
+			clk_disable_unprepare(p65T_clk);
+		}
+		
+/*
+	} else {
+		printk("yuyi,gpio_is_valid invalid\n");
+	}
+*/	
+/*OPPO yuyi 2014-02-24 add end for nfc pn65T*/
 
 	pn544_dev = kzalloc(sizeof(*pn544_dev), GFP_KERNEL);
 	if (pn544_dev == NULL) 
@@ -435,6 +484,7 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 	pn544_dev->irq_gpio = platform_data->irq_gpio;
 	pn544_dev->ven_gpio  = platform_data->ven_gpio;
 	pn544_dev->firm_gpio  = platform_data->firm_gpio;
+//	pn544_dev->clk_req_gpio  = platform_data->clk_req_gpio;
 	pn544_dev->client   = client;
 	
 /* OPPO 2012-07-11 liuhd Add begin for reason */
@@ -456,6 +506,13 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 		pr_err("%s : not able to set ven_gpio as output\n", __func__);
 		goto err_exit;
 	}
+
+/*		ret = gpio_direction_input(pn544_dev->clk_req_gpio);
+		if (ret < 0) {
+			pr_err("%s : not able to set ven_gpio as input\n", __func__);
+//			gpio_free(platform_data->clk_req_gpio);
+		}
+	*/	
 /* OPPO 2012-07-11 liuhd Add end */
 			
 	/* init mutex and queues */
@@ -492,9 +549,9 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 
 	#ifdef CONFIG_VENDOR_EDIT
 	/*liuhd add for sleep current because of nfc  2013-12-17*/
-	//gpio_set_value(pn544_dev->ven_gpio, 1);
-	//msleep(10);
-    //gpio_set_value(pn544_dev->ven_gpio, 0);
+	gpio_set_value(pn544_dev->ven_gpio, 1);
+	msleep(10);
+      gpio_set_value(pn544_dev->ven_gpio, 0);
 	#endif
 	/*add end by liuhd 2013-12-17*/
 	return 0;
@@ -508,6 +565,7 @@ err_exit:
 	gpio_free(pn544_dev->irq_gpio);
 	gpio_free(pn544_dev->ven_gpio);
 	gpio_free(pn544_dev->firm_gpio);
+//	gpio_free(pn544_dev->clk_req_gpio);
 	return ret;
 }
 
