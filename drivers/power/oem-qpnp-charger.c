@@ -10,7 +10,8 @@
  * GNU General Public License for more details.
  *
  */
-#define pr_fmt(fmt)	"CHG: %s: " fmt, __func__
+
+#define pr_fmt(fmt)	"%s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -30,18 +31,39 @@
 #include <linux/regulator/machine.h>
 #include <linux/of_batterydata.h>
 #include <linux/qpnp-revid.h>
-#include <linux/alarmtimer.h>
+#include <linux/android_alarm.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/qpnp/pin.h>
+#ifdef CONFIG_VENDOR_EDIT
+#include <linux/qpnp-charger.h>
+#endif
+#if defined(CONFIG_FB)
+/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset charge current when screen is off */
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif/*CONFIG_FB*/
+#include <linux/gpio.h>
+/* jingchun.wang@Onlinerd.Driver, 2014/04/24  Add for control charger */
+#include <linux/proc_fs.h>
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-05-22 sjc Add for Find7s temp rising problem */
+#include <linux/pcb_version.h>
+#include <linux/uaccess.h>//sjc20150105
+#endif
 
 #ifdef CONFIG_VENDOR_EDIT
-// add by xcb
-#include <linux/rtc.h>
-
-#include <linux/boot_mode.h>
+/* zuoyonghua@oneplus.cn 2015-02-13 default close log */
+//#define DEBUG_QPNP_CHARGER
+#ifndef DEBUG_QPNP_CHARGER
+#ifdef pr_info
+#undef pr_info
+#define pr_info(fmt, ...) pr_debug(fmt, ##__VA_ARGS__)
 #endif
+#endif
+#endif
+
 
 /* Interrupt offsets */
 #define INT_RT_STS(base)			(base + 0x10)
@@ -157,7 +179,7 @@
 #define SMBCL_USB_CHGPTH_SUBTYPE		0x44
 #define SMBCL_MISC_SUBTYPE			0x47
 
-#define QPNP_CHARGER_DEV_NAME	"qcom,qpnp-charger"
+#define QPNP_CHARGER_DEV_NAME	"oem,qpnp-charger"
 
 /* Status bits and masks */
 #define CHGR_BOOT_DONE			BIT(7)
@@ -231,12 +253,103 @@
 #define CHG_FLAGS_VCP_WA		BIT(0)
 #define BOOST_FLASH_WA			BIT(1)
 #define POWER_STAGE_WA			BIT(2)
+/* OPPO 2013-06-08 wangjc Add begin for add macro. */
+#ifdef CONFIG_VENDOR_EDIT
+#define BATT_HEARTBEAT_INTERVAL					6000//6S
+#define BATT_CHG_TIMEOUT_COUNT_DCP				10*10*60//sjc1125//6*10*60//4	//6HOURS
+#define BATT_CHG_TIMEOUT_COUNT_USB_PRO			10*10*60 //10HOURS
+#define BATT_CHG_DONE_CHECK_COUNT				10//TIMES
+#define CHARGER_SOFT_OVP_VOLTAGE		5800//mv
+#define CHARGER_SOFT_UVP_VOLTAGE		4300
+#define CHARGER_VOLTAGE_NORMAL		5000
+#define BATTERY_SOFT_OVP_VOLTAGE		4500 * 1000
+#define MSM_CHARGER_GAUGE_MISSING_VOLTS 3500*1000
+
+
+#define AUTO_CHARGING_BATT_TEMP_T0                           -100 
+#define AUTO_CHARGING_BATT_TEMP_T1                            0    
+#define AUTO_CHARGING_BATT_TEMP_T2                            100 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_TEMP_T3							  150 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_TEMP_T4                            450  /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_TEMP_T5                            550  /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+#define AUTO_CHARGING_BATT_REMOVE_TEMP                        -400 
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_HOT_TO_WARM      30
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_WARM_TO_NORMAL   10
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL   10
+#define AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COLD_TO_COOL     30
+
+
+enum chg_charger_status_type {
+	/* The charger is good      */
+	CHARGER_STATUS_GOOD,
+	/* The charger is bad       */
+	CHARGER_STATUS_BAD,
+	/* The charger is weak      */
+	CHARGER_STATUS_WEAK,
+	CHARGER_STATUS_OVER,
+	/* Invalid charger status.  */
+	CHARGER_STATUS_INVALID
+};
+
+enum chg_battery_status_type {
+	/* The battery is good        */
+	BATTERY_STATUS_GOOD,
+	/* The battery is cold/hot    */
+	BATTERY_STATUS_BAD_TEMP,
+	/* The battery is bad         */
+	BATTERY_STATUS_BAD,
+	/* The battery is removed     */
+	BATTERY_STATUS_REMOVED,		/* on v2.2 only */
+	BATTERY_STATUS_INVALID_v1 = BATTERY_STATUS_REMOVED,
+	/* Invalid battery status.    */
+	BATTERY_STATUS_INVALID
+};
+#ifndef CONFIG_VENDOR_EDIT
+//Fuchun.Liao@Mobile.BSP.CHG 2015-01-04 move it to qpnp-charger.h for bq27541 to use
+typedef enum   
+{
+    /*! Battery is cold               */
+    CV_BATTERY_TEMP_REGION__COLD,
+    /*! Battery is little cold               */
+    CV_BATTERY_TEMP_REGION_LITTLE__COLD,
+    /*! Battery is cool               */
+    CV_BATTERY_TEMP_REGION__COOL,
+     /*! Battery is little cool               */
+    CV_BATTERY_TEMP_REGION__LITTLE_COOL,
+    /*! Battery is normal             */
+    CV_BATTERY_TEMP_REGION__NORMAL,
+    /*! Battery is warm               */
+    CV_BATTERY_TEMP_REGION__WARM,
+    /*! Battery is hot                */
+    CV_BATTERY_TEMP_REGION__HOT,
+    /*! Invalid battery temp region   */
+    CV_BATTERY_TEMP_REGION__INVALID,
+}chg_cv_battery_temp_region_type;
+#endif
+
+static bool use_fake_temp = false;
+static int fake_temp = 300;
+static bool use_fake_chgvol = false;
+static int fake_chgvol = 0;
+#endif
+/* OPPO 2013-06-08 wangjc Add end */
+
+#ifdef CONFIG_BATTERY_BQ27541
+static struct qpnp_battery_gauge *qpnp_batt_gauge = NULL;
+#endif /*CONFIG_BATTERY_BQ27541*/
+
+#ifdef CONFIG_BQ24196_CHARGER
+static struct qpnp_external_charger *qpnp_ext_charger = NULL;
+#endif /*CONFIG_BQ24196_CHARGER*/
 
 struct qpnp_chg_irq {
 	int		irq;
 	unsigned long		disabled;
 	unsigned long		wake_enable;
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/16  Modify for solve bug:system can not suspend because of vbat_del_lo IRQ aways pending , */
 	bool			is_wake;
+#endif /*CONFIG_VENDOR_EDIT*/
 };
 
 struct qpnp_chg_regulator {
@@ -320,16 +433,9 @@ struct qpnp_chg_chip {
 	struct qpnp_chg_irq		coarse_det_usb;
 	bool				bat_is_cool;
 	bool				bat_is_warm;
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	bool				bat_is_cold;
-	bool				bat_is_overheat;
-	bool				bat_is_little_cool;
-	bool				bat_is_little_cold;
-	bool				bat_is_cool2;
-	bool				chg_show_temp;
-#endif
 	bool				chg_done;
+	bool				chg_show_temp;
+	bool				chg_display_full;//wangjc add for charge full
 	bool				charger_monitor_checked;
 	bool				usb_present;
 	u8				usbin_health;
@@ -337,12 +443,6 @@ struct qpnp_chg_chip {
 	bool				dc_present;
 	bool				batt_present;
 	bool				charging_disabled;
-#ifdef CONFIG_VENDOR_EDIT
-		// add by xcb
-	bool thermal_disable_charge;
-	// add by dl
-	bool				thermal_limit;
-#endif
 	bool				ovp_monitor_enable;
 	bool				usb_valid_check_ovp;
 	bool				btc_disabled;
@@ -357,15 +457,6 @@ struct qpnp_chg_chip {
 	unsigned int			max_bat_chg_current;
 	unsigned int			warm_bat_chg_ma;
 	unsigned int			cool_bat_chg_ma;
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	unsigned int			little_cool_bat_chg_ma;
-	unsigned int			little_cold_bat_chg_ma;
-	// add by dl
-	//unsigned int			thermal_limit_ma;
-	unsigned int			last_iusbmax;
-#endif
-
 	unsigned int			safe_voltage_mv;
 	unsigned int			max_voltage_mv;
 	unsigned int			min_voltage_mv;
@@ -377,11 +468,8 @@ struct qpnp_chg_chip {
 	u8				trim_center;
 	unsigned int			warm_bat_mv;
 	unsigned int			cool_bat_mv;
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	unsigned int			little_cool_bat_mv;
-	unsigned int			little_cold_bat_mv;
-#endif
+	unsigned int 			little_cool_bat_mv;/* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	unsigned int 			default_charge_full_mah;/*CONFIG_VENDOR_EDIT yangfangbiao@oneplus.cn add 20160801*/
 	unsigned int			resume_delta_mv;
 	int				insertion_ocv_uv;
 	int				term_current;
@@ -393,13 +481,6 @@ struct qpnp_chg_chip {
 	unsigned int			cold_batt_p;
 	int				warm_bat_decidegc;
 	int				cool_bat_decidegc;
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	int				cold_bat_decidegc;
-	int				overheat_bat_decidegc;
-	int				little_cool_bat_decidegc;
-	int				little_cold_bat_decidegc;
-#endif
 	int				fake_battery_soc;
 	unsigned int			safe_current;
 	unsigned int			revision;
@@ -444,17 +525,52 @@ struct qpnp_chg_chip {
 	unsigned int			ext_ovp_isns_gpio;
 	unsigned int			usb_trim_default;
 	u8				chg_temp_thresh_default;
+/* OPPO 2013-06-08 wangjc Add begin for define variable. */
 #ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	unsigned long	chg_start_sec;
-	bool			time_out;
+	struct delayed_work		update_heartbeat_work;
+	enum chg_charger_status_type charger_status;
+	chg_cv_battery_temp_region_type mBatteryTempRegion;
+	short 	mBatteryTempBoundT0;
+	short 	mBatteryTempBoundT1;
+	short 	mBatteryTempBoundT2;
+	short 	mBatteryTempBoundT3;
+	short 	mBatteryTempBoundT4;
+	short 	mBatteryTempBoundT5;/* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	enum chg_battery_status_type battery_status;
+	int batt_health;
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+	bool	time_out;
+	/*Jingchun.Wang@Phone.Bsp.Driver, 2014/07/25  Add for mark charger plugout shortly */
+	bool	aicl_interrupt;
+/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+	unsigned int aicl_current;
+#endif
+/* OPPO 2013-06-08 wangjc Add end */
 
+/* OPPO 2013-10-24 liaofuchun add begin for enable/disable charge*/
+#ifdef CONFIG_BQ24196_CHARGER
+	struct work_struct 		start_charge_work;
+	struct work_struct		stop_charge_work;
+	struct work_struct		ext_charger_hwinit_work;
+#endif 
+/* OPPO 2013-10-24 liaofuchun add end*/
+#if defined(CONFIG_FB)
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset charge current when screen is off */
+	struct notifier_block fb_notif;
+#endif /*CONFIG_FB*/
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-05-22 sjc Add for Find7s temp rising problem */
+	atomic_t suspended;
+	unsigned int usbin_counts;
 #endif
 };
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
-static struct qpnp_chg_chip	*chip_temp;
+/* david.liu@bsp, 2016/06/17  Add battery type */
+#ifdef CONFIG_VENDOR_EDIT
+static const char *default_batt_type	= "ATL";
+static const char *missing_batt_type	= "Disconnected Battery";
 #endif
+extern void mcu_en_gpio_set(int value);//sjc0623 add
 
 static void
 qpnp_chg_set_appropriate_battery_current(struct qpnp_chg_chip *chip);
@@ -495,6 +611,9 @@ enum usbin_health {
 	USBIN_OK,
 	USBIN_OVP,
 };
+
+/* jingchun.wang@Onlinerd.Driver, 2014/04/24  Add for control charger */
+struct qpnp_chg_chip *g_chip;
 
 static int ext_ovp_isns_present;
 module_param(ext_ovp_isns_present, int, 0444);
@@ -672,10 +791,13 @@ qpnp_chg_enable_irq(struct qpnp_chg_irq *irq)
 		pr_debug("number = %d\n", irq->irq);
 		enable_irq(irq->irq);
 	}
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/16  Modify for solve bug:system can not suspend because of vbat_del_lo IRQ aways pending , */
 	if ((irq->is_wake) && (!__test_and_set_bit(0, &irq->wake_enable))) {
-		pr_debug("enable wake, number = %d\n", irq->irq);
-		enable_irq_wake(irq->irq);
-	}
+				pr_debug("enable wake, number = %d\n", irq->irq);
+				enable_irq_wake(irq->irq);
+			}
+#endif /*CONFIG_VENDOR_EDIT*/
 }
 
 static void
@@ -685,10 +807,13 @@ qpnp_chg_disable_irq(struct qpnp_chg_irq *irq)
 		pr_debug("number = %d\n", irq->irq);
 		disable_irq_nosync(irq->irq);
 	}
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/16  Modify for solve bug:system can not suspend because of vbat_del_lo IRQ aways pending , */
 	if ((irq->is_wake) && (__test_and_clear_bit(0, &irq->wake_enable))) {
-		pr_debug("disable wake, number = %d\n", irq->irq);
-		disable_irq_wake(irq->irq);
-	}
+				pr_debug("disable wake, number = %d\n", irq->irq);
+				disable_irq_wake(irq->irq);
+			}
+#endif /*CONFIG_VENDOR_EDIT*/
 }
 
 static void
@@ -698,7 +823,10 @@ qpnp_chg_irq_wake_enable(struct qpnp_chg_irq *irq)
 		pr_debug("number = %d\n", irq->irq);
 		enable_irq_wake(irq->irq);
 	}
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/16  Modify for solve bug:system can not suspend because of vbat_del_lo IRQ aways pending , */
 	irq->is_wake = true;
+#endif /*CONFIG_VENDOR_EDIT*/
 }
 
 static void
@@ -708,10 +836,15 @@ qpnp_chg_irq_wake_disable(struct qpnp_chg_irq *irq)
 		pr_debug("number = %d\n", irq->irq);
 		disable_irq_wake(irq->irq);
 	}
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/16  Modify for solve bug:system can not suspend because of vbat_del_lo IRQ aways pending , */
 	irq->is_wake = false;
+#endif /*CONFIG_VENDOR_EDIT*/
 }
 
 #define USB_OTG_EN_BIT	BIT(0)
+/* OPPO 2013-10-18 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_is_otg_en_set(struct qpnp_chg_chip *chip)
 {
@@ -731,6 +864,29 @@ qpnp_chg_is_otg_en_set(struct qpnp_chg_chip *chip)
 
 	return (usb_otg_en & USB_OTG_EN_BIT) ? 1 : 0;
 }
+#else
+static int is_otg_en_set = false;
+
+static int
+qpnp_chg_is_otg_en_set(struct qpnp_chg_chip *chip)
+{
+	int status;
+	
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_get_system_status)
+		status = qpnp_ext_charger->chg_get_system_status();
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+
+	if((status & 0xc0) == 0xc0) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
 
 static int
 qpnp_chg_is_boost_en_set(struct qpnp_chg_chip *chip)
@@ -817,6 +973,13 @@ qpnp_chg_is_usb_chg_plugged_in(struct qpnp_chg_chip *chip)
 		return rc;
 	}
 	pr_debug("chgr usb sts 0x%x\n", usb_chgpth_rt_sts);
+
+/* OPPO 2014-03-11 sjc Modify begin for OTG Vbus problem */
+#ifdef CONFIG_BQ24196_CHARGER
+	if (is_otg_en_set == true)
+		return 0;
+#endif
+/* OPPO 2014-03-11 sjc Modify end */
 
 	return (usb_chgpth_rt_sts & USBIN_VALID_IRQ) ? 1 : 0;
 }
@@ -1038,14 +1201,27 @@ qpnp_chg_iusb_trim_set(struct qpnp_chg_chip *chip, int trim)
 }
 
 #define IOVP_USB_WALL_TRSH_MA   150
-
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode */
 #ifdef CONFIG_VENDOR_EDIT
+#define MSM_BOOT_MODE__NORMAL 0
+extern int get_boot_mode(void);
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
+
+/* OPPO 2013-10-17 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
-oem_qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
+qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 {
 	int rc = 0;
 	u8 usb_reg = 0, temp = 8;
 
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
+#ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL)
+		return -EINVAL;
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
 	if (mA < 0 || mA > QPNP_CHG_I_MAX_MAX_MA) {
 		pr_err("bad mA=%d asked to set\n", mA);
 		return -EINVAL;
@@ -1066,19 +1242,6 @@ oem_qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 	/* Impose input current limit */
 	if (chip->maxinput_usb_ma)
 		mA = (chip->maxinput_usb_ma) <= mA ? chip->maxinput_usb_ma : mA;
-
-#ifdef CONFIG_VENDOR_EDIT
-	// modify by dl
-	//chip->last_iusbmax = mA;
-
-	//if (chip->thermal_limit && mA > chip->thermal_limit_ma) {
-	//	pr_debug("mA=%d is denied by thermal_limit=%d\n", mA, chip->thermal_limit_ma);
-	//	return 0;
-	//}
-	if (chip->therm_lvl_sel != 0 && chip->thermal_mitigation)
-		mA = (chip->thermal_mitigation[chip->therm_lvl_sel]) <= mA ? (chip->thermal_mitigation[chip->therm_lvl_sel]) : mA;
-
-#endif
 
 	usb_reg = mA / QPNP_CHG_I_MAXSTEP_MA;
 
@@ -1106,70 +1269,33 @@ oem_qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 	}
 
 	return rc;
-}
-static int
-qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
-{
-	chip->last_iusbmax = mA;
-	return oem_qpnp_chg_iusbmax_set(chip, mA);
 }
 #else
 static int
 qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 {
-	int rc = 0;
-	u8 usb_reg = 0, temp = 8;
-
-	if (mA < 0 || mA > QPNP_CHG_I_MAX_MAX_MA) {
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
+#ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL)
+		return -EINVAL;
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
+	if (mA < QPNP_CHG_I_MAX_MIN_100
+			|| mA > QPNP_CHG_I_MAX_MAX_MA) {
 		pr_err("bad mA=%d asked to set\n", mA);
 		return -EINVAL;
 	}
 
-	if (mA <= QPNP_CHG_I_MAX_MIN_100) {
-		usb_reg = 0x00;
-		pr_debug("current=%d setting %02x\n", mA, usb_reg);
-		return qpnp_chg_write(chip, &usb_reg,
-		chip->usb_chgpth_base + CHGR_I_MAX_REG, 1);
-	} else if (mA == QPNP_CHG_I_MAX_MIN_150) {
-		usb_reg = 0x01;
-		pr_debug("current=%d setting %02x\n", mA, usb_reg);
-		return qpnp_chg_write(chip, &usb_reg,
-		chip->usb_chgpth_base + CHGR_I_MAX_REG, 1);
+	pr_debug("set current=%d\n", mA);
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_iusbmax_set)
+		return qpnp_ext_charger->chg_iusbmax_set(mA);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
 	}
-
-	/* Impose input current limit */
-	if (chip->maxinput_usb_ma)
-		mA = (chip->maxinput_usb_ma) <= mA ? chip->maxinput_usb_ma : mA;
-
-	usb_reg = mA / QPNP_CHG_I_MAXSTEP_MA;
-
-	if (chip->flags & CHG_FLAGS_VCP_WA) {
-		temp = 0xA5;
-		rc =  qpnp_chg_write(chip, &temp,
-			chip->buck_base + SEC_ACCESS, 1);
-		rc =  qpnp_chg_masked_write(chip,
-			chip->buck_base + CHGR_BUCK_COMPARATOR_OVRIDE_3,
-			0x0C, 0x0C, 1);
-	}
-
-	pr_debug("current=%d setting 0x%x\n", mA, usb_reg);
-	rc = qpnp_chg_write(chip, &usb_reg,
-		chip->usb_chgpth_base + CHGR_I_MAX_REG, 1);
-
-	if (chip->flags & CHG_FLAGS_VCP_WA) {
-		temp = 0xA5;
-		udelay(200);
-		rc =  qpnp_chg_write(chip, &temp,
-			chip->buck_base + SEC_ACCESS, 1);
-		rc =  qpnp_chg_masked_write(chip,
-			chip->buck_base + CHGR_BUCK_COMPARATOR_OVRIDE_3,
-			0x0C, 0x00, 1);
-	}
-
-	return rc;
 }
 #endif
-
+/* OPPO 2013-10-17 wangjc Modify end */
 #define QPNP_CHG_VINMIN_MIN_MV		4000
 #define QPNP_CHG_VINMIN_HIGH_MIN_MV	5600
 #define QPNP_CHG_VINMIN_HIGH_MIN_VAL	0x2B
@@ -1178,6 +1304,8 @@ qpnp_chg_iusbmax_set(struct qpnp_chg_chip *chip, int mA)
 #define QPNP_CHG_VINMIN_STEP_HIGH_MV	200
 #define QPNP_CHG_VINMIN_MASK		0x3F
 #define QPNP_CHG_VINMIN_MIN_VAL	0x0C
+/* OPPO 2013-10-17 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_vinmin_set(struct qpnp_chg_chip *chip, int voltage)
 {
@@ -1203,6 +1331,19 @@ qpnp_chg_vinmin_set(struct qpnp_chg_chip *chip, int voltage)
 			chip->chgr_base + CHGR_VIN_MIN,
 			QPNP_CHG_VINMIN_MASK, temp, 1);
 }
+#else
+static int
+qpnp_chg_vinmin_set(struct qpnp_chg_chip *chip, int voltage)
+{
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_vinmin_set)
+		return qpnp_ext_charger->chg_vinmin_set(voltage);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-17 wangjc Modify end */
 
 static int
 qpnp_chg_vinmin_get(struct qpnp_chg_chip *chip)
@@ -1331,10 +1472,18 @@ switch_parallel_ovp_mode(struct qpnp_chg_chip *chip, bool enable)
 	return rc;
 }
 
+/* OPPO 2013-10-18 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 #define USB_SUSPEND_BIT	BIT(0)
 static int
 qpnp_chg_usb_suspend_enable(struct qpnp_chg_chip *chip, int enable)
 {
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
+#ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL)
+		return -EINVAL;
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
 	/* Turn off DC OVP FET when going into USB suspend */
 	if (chip->parallel_ovp_mode && enable)
 		switch_parallel_ovp_mode(chip, 0);
@@ -1344,31 +1493,47 @@ qpnp_chg_usb_suspend_enable(struct qpnp_chg_chip *chip, int enable)
 			USB_SUSPEND_BIT,
 			enable ? USB_SUSPEND_BIT : 0, 1);
 }
-
+#else
+static int
+qpnp_chg_usb_suspend_enable(struct qpnp_chg_chip *chip, int enable)
+{
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
 #ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL) {
+		if(!enable) {
+			return -EINVAL;
+		}
+	}
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
+
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_usb_suspend_enable)
+		return qpnp_ext_charger->chg_usb_suspend_enable(enable);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-18 wangjc Delete end */
+
+/* OPPO 2013-10-16 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_charge_en(struct qpnp_chg_chip *chip, int enable)
 {
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
+#ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL)
+		return -EINVAL;
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
+
 	if (chip->insertion_ocv_uv == 0 && enable) {
 		pr_debug("Battery not present, skipping\n");
 		return 0;
 	}
 	pr_debug("charging %s\n", enable ? "enabled" : "disabled");
-	if (chip->thermal_disable_charge && enable) {
-		pr_err("thermal_disable_charge, skipping\n");
-		return 0;
-	}
-
-	if (chip->time_out && enable) {
-		pr_err("time_out, skipping\n");
-		return 0;
-	}
-
-	if ((chip->usbin_health == USBIN_OVP) && enable) {
-		pr_err("USBIN_OVP, skipping\n");
-		return 0;
-	}
-
 	return qpnp_chg_masked_write(chip, chip->chgr_base + CHGR_CHG_CTRL,
 			CHGR_CHG_EN,
 			enable ? CHGR_CHG_EN : 0, 1);
@@ -1377,18 +1542,38 @@ qpnp_chg_charge_en(struct qpnp_chg_chip *chip, int enable)
 static int
 qpnp_chg_charge_en(struct qpnp_chg_chip *chip, int enable)
 {
-	if (chip->insertion_ocv_uv == 0 && enable) {
-		pr_err("Battery not present, skipping\n");
-		return 0;
-	}
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
+#ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL)
+		return -EINVAL;
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
 
-	pr_debug("charging %s\n", enable ? "enabled" : "disabled");
-	return qpnp_chg_masked_write(chip, chip->chgr_base + CHGR_CHG_CTRL,
-			CHGR_CHG_EN,
-			enable ? CHGR_CHG_EN : 0, 1);
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_charge_en)
+		return qpnp_ext_charger->chg_charge_en(enable);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
 }
 
+#ifdef CONFIG_PIC1503_FASTCG	
+static int qpnp_chg_get_charge_en(void)
+{
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_get_charge_en)
+		return qpnp_ext_charger->chg_get_charge_en();
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}	
+}
 #endif
+
+#endif
+/* OPPO 2013-10-16 wangjc Modify end */
+
+/* OPPO 2013-10-18 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_force_run_on_batt(struct qpnp_chg_chip *chip, int disable)
 {
@@ -1405,6 +1590,8 @@ qpnp_chg_force_run_on_batt(struct qpnp_chg_chip *chip, int disable)
 			CHGR_ON_BAT_FORCE_BIT,
 			disable ? CHGR_ON_BAT_FORCE_BIT : 0, 1);
 }
+#endif
+/* OPPO 2013-10-18 wangjc Delete end */
 
 #define BUCK_DUTY_MASK_100P	0x30
 static int
@@ -1461,6 +1648,8 @@ qpnp_chg_toggle_chg_done_logic(struct qpnp_chg_chip *chip, int enable)
 #define QPNP_CHG_VBATDET_MIN_MV	3240
 #define QPNP_CHG_VBATDET_MAX_MV	5780
 #define QPNP_CHG_VBATDET_STEP_MV	20
+/* OPPO 2013-10-17 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_vbatdet_set(struct qpnp_chg_chip *chip, int vbatdet_mv)
 {
@@ -1478,35 +1667,20 @@ qpnp_chg_vbatdet_set(struct qpnp_chg_chip *chip, int vbatdet_mv)
 	return qpnp_chg_write(chip, &temp,
 		chip->chgr_base + CHGR_VBAT_DET, 1);
 }
-#ifdef CONFIG_VENDOR_EDIT
-static void
-qpnp_chg_set_appropriate_vbatdet(struct qpnp_chg_chip *chip)
-{
-	if (chip->resuming_charging)
-		qpnp_chg_vbatdet_set(chip, chip->max_voltage_mv
-			+ chip->resume_delta_mv);
-	else if (chip->bat_is_cool) {
-		if (chip->bat_is_cool2 == true)
-			qpnp_chg_vbatdet_set(chip, chip->cool_bat_mv
-			- chip->resume_delta_mv - 120);
-		else
-			qpnp_chg_vbatdet_set(chip, chip->cool_bat_mv
-			- chip->resume_delta_mv);
-	}
-	else if (chip->bat_is_warm)
-		qpnp_chg_vbatdet_set(chip, chip->warm_bat_mv
-			- chip->resume_delta_mv + 20);
-	else if (chip->bat_is_little_cool)
-		qpnp_chg_vbatdet_set(chip, chip->little_cool_bat_mv
-			- chip->resume_delta_mv);
-	else if (chip->bat_is_little_cold)
-		qpnp_chg_vbatdet_set(chip, chip->little_cold_bat_mv
-			- chip->resume_delta_mv + 20 - 200);
-	else
-		qpnp_chg_vbatdet_set(chip, chip->max_voltage_mv
-			- chip->resume_delta_mv);
-}
 #else
+static int
+qpnp_chg_vbatdet_set(struct qpnp_chg_chip *chip, int vbatdet_mv)
+{
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_vbatdet_set)
+		return qpnp_ext_charger->chg_vbatdet_set(vbatdet_mv);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-17 wangjc Modify end */
+
 static void
 qpnp_chg_set_appropriate_vbatdet(struct qpnp_chg_chip *chip)
 {
@@ -1523,8 +1697,9 @@ qpnp_chg_set_appropriate_vbatdet(struct qpnp_chg_chip *chip)
 		qpnp_chg_vbatdet_set(chip, chip->max_voltage_mv
 			- chip->resume_delta_mv);
 }
-#endif
 
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static void
 qpnp_arb_stop_work(struct work_struct *work)
 {
@@ -1536,6 +1711,8 @@ qpnp_arb_stop_work(struct work_struct *work)
 		qpnp_chg_charge_en(chip, !chip->charging_disabled);
 	qpnp_chg_force_run_on_batt(chip, chip->charging_disabled);
 }
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
 
 static void
 qpnp_bat_if_adc_measure_work(struct work_struct *work)
@@ -1570,7 +1747,7 @@ qpnp_chg_vbatdet_lo_irq_handler(int irq, void *_chip)
 	if (rc)
 		pr_err("failed to read chg_sts rc=%d\n", rc);
 
-	pr_info("chg_done chg_sts: 0x%x triggered\n", chg_sts);
+	pr_debug("chg_done chg_sts: 0x%x triggered\n", chg_sts);
 	if (!chip->charging_disabled && (chg_sts & FAST_CHG_ON_IRQ)) {
 		schedule_delayed_work(&chip->eoc_work,
 			msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
@@ -1579,16 +1756,14 @@ qpnp_chg_vbatdet_lo_irq_handler(int irq, void *_chip)
 	qpnp_chg_disable_irq(&chip->chg_vbatdet_lo);
 
 	pr_debug("psy changed usb_psy\n");
-	power_supply_changed(chip->usb_psy);
-#ifndef CONFIG_VENDOR_EDIT
+	//power_supply_changed(chip->usb_psy);
 	if (chip->dc_chgpth_base) {
 		pr_debug("psy changed dc_psy\n");
-		power_supply_changed(&chip->dc_psy);
+		//power_supply_changed(&chip->dc_psy);
 	}
-#endif
 	if (chip->bat_if_base) {
 		pr_debug("psy changed batt_psy\n");
-		power_supply_changed(&chip->batt_psy);
+		//power_supply_changed(&chip->batt_psy);
 	}
 	return IRQ_HANDLED;
 }
@@ -1606,7 +1781,7 @@ qpnp_chg_usb_chg_gone_irq_handler(int irq, void *_chip)
 	if (rc)
 		pr_err("failed to read usb_chgpth_sts rc=%d\n", rc);
 
-	pr_info("chg_gone triggered\n");
+	pr_debug("chg_gone triggered\n");
 	if ((qpnp_chg_is_usb_chg_plugged_in(chip)
 			|| qpnp_chg_is_dc_chg_plugged_in(chip))
 			&& (usb_sts & CHG_GONE_IRQ)) {
@@ -1615,11 +1790,21 @@ qpnp_chg_usb_chg_gone_irq_handler(int irq, void *_chip)
 			gpio_direction_output(chip->ext_ovp_isns_gpio, 0);
 		}
 
+/* OPPO 2013-10-19 liaofuchun modify for use bq charger*/
+#ifndef CONFIG_BQ24196_CHARGER
 		qpnp_chg_charge_en(chip, 0);
+#else
+		//schedule_work(&chip->stop_charge_work);
+#endif
+/* OPPO 2013-10-19 liaofuchun modify end*/
 
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 		qpnp_chg_force_run_on_batt(chip, 1);
 		schedule_delayed_work(&chip->arb_stop_work,
 			msecs_to_jiffies(ARB_STOP_WORK_MS));
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
 	}
 
 	return IRQ_HANDLED;
@@ -1705,6 +1890,8 @@ qpnp_chg_ocp_clear_work(struct work_struct *work)
 #define QPNP_CHG_V_STEP_MV		10
 #define QPNP_CHG_BUCK_TRIM1_STEP	10
 #define QPNP_CHG_BUCK_VDD_TRIM_MASK	0xF0
+#ifndef CONFIG_VENDOR_EDIT
+/* OPPO 2013-09-07 liaofuchun modify for set vddmax in cold/cool/warm region*/
 static int
 qpnp_chg_vddmax_and_trim_set(struct qpnp_chg_chip *chip,
 		int voltage, int trim_mv)
@@ -1765,7 +1952,6 @@ qpnp_chg_vddmax_get(struct qpnp_chg_chip *chip)
 	return QPNP_CHG_V_MIN_MV + (int)vddmax * QPNP_CHG_V_STEP_MV;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
 /* JEITA compliance logic */
 static void
 qpnp_chg_set_appropriate_vddmax(struct qpnp_chg_chip *chip)
@@ -1775,33 +1961,229 @@ qpnp_chg_set_appropriate_vddmax(struct qpnp_chg_chip *chip)
 				chip->delta_vddmax_mv);
 	else if (chip->bat_is_warm)
 		qpnp_chg_vddmax_and_trim_set(chip, chip->warm_bat_mv,
-				chip->delta_vddmax_mv);
-	else if (chip->bat_is_little_cool)
-		qpnp_chg_vddmax_and_trim_set(chip, chip->little_cool_bat_mv,
-				chip->delta_vddmax_mv);
-	else if (chip->bat_is_little_cold)
-		qpnp_chg_vddmax_and_trim_set(chip, chip->little_cold_bat_mv,
 				chip->delta_vddmax_mv);
 	else
 		qpnp_chg_vddmax_and_trim_set(chip, chip->max_voltage_mv,
 				chip->delta_vddmax_mv);
 }
 #else
-/* JEITA compliance logic */
+#ifdef CONFIG_BATTERY_BQ27541
+static int
+get_prop_battery_cc(struct qpnp_chg_chip *chip)//sjc20150105
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_batt_cc)
+		return qpnp_batt_gauge->get_batt_cc();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+get_prop_battery_fcc(struct qpnp_chg_chip *chip)//sjc20150105
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_batt_fcc)
+		return qpnp_batt_gauge->get_batt_fcc();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+//wangjc add for authentication
+static int
+get_prop_authenticate(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->is_battery_authenticated)
+		return qpnp_batt_gauge->is_battery_authenticated();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+#endif /*CONFIG_BATTERY_BQ27541*/
+
+/* OPPO 2013-12-22 liaofuchun add for fastchg*/
+#ifdef CONFIG_PIC1503_FASTCG
+static int
+get_prop_fast_chg_started(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->fast_chg_started)
+		return qpnp_batt_gauge->fast_chg_started();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+get_prop_fast_switch_to_normal(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->fast_switch_to_normal)
+		return qpnp_batt_gauge->fast_switch_to_normal();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+static int
+set_fast_switch_to_normal_false(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_switch_to_noraml_false)
+		return qpnp_batt_gauge->set_switch_to_noraml_false();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_get_fast_low_temp_full(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_fast_low_temp_full)
+		return qpnp_batt_gauge->get_fast_low_temp_full();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+
+static int
+qpnp_set_fast_low_temp_full_false(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_low_temp_full_false)
+		return qpnp_batt_gauge->set_low_temp_full_false();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+get_prop_fast_normal_to_warm(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->fast_normal_to_warm)
+		return qpnp_batt_gauge->fast_normal_to_warm();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+static int
+set_fast_normal_to_warm_false(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_normal_to_warm_false)
+		return qpnp_batt_gauge->set_normal_to_warm_false();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_set_fast_chg_allow(struct qpnp_chg_chip *chip,int enable)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->set_fast_chg_allow)
+		return qpnp_batt_gauge->set_fast_chg_allow(enable);
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_get_fast_chg_allow(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_fast_chg_allow)
+		return qpnp_batt_gauge->get_fast_chg_allow();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+
+static int
+qpnp_get_fast_chg_ing(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_fast_chg_ing)
+		return qpnp_batt_gauge->get_fast_chg_ing();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming false\n");
+		return false;
+	}
+}
+#else
+static int
+get_prop_fast_chg_started(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+get_prop_fast_switch_to_normal(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+get_prop_fast_normal_to_warm(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+
+static int
+qpnp_get_fast_chg_ing(struct qpnp_chg_chip *chip)
+{
+	return false;
+}
+#endif
+/* OPPO 2013-12-12 liaofuchun add end*/
+
+
+static int
+qpnp_chg_vddmax_set(struct qpnp_chg_chip *chip, int voltage)
+{
+	if (voltage < QPNP_CHG_VDDMAX_MIN
+			|| voltage > QPNP_CHG_V_MAX_MV) {
+		pr_err("bad mV=%d asked to set\n", voltage);
+		return -EINVAL;
+	}
+
+	//wangjc add for authentication
+#ifdef CONFIG_BATTERY_BQ27541
+	if(!get_prop_authenticate(chip)) {
+		if(voltage > 4200) {
+			voltage = 4200;
+		}
+	}
+#endif
+
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_vddmax_set)
+		return qpnp_ext_charger->chg_vddmax_set(voltage);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+
 static void
 qpnp_chg_set_appropriate_vddmax(struct qpnp_chg_chip *chip)
 {
-	if (chip->bat_is_cool)
-		qpnp_chg_vddmax_and_trim_set(chip, chip->cool_bat_mv,
-				chip->delta_vddmax_mv);
-	else if (chip->bat_is_warm)
-		qpnp_chg_vddmax_and_trim_set(chip, chip->warm_bat_mv,
-				chip->delta_vddmax_mv);
+	if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION_LITTLE__COLD)
+		qpnp_chg_vddmax_set(chip,4000);
+	else if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION__COOL)
+		qpnp_chg_vddmax_set(chip,chip->cool_bat_mv); /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	else if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION__COOL)
+		qpnp_chg_vddmax_set(chip,chip->little_cool_bat_mv); /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	else if(chip->mBatteryTempRegion == CV_BATTERY_TEMP_REGION__WARM)
+		qpnp_chg_vddmax_set(chip,chip->warm_bat_mv);
 	else
-		qpnp_chg_vddmax_and_trim_set(chip, chip->max_voltage_mv,
-				chip->delta_vddmax_mv);
+		qpnp_chg_vddmax_set(chip, chip->max_voltage_mv);
 }
-#endif
+#endif /*CONFIG_VENDOR_EDIT*/
+
+
 
 static void
 qpnp_usbin_health_check_work(struct work_struct *work)
@@ -1823,7 +2205,7 @@ qpnp_usbin_health_check_work(struct work_struct *work)
 		else if (usbin_health == USBIN_OK)
 			psy_health_sts = POWER_SUPPLY_HEALTH_GOOD;
 		power_supply_set_health_state(chip->usb_psy, psy_health_sts);
-		power_supply_changed(chip->usb_psy);
+		//power_supply_changed(chip->usb_psy);
 	}
 	/* enable OVP monitor in usb valid after coarse-det complete */
 	chip->usb_valid_check_ovp = true;
@@ -1886,7 +2268,7 @@ qpnp_chg_coarse_det_usb_irq_handler(int irq, void *_chip)
 			chip->usbin_health = USBIN_UNKNOW;
 			power_supply_set_health_state(chip->usb_psy,
 				POWER_SUPPLY_HEALTH_UNKNOWN);
-			power_supply_changed(chip->usb_psy);
+			//power_supply_changed(chip->usb_psy);
 		}
 
 	}
@@ -1900,9 +2282,10 @@ static int
 qpnp_chg_regulator_batfet_set(struct qpnp_chg_chip *chip, bool enable)
 {
 	int rc = 0;
-#ifdef VENDOR_EDIT
-    enable =1;
-#endif
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/02/13  Add for  crashes in standby, QCOM    */		
+	return 0;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	if (chip->charging_disabled || !chip->bat_if_base)
 		return rc;
@@ -1921,7 +2304,19 @@ qpnp_chg_regulator_batfet_set(struct qpnp_chg_chip *chip, bool enable)
 	return rc;
 }
 
+/* OPPO 2013-09-30 wangjc Add begin for get charger type */
+#ifdef CONFIG_VENDOR_EDIT
+static int qpnp_charger_type_get(struct qpnp_chg_chip *chip);
+#endif
+
+
+/* OPPO 2013-09-30 wangjc Modify begin for set max input current to 2A */
+#ifndef CONFIG_VENDOR_EDIT
 #define USB_WALL_THRESHOLD_MA	500
+#else
+#define USB_WALL_THRESHOLD_MA	2000
+#endif
+/* OPPO 2013-09-30 wangjc Modify end */
 #define ENUM_T_STOP_BIT		BIT(0)
 #define USB_5V_UV	5000000
 #define USB_9V_UV	9000000
@@ -1929,12 +2324,27 @@ static irqreturn_t
 qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 {
 	struct qpnp_chg_chip *chip = _chip;
+#ifndef CONFIG_BQ24196_CHARGER
 	int usb_present, host_mode, usbin_health;
 	u8 psy_health_sts;
+#else
+	int usb_present, host_mode;
+#endif
+/* OPPO 2013-11-01 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+	static bool is_work_struct_init=0;
+#endif
+/* OPPO 2013-11-01 wangjc Add end */
 
 	usb_present = qpnp_chg_is_usb_chg_plugged_in(chip);
+/* OPPO 2013-11-01 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 	host_mode = qpnp_chg_is_otg_en_set(chip);
-	pr_info("usbin-valid triggered: %d host_mode: %d\n",
+#else
+	host_mode = is_otg_en_set;
+#endif
+/* OPPO 2013-11-01 wangjc Modify end */
+	pr_debug("usbin-valid triggered: %d host_mode: %d\n",
 		usb_present, host_mode);
 
 	/* In host mode notifications cmoe from USB supply */
@@ -1944,12 +2354,18 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 	if (chip->usb_present ^ usb_present) {
 		chip->aicl_settled = false;
 		chip->usb_present = usb_present;
+/* OPPO 2013-12-16 sjc Add begin for log */
+#ifdef CONFIG_VENDOR_EDIT
+		pr_info("!!!!!usb_present[%d]\n", usb_present);
+#endif
+/* OPPO 2013-12-16 sjc Add end */
 		if (!usb_present) {
 			/* when a valid charger inserted, and increase the
 			 *  charger voltage to OVP threshold, then
 			 *  usb_in_valid falling edge interrupt triggers.
 			 *  So we handle the OVP monitor here, and ignore
 			 *  other health state changes */
+#ifndef CONFIG_BQ24196_CHARGER
 			if (chip->ovp_monitor_enable &&
 				       (chip->usb_valid_check_ovp)) {
 				usbin_health =
@@ -1966,34 +2382,33 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 				}
 			}
 			if (!qpnp_chg_is_dc_chg_plugged_in(chip)) {
+				chip->delta_vddmax_mv = 0;
+				qpnp_chg_set_appropriate_vddmax(chip);
 				chip->chg_done = false;
-#ifdef CONFIG_VENDOR_EDIT
-				chip->resuming_charging = false;
-				chip->chg_show_temp = false;
-
-				//pr_info("chip->time_out = false\n");
-				chip->time_out = false;
-				chip->usbin_health = USBIN_UNKNOW;
-#endif
 			}
+
 			if (!qpnp_is_dc_higher_prio(chip))
 				qpnp_chg_idcmax_set(chip, chip->maxinput_dc_ma);
-
+#endif
+/*OPPO 2013-10-25 liaofuchun modify for bq24196 charger*/
+#ifndef CONFIG_BQ24196_CHARGER
 			qpnp_chg_usb_suspend_enable(chip, 0);
 			qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
 			qpnp_chg_iusb_trim_set(chip, chip->usb_trim_default);
-			chip->prev_usb_max_ma = -EINVAL;
-#ifdef CONFIG_VENDOR_EDIT
-			schedule_delayed_work(&chip->eoc_work,
-				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
-			pm_stay_awake(chip->dev);
+#else
+			schedule_work(&chip->stop_charge_work);
 #endif
+/*OPPO 2013-10-25 liaofuchun modify end*/
+			chip->prev_usb_max_ma = -EINVAL;
+			chip->aicl_settled = false;
+			chip->usbin_counts = 0;//sjc0522 for Find7s temp rising problem
 		} else {
 			/* when OVP clamped usbin, and then decrease
 			 * the charger voltage to lower than the OVP
 			 * threshold, a usbin_valid rising edge
 			 * interrupt triggered. So we change the usb
 			 * psy health state back to good */
+#ifndef CONFIG_BQ24196_CHARGER
 			if (chip->ovp_monitor_enable &&
 				       (chip->usb_valid_check_ovp)) {
 				usbin_health =
@@ -2010,22 +2425,44 @@ qpnp_chg_usb_usbin_valid_irq_handler(int irq, void *_chip)
 				}
 			}
 
+			if (!qpnp_chg_is_dc_chg_plugged_in(chip)) {
+				chip->delta_vddmax_mv = 0;
+				qpnp_chg_set_appropriate_vddmax(chip);
+			}
+#endif
 			schedule_delayed_work(&chip->eoc_work,
 				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+#ifdef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2013/12/31  Add for hold wake_lock as soon as possible */
+			pm_stay_awake(chip->dev);
+#endif /*CONFIG_VENDOR_EDIT*/
 			schedule_work(&chip->soc_check_work);
+			power_supply_changed(&chip->dc_psy);//wangjc add
 		}
 
 		power_supply_set_present(chip->usb_psy, chip->usb_present);
-#ifdef CONFIG_VENDOR_EDIT
-		//if(!usb_present) {
-		//	power_supply_set_online(chip->usb_psy, 0);
-		//	power_supply_set_current_limit(chip->usb_psy, 0);
-		//}
-		power_supply_set_online(chip->usb_psy, chip->usb_present);
+		if(qpnp_charger_type_get(chip) != POWER_SUPPLY_TYPE_USB_DCP) {
+			chip->aicl_interrupt = false;
+		}
+		/* jingchun.wang@Onlinerd.Driver, 2014/01/13  Add for if usb alread send disconnect ed event, it may miss usb plug out event */
+		if(!usb_present && (chip->aicl_interrupt != true)) {
+			power_supply_set_online(chip->usb_psy, 0);
+			power_supply_set_current_limit(chip->usb_psy, 0);
+		}
+/* OPPO 2013-11-01 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+		if(is_work_struct_init && (chip->aicl_interrupt != true)){
+			schedule_work(&chip->ext_charger_hwinit_work);
+		}
 #endif
 		schedule_work(&chip->batfet_lcl_work);
 	}
 
+/* OPPO 2013-11-01 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+	is_work_struct_init = 1;
+#endif
+/* OPPO 2013-11-01 wangjc Add end */
 	return IRQ_HANDLED;
 }
 
@@ -2079,7 +2516,7 @@ qpnp_chg_bat_if_batt_temp_irq_handler(int irq, void *_chip)
 	int batt_temp_good, batt_present, rc;
 
 	batt_temp_good = qpnp_chg_is_batt_temp_ok(chip);
-	pr_info("batt-temp triggered: %d\n", batt_temp_good);
+	pr_debug("batt-temp triggered: %d\n", batt_temp_good);
 
 	batt_present = qpnp_chg_is_batt_present(chip);
 	if (batt_present) {
@@ -2103,7 +2540,7 @@ qpnp_chg_bat_if_batt_temp_irq_handler(int irq, void *_chip)
 	}
 
 	pr_debug("psy changed batt_psy\n");
-	power_supply_changed(&chip->batt_psy);
+	//power_supply_changed(&chip->batt_psy);
 	return IRQ_HANDLED;
 }
 
@@ -2114,7 +2551,7 @@ qpnp_chg_bat_if_batt_pres_irq_handler(int irq, void *_chip)
 	int batt_present, batt_temp_good, rc;
 
 	batt_present = qpnp_chg_is_batt_present(chip);
-	pr_info("batt-pres triggered: %d\n", batt_present);
+	pr_debug("batt-pres triggered: %d\n", batt_present);
 
 	if (chip->batt_present ^ batt_present) {
 		if (batt_present) {
@@ -2161,9 +2598,9 @@ qpnp_chg_bat_if_batt_pres_irq_handler(int irq, void *_chip)
 		}
 		chip->batt_present = batt_present;
 		pr_debug("psy changed batt_psy\n");
-		power_supply_changed(&chip->batt_psy);
+		//power_supply_changed(&chip->batt_psy);
 		pr_debug("psy changed usb_psy\n");
-		power_supply_changed(chip->usb_psy);
+		//power_supply_changed(chip->usb_psy);
 
 		if ((chip->cool_bat_decidegc || chip->warm_bat_decidegc)
 						&& batt_present) {
@@ -2190,12 +2627,20 @@ qpnp_chg_dc_dcin_valid_irq_handler(int irq, void *_chip)
 
 	if (chip->dc_present ^ dc_present) {
 		chip->dc_present = dc_present;
+#ifndef CONFIG_BQ24196_CHARGER
 		if (qpnp_chg_is_otg_en_set(chip))
 			qpnp_chg_force_run_on_batt(chip, !dc_present ? 1 : 0);
+#endif
 		if (!dc_present && (!qpnp_chg_is_usb_chg_plugged_in(chip) ||
 					qpnp_chg_is_otg_en_set(chip))) {
+			chip->delta_vddmax_mv = 0;
+			qpnp_chg_set_appropriate_vddmax(chip);
 			chip->chg_done = false;
 		} else {
+			if (!qpnp_chg_is_usb_chg_plugged_in(chip)) {
+				chip->delta_vddmax_mv = 0;
+				qpnp_chg_set_appropriate_vddmax(chip);
+			}
 			schedule_delayed_work(&chip->eoc_work,
 				msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
 			schedule_work(&chip->soc_check_work);
@@ -2217,12 +2662,10 @@ qpnp_chg_dc_dcin_valid_irq_handler(int irq, void *_chip)
 			}
 		}
 
-#ifndef CONFIG_VENDOR_EDIT
 		pr_debug("psy changed dc_psy\n");
-		power_supply_changed(&chip->dc_psy);
-#endif
+		//power_supply_changed(&chip->dc_psy);
 		pr_debug("psy changed batt_psy\n");
-		power_supply_changed(&chip->batt_psy);
+		//power_supply_changed(&chip->batt_psy);
 		schedule_work(&chip->batfet_lcl_work);
 	}
 
@@ -2236,7 +2679,7 @@ qpnp_chg_chgr_chg_failed_irq_handler(int irq, void *_chip)
 	struct qpnp_chg_chip *chip = _chip;
 	int rc;
 
-	pr_info("chg_failed triggered\n");
+	pr_debug("chg_failed triggered\n");
 
 	rc = qpnp_chg_masked_write(chip,
 		chip->chgr_base + CHGR_CHG_FAILED,
@@ -2247,16 +2690,14 @@ qpnp_chg_chgr_chg_failed_irq_handler(int irq, void *_chip)
 
 	if (chip->bat_if_base) {
 		pr_debug("psy changed batt_psy\n");
-		power_supply_changed(&chip->batt_psy);
+		//power_supply_changed(&chip->batt_psy);
 	}
 	pr_debug("psy changed usb_psy\n");
-	power_supply_changed(chip->usb_psy);
-#ifndef CONFIG_VENDOR_EDIT
+	//power_supply_changed(chip->usb_psy);
 	if (chip->dc_chgpth_base) {
 		pr_debug("psy changed dc_psy\n");
-		power_supply_changed(&chip->dc_psy);
+		//power_supply_changed(&chip->dc_psy);
 	}
-#endif
 	return IRQ_HANDLED;
 }
 
@@ -2265,12 +2706,12 @@ qpnp_chg_chgr_chg_trklchg_irq_handler(int irq, void *_chip)
 {
 	struct qpnp_chg_chip *chip = _chip;
 
-	pr_info("TRKL IRQ triggered\n");
+	pr_debug("TRKL IRQ triggered\n");
 
 	chip->chg_done = false;
 	if (chip->bat_if_base) {
 		pr_debug("psy changed batt_psy\n");
-		power_supply_changed(&chip->batt_psy);
+		//power_supply_changed(&chip->batt_psy);
 	}
 
 	return IRQ_HANDLED;
@@ -2323,35 +2764,27 @@ qpnp_chg_chgr_chg_fastchg_irq_handler(int irq, void *_chip)
 
 	fastchg_on = qpnp_chg_is_fastchg_on(chip);
 
-	pr_info("FAST_CHG IRQ triggered, fastchg_on: %d\n", fastchg_on);
+	pr_debug("FAST_CHG IRQ triggered, fastchg_on: %d\n", fastchg_on);
 
 	if (chip->fastchg_on ^ fastchg_on) {
 		chip->fastchg_on = fastchg_on;
 		if (chip->bat_if_base) {
 			pr_debug("psy changed batt_psy\n");
-			power_supply_changed(&chip->batt_psy);
+			//power_supply_changed(&chip->batt_psy);
 		}
 
 		pr_debug("psy changed usb_psy\n");
-		power_supply_changed(chip->usb_psy);
+		//power_supply_changed(chip->usb_psy);
 
-#ifndef CONFIG_VENDOR_EDIT
 		if (chip->dc_chgpth_base) {
 			pr_debug("psy changed dc_psy\n");
-			power_supply_changed(&chip->dc_psy);
+			//power_supply_changed(&chip->dc_psy);
 		}
-#endif
 
 		if (fastchg_on) {
 			chip->chg_done = false;
 			bypass_vbatdet_comp(chip, 1);
-#ifdef CONFIG_VENDOR_EDIT
-			if (chip->bat_is_warm || chip->bat_is_cool
-				|| chip->bat_is_little_cool
-				|| chip->bat_is_little_cold) {
-#else
 			if (chip->bat_is_warm || chip->bat_is_cool) {
-#endif
 				qpnp_chg_set_appropriate_vddmax(chip);
 				qpnp_chg_set_appropriate_battery_current(chip);
 			}
@@ -2378,14 +2811,8 @@ qpnp_chg_chgr_chg_fastchg_irq_handler(int irq, void *_chip)
 		} else {
 			if (chip->parallel_ovp_mode)
 				switch_parallel_ovp_mode(chip, 0);
-#ifdef CONFIG_VENDOR_EDIT
-			// modify by xcb
-			if (!chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cold)
-				bypass_vbatdet_comp(chip, 0);
-#else
 			if (!chip->bat_is_warm && !chip->bat_is_cool)
 				bypass_vbatdet_comp(chip, 0);
-#endif
 		}
 	}
 
@@ -2422,13 +2849,6 @@ qpnp_batt_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
 	case POWER_SUPPLY_PROP_COOL_TEMP:
 	case POWER_SUPPLY_PROP_WARM_TEMP:
-#ifdef CONFIG_VENDOR_EDIT
-	//add by xcb
-	case POWER_SUPPLY_PROP_COLD_TEMP:
-	case POWER_SUPPLY_PROP_OVERHEAT_TEMP:
-	case POWER_SUPPLY_PROP_LITTLE_COOL_TEMP:
-	case POWER_SUPPLY_PROP_LITTLE_COLD_TEMP:
-#endif
 	case POWER_SUPPLY_PROP_CAPACITY:
 		return 1;
 	default:
@@ -2438,7 +2858,6 @@ qpnp_batt_property_is_writeable(struct power_supply *psy,
 	return 0;
 }
 
-#ifndef CONFIG_VENDOR_EDIT
 static int
 qpnp_chg_buck_control(struct qpnp_chg_chip *chip, int enable)
 {
@@ -2455,14 +2874,19 @@ qpnp_chg_buck_control(struct qpnp_chg_chip *chip, int enable)
 		return rc;
 	}
 
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 	rc = qpnp_chg_force_run_on_batt(chip, !enable);
 	if (rc)
 		pr_err("Failed to control charging %d\n", rc);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
 
 	return rc;
 }
-#endif
 
+/* OPPO 2013-10-18 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 switch_usb_to_charge_mode(struct qpnp_chg_chip *chip)
 {
@@ -2501,7 +2925,23 @@ switch_usb_to_charge_mode(struct qpnp_chg_chip *chip)
 
 	return 0;
 }
+#else
+static int
+switch_usb_to_charge_mode(struct qpnp_chg_chip *chip)
+{
+	is_otg_en_set = false;
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_charge_en)
+		return qpnp_ext_charger->chg_charge_en(1);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
 
+/* OPPO 2013-10-18 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 switch_usb_to_host_mode(struct qpnp_chg_chip *chip)
 {
@@ -2570,11 +3010,31 @@ switch_usb_to_host_mode(struct qpnp_chg_chip *chip)
 
 	return 0;
 }
+#else
+static void qpnp_chg_ext_charger_hwinit(struct qpnp_chg_chip *chip);
+static int
+switch_usb_to_host_mode(struct qpnp_chg_chip *chip)
+{
+	is_otg_en_set = true;
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_charge_en) {
+/* OPPO 2014-03-11 sjc Modify begin for OTG Vbus problem */
+		qpnp_chg_ext_charger_hwinit(chip);
+/* OPPO 2014-03-11 sjc Modify end */
+		return qpnp_ext_charger->chg_charge_en(2);
+	} else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+	
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
 
 static enum power_supply_property pm_power_props_mains[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_FASTCHARGER,//wangjc add for fast charger
 };
 
 static enum power_supply_property msm_batt_power_props[] = {
@@ -2601,28 +3061,27 @@ static enum power_supply_property msm_batt_power_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_COOL_TEMP,
 	POWER_SUPPLY_PROP_WARM_TEMP,
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	POWER_SUPPLY_PROP_COLD_TEMP,
-	POWER_SUPPLY_PROP_OVERHEAT_TEMP,
-	POWER_SUPPLY_PROP_LITTLE_COOL_TEMP,
-	POWER_SUPPLY_PROP_LITTLE_COLD_TEMP,
-	POWER_SUPPLY_PROP_TEMP_STATUS,
-#endif
 	POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-	POWER_SUPPLY_PROP_VOLTAGE_OCV,
-
+#ifndef CONFIG_VENDOR_EDIT
+	//POWER_SUPPLY_PROP_VOLTAGE_OCV,
+#endif /*CONFIG_VENDOR_EDIT*/
+/* OPPO 2013-09-30 wangjc Add begin for add charger voltage interface */
 #ifdef CONFIG_VENDOR_EDIT
 	POWER_SUPPLY_PROP_CHARGE_NOW,
-	POWER_SUPPLY_PROP_CHG_PROTECT_STATUS,
+
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+	POWER_SUPPLY_PROP_CHARGE_TIMEOUT,
+	/* david.liu@bsp, 2016/06/17  Add battery type */
+	POWER_SUPPLY_PROP_BATTERY_TYPE,
 #endif
+#ifdef CONFIG_BATTERY_BQ27541
+	POWER_SUPPLY_PROP_AUTHENTICATE,//wangjc add for authentication
+#endif /*CONFIG_BATTERY_BQ27541*/
+/* OPPO 2013-09-30 wangjc Add end */
 
 #ifdef CONFIG_VENDOR_EDIT
-	POWER_SUPPLY_PROP_CHARGE_TIMEOUT,
-	POWER_SUPPLY_PROP_STATUS_FOR_BMS,
-	POWER_SUPPLY_PROP_CHARGE_OVP,
-	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
+	POWER_SUPPLY_PROP_CHG_PROTECT_STATUS,
 #endif
 };
 
@@ -2640,7 +3099,10 @@ module_param(charger_monitor, int, 0644);
 static int ext_ovp_present;
 module_param(ext_ovp_present, int, 0444);
 
-#define OVP_USB_WALL_TRSH_MA   200
+
+/* OPPO 2013-09-30 wangjc Add end */
+#define OVP_USB_WALL_THRESHOLD_MA	200
+#define OVP_USB_WALL_TRSH_MA	200
 static int
 qpnp_power_get_property_mains(struct power_supply *psy,
 				  enum power_supply_property psp,
@@ -2656,11 +3118,49 @@ qpnp_power_get_property_mains(struct power_supply *psy,
 		if (chip->charging_disabled)
 			return 0;
 
+/* OPPO 2013-08-27 wangjc Modify begin for detect ac charger. */
+#ifndef CONFIG_VENDOR_EDIT
 		val->intval = qpnp_chg_is_dc_chg_plugged_in(chip);
+#else
+#ifndef CONFIG_BATTERY_BQ27541
+/* jingchun.wang@Onlinerd.Driver, 2014/02/11  Modify for when no battery gauge present */
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP)
+			val->intval = 1;
+		else
+			val->intval = 0;
+#else /*CONFIG_BATTERY_BQ27541*/
+		if((get_prop_fast_chg_started(chip) == true)
+			|| (get_prop_fast_switch_to_normal(chip) == true)
+			|| (get_prop_fast_normal_to_warm(chip) == true)) {
+			val->intval = 1;
+		} else {
+			if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP)
+				val->intval = 1;
+			else
+				val->intval = 0;
+		}
+#endif /*CONFIG_BATTERY_BQ27541*/
+#endif
+/* OPPO 2013-08-27 wangjc Modify end */
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		val->intval = chip->maxinput_dc_ma * 1000;
 		break;
+/* OPPO 2013-12-22 wangjc add for fastchg*/
+#ifdef CONFIG_PIC1503_FASTCG
+	case POWER_SUPPLY_PROP_FASTCHARGER://wangjc add for fast charger
+		val->intval = get_prop_fast_chg_started(chip);
+#if 0
+//Fuchun.Liao@EXP.driver,delete for mistakenly show fastchg mode "YES" 
+		if(val->intval == 0) {
+			if(get_prop_fast_switch_to_normal(chip) == true) {
+				val->intval = 1;
+			}
+		}
+#endif
+		break;
+#endif
+/* OPPO 2013-12-22 wangjc add end*/
 	default:
 		return -EINVAL;
 	}
@@ -2688,7 +3188,8 @@ qpnp_aicl_check_work(struct work_struct *work)
 	}
 	chip->charger_monitor_checked = true;
 }
-
+/* OPPO 2013-08-13 wangjc Modify begin for use fuel gauger. */
+#ifndef CONFIG_BATTERY_BQ27541
 static int
 get_prop_battery_voltage_now(struct qpnp_chg_chip *chip)
 {
@@ -2707,6 +3208,50 @@ get_prop_battery_voltage_now(struct qpnp_chg_chip *chip)
 		return results.physical;
 	}
 }
+#else
+static int
+get_prop_battery_voltage_now(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_battery_mvolts)
+		return qpnp_batt_gauge->get_battery_mvolts();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming 3.5V\n");
+		return MSM_CHARGER_GAUGE_MISSING_VOLTS;
+	}
+}
+#endif
+/* OPPO 2013-08-13 wangjc Modify end */
+
+/* OPPO 2013-06-08 wangjc Add begin for use fuel gauger. */
+#ifdef CONFIG_VENDOR_EDIT
+static int
+get_prop_charger_voltage_now(struct qpnp_chg_chip *chip)
+{
+	int rc = 0;
+	struct qpnp_vadc_result results;
+
+/* OPPO 2013-09-30 wangjc Add begin for use fake charger voltage */
+#ifdef CONFIG_VENDOR_EDIT
+	if(use_fake_chgvol)
+		return fake_chgvol;
+#endif
+/* OPPO 2013-09-30 wangjc Add end */
+
+	if (chip->revision == 0 && chip->type == SMBB) {
+		pr_err("vchg reading not supported for 1.0 rc=%d\n", rc);
+		return 0;
+	} else {
+		rc = qpnp_vadc_read(chip->vadc_dev, USBIN, &results);
+		if (rc) {
+			pr_err("Unable to read vchg rc=%d\n", rc);
+			return 0;
+		}
+		return (int)results.physical/1000;
+	}
+}
+#endif
+/* OPPO 2013-06-08 wangjc Add end */
+
 
 #define BATT_PRES_BIT BIT(7)
 static int
@@ -2714,10 +3259,6 @@ get_prop_batt_present(struct qpnp_chg_chip *chip)
 {
 	u8 batt_present;
 	int rc;
-#ifdef CONFIG_VENDOR_EDIT
- 	if (get_boot_mode() == MSM_BOOT_MODE__FACTORY)
-		return 1;
-#endif
 
 	rc = qpnp_chg_read(chip, &batt_present,
 				chip->bat_if_base + CHGR_BAT_IF_PRES_STATUS, 1);
@@ -2728,9 +3269,36 @@ get_prop_batt_present(struct qpnp_chg_chip *chip)
 	return (batt_present & BATT_PRES_BIT) ? 1 : 0;
 }
 
+/* OPPO 2013-06-14 wangjc Add begin for get temp region. */
+#ifdef CONFIG_VENDOR_EDIT
+static chg_cv_battery_temp_region_type qpnp_battery_temp_region_get(struct qpnp_chg_chip *chip)
+{
+	return chip->mBatteryTempRegion;
+}
+
+int fuelgauge_battery_temp_region_get(void)//sjc20150104
+{
+	if (!g_chip)
+		return CV_BATTERY_TEMP_REGION__NORMAL;
+	return qpnp_battery_temp_region_get(g_chip);
+}
+
+static void qpnp_battery_temp_region_set(struct qpnp_chg_chip *chip, 
+												   chg_cv_battery_temp_region_type batt_temp_region)
+{
+	chip->mBatteryTempRegion = batt_temp_region;
+}
+static enum chg_battery_status_type qpnp_battery_status_get(struct qpnp_chg_chip *chip);
+static void qpnp_check_charger_uovp(struct qpnp_chg_chip *chip);
+static int
+qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current);
+#endif
+/* OPPO 2013-06-14 wangjc Add end */
+
+
 #define BATT_TEMP_HOT	BIT(6)
 #define BATT_TEMP_OK	BIT(7)
-
+/* OPPO 2013-10-18 wangjc Modify begin for judge battery health with environment. */
 #ifndef CONFIG_VENDOR_EDIT
 static int
 get_prop_batt_health(struct qpnp_chg_chip *chip)
@@ -2752,8 +3320,40 @@ get_prop_batt_health(struct qpnp_chg_chip *chip)
 	else
 		return POWER_SUPPLY_HEALTH_COLD;
 }
-#endif
+#else
+static int
+get_prop_batt_temp(struct qpnp_chg_chip *chip);
 
+static int
+get_prop_batt_health(struct qpnp_chg_chip *chip)
+{
+	int temp;
+	
+	temp = get_prop_batt_temp(chip);
+/* jingchun.wang@Onlinerd.Driver, 2014/05/08  Add for recognize miss battery  */
+	if(temp == AUTO_CHARGING_BATT_REMOVE_TEMP) {
+		return POWER_SUPPLY_HEALTH_UNKNOWN;
+	} else if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT) {
+		return POWER_SUPPLY_HEALTH_OVERHEAT;
+	} else if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD) {
+		return POWER_SUPPLY_HEALTH_COLD;
+	} else if(qpnp_battery_status_get(chip) == BATTERY_STATUS_BAD) {
+		return POWER_SUPPLY_HEALTH_DEAD;
+	} else if(chip->charger_status == CHARGER_STATUS_OVER) {
+/* jingchun.wang@Onlinerd.Driver, 2014/04/04  Add for don't display overvoltage when fast chg */
+		if(get_prop_fast_chg_started(chip) == true) {
+			return POWER_SUPPLY_HEALTH_GOOD;
+		}
+		return POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	} else {
+		return POWER_SUPPLY_HEALTH_GOOD;
+	}
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
+
+/* OPPO 2013-10-18 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 get_prop_charge_type(struct qpnp_chg_chip *chip)
 {
@@ -2777,7 +3377,37 @@ get_prop_charge_type(struct qpnp_chg_chip *chip)
 
 	return POWER_SUPPLY_CHARGE_TYPE_NONE;
 }
+#else
+static int
+get_prop_charge_type(struct qpnp_chg_chip *chip)
+{
+	int status;
+	
+	if (!get_prop_batt_present(chip))
+		return POWER_SUPPLY_CHARGE_TYPE_NONE;
 
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_get_system_status)
+		status = qpnp_ext_charger->chg_get_system_status();
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+
+	if((status & 0x30) == 0x10) {
+		return POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+	} else if((status & 0x30) == 0x20) {
+		return POWER_SUPPLY_CHARGE_TYPE_FAST;
+	} else if((status & 0x30) == 0x30){
+		return POWER_SUPPLY_CHARGE_TYPE_TERMINATE;
+	} else{
+		return POWER_SUPPLY_CHARGE_TYPE_NONE;
+	}
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
+
+/* OPPO 2014-02-08 sjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 #define DEFAULT_CAPACITY	50
 static int
 get_batt_capacity(struct qpnp_chg_chip *chip)
@@ -2795,7 +3425,11 @@ get_batt_capacity(struct qpnp_chg_chip *chip)
 	}
 	return DEFAULT_CAPACITY;
 }
+#endif
+/* OPPO 2014-02-08 sjc Modify end */
 
+/* OPPO 2013-10-18 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 get_prop_batt_status(struct qpnp_chg_chip *chip)
 {
@@ -2823,16 +3457,73 @@ get_prop_batt_status(struct qpnp_chg_chip *chip)
 	 * Report full if state of charge is 100 or chg_done is true
 	 * when a charger is connected and boost is disabled
 	 */
+#ifndef CONFIG_BQ24196_CHARGER
 	if ((qpnp_chg_is_usb_chg_plugged_in(chip) ||
 		qpnp_chg_is_dc_chg_plugged_in(chip)) &&
 		(chip->chg_done || get_batt_capacity(chip) == 100)
 		&& qpnp_chg_is_boost_en_set(chip) == 0) {
 		return POWER_SUPPLY_STATUS_FULL;
 	}
+#endif
 
 	return POWER_SUPPLY_STATUS_DISCHARGING;
 }
+#else
+static int
+get_prop_batt_status(struct qpnp_chg_chip *chip)
+{
+	int status;
+/* OPPO 2013-12-22 liaofuchun add for fastchg*/
+#ifdef CONFIG_PIC1503_FASTCG
+	if(get_prop_fast_chg_started(chip) == true)
+		return POWER_SUPPLY_STATUS_CHARGING;
+#endif	
+/* OPPO 2013-12-22 liaofuchun add end*/
+	if (qpnp_chg_is_usb_chg_plugged_in(chip) && chip->chg_display_full) {//wangjc add for charge full
+		return POWER_SUPPLY_STATUS_FULL;
+	}
 
+#ifdef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/01/22  Add for it report bad status when plug out battery */
+	if(get_prop_batt_temp(chip) <= AUTO_CHARGING_BATT_REMOVE_TEMP) {
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+#endif /*CONFIG_VENDOR_EDIT*/
+
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_get_system_status)
+		status = qpnp_ext_charger->chg_get_system_status();
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+
+	if((status & 0x30) == 0x10) {
+		return POWER_SUPPLY_STATUS_CHARGING;
+	} else if((status & 0x30) == 0x20) {
+		return POWER_SUPPLY_STATUS_CHARGING;
+	} else if((status & 0x30) == 0x30) {
+#ifndef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/02/12  Modify for msjudge full status */
+		return POWER_SUPPLY_STATUS_FULL;
+#else /*CONFIG_VENDOR_EDIT*/
+		return POWER_SUPPLY_STATUS_CHARGING;
+#endif /*CONFIG_VENDOR_EDIT*/
+	}else {
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+}
+
+int get_charging_status(void)//sjc20150104
+{
+	if (!g_chip) 
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+	return get_prop_batt_status(g_chip);
+}
+#endif
+/* OPPO 2013-10-18 wangjc Modify end */
+
+/* OPPO 2013-08-13 wangjc Modify begin for use fuel gauger. */
+#ifndef CONFIG_BATTERY_BQ27541
 static int
 get_prop_current_now(struct qpnp_chg_chip *chip)
 {
@@ -2848,6 +3539,19 @@ get_prop_current_now(struct qpnp_chg_chip *chip)
 
 	return 0;
 }
+#else
+static int
+get_prop_current_now(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_average_current)
+		return qpnp_batt_gauge->get_average_current();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming 0mA\n");
+		return 0;
+	}		
+}
+#endif
+/* OPPO 2013-08-13 wangjc Modify end */
 
 static int
 get_prop_full_design(struct qpnp_chg_chip *chip)
@@ -2875,12 +3579,16 @@ get_prop_charge_full(struct qpnp_chg_chip *chip)
 			  POWER_SUPPLY_PROP_CHARGE_FULL, &ret);
 		return ret.intval;
 	} else {
-		pr_debug("No BMS supply registered return 0\n");
+		pr_debug("No BMS supply registered return default_charge_full_mah\n");
 	}
-
-	return 0;
+#ifdef CONFIG_VENDOR_EDIT
+	return chip->default_charge_full_mah;
+#endif
 }
 
+#define DEFAULT_CAPACITY	50
+/* OPPO 2013-08-13 wangjc Modify begin for use fuel gauger. */
+#ifndef CONFIG_BATTERY_BQ27541
 static int
 get_prop_capacity(struct qpnp_chg_chip *chip)
 {
@@ -2907,18 +3615,8 @@ get_prop_capacity(struct qpnp_chg_chip *chip)
 		if (battery_status != POWER_SUPPLY_STATUS_CHARGING
 				&& bms_status != POWER_SUPPLY_STATUS_CHARGING
 				&& charger_in
-#ifdef CONFIG_VENDOR_EDIT
-				//&& !chip->bat_is_cool
-#else
 				&& !chip->bat_is_cool
-#endif
 				&& !chip->bat_is_warm
-#ifdef CONFIG_VENDOR_EDIT
-				&& !chip->bat_is_cold // add by xcb
-				&& !chip->bat_is_overheat // add by xcb
-				//&& !chip->bat_is_little_cool // add by xcb
-				&& !chip->bat_is_little_cold // add by xcb
-#endif
 				&& !chip->resuming_charging
 				&& !chip->charging_disabled
 				&& chip->soc_resume_limit
@@ -2943,57 +3641,41 @@ get_prop_capacity(struct qpnp_chg_chip *chip)
 	 * from shutting down unecessarily */
 	return DEFAULT_CAPACITY;
 }
+#else
+static int
+get_prop_capacity(struct qpnp_chg_chip *chip)
+{
+	if (chip->fake_battery_soc >= 0)
+		return chip->fake_battery_soc;
+
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_battery_soc){
+
+		return qpnp_batt_gauge->get_battery_soc();
+	}	
+	else {
+		pr_err("qpnp-charger no batt gauge assuming 50percent\n");
+		return DEFAULT_CAPACITY;
+	}	
+}
+#endif
+/* OPPO 2013-08-13 wangjc Modify end */
 
 #define DEFAULT_TEMP		250
 #define MAX_TOLERABLE_BATT_TEMP_DDC	680
+/* OPPO 2013-08-13 wangjc Modify begin for use fuel gauger. */
+#ifndef CONFIG_BATTERY_BQ27541
+static int
+get_prop_batt_temp(struct qpnp_chg_chip *chip)
+{
+	int rc = 0;
+	struct qpnp_vadc_result results;
+	
+/* OPPO 2013-08-26 wangjc Add begin for use fake battery temp */
 #ifdef CONFIG_VENDOR_EDIT
-static void
-sort_battery_temp(int64_t  battery_pool[], int battery_pool_size)
-{
-	int i,j;
-	int64_t t;
-	for(j=0;j<battery_pool_size;j++)
-		for(i=0;i<battery_pool_size-1-j;i++)
-			if(battery_pool[i]>battery_pool[i+1]) {
-				t=battery_pool[i];
-				battery_pool[i]=battery_pool[i+1];
-				battery_pool[i+1]=t;
-			}
-}
-
-static int
-get_prop_batt_temp(struct qpnp_chg_chip *chip)
-{
-	int rc = 0;
-	struct qpnp_vadc_result results;
-	int64_t battery_pool[8] = {0};
-	int i;
-	if (chip->use_default_batt_values || !get_prop_batt_present(chip))
-		return DEFAULT_TEMP;
-
-	for(i = 0; i < ARRAY_SIZE(battery_pool); i ++){
-		msleep(1);
-		rc = qpnp_vadc_read(chip->vadc_dev, LR_MUX1_BATT_THERM, &results);
-		if (rc)
-			results.physical = DEFAULT_TEMP;
-
-            battery_pool[i] =  (int)results.physical;
-        }
-
-	sort_battery_temp(battery_pool, ARRAY_SIZE(battery_pool));
-	results.physical = (battery_pool[2] + battery_pool[3] + battery_pool[4] + battery_pool[5])>>2;
-
-	pr_debug("get_bat_temp %d, %lld\n",
-			results.adc_code, results.physical);
-
-	return (int)results.physical;
-}
-#else
-static int
-get_prop_batt_temp(struct qpnp_chg_chip *chip)
-{
-	int rc = 0;
-	struct qpnp_vadc_result results;
+	if(use_fake_temp)
+		return fake_temp;
+#endif
+/* OPPO 2013-08-26 wangjc Add end */
 
 	if (chip->use_default_batt_values || !get_prop_batt_present(chip))
 		return DEFAULT_TEMP;
@@ -3008,60 +3690,27 @@ get_prop_batt_temp(struct qpnp_chg_chip *chip)
 
 	return (int)results.physical;
 }
-#endif
 
-#ifdef CONFIG_VENDOR_EDIT
-#define BATT_REMOVE_TEMP -400
-#define BATT_OVP_THR 4500000
-
+#else
 static int
-get_prop_batt_health(struct qpnp_chg_chip *chip)
+get_prop_batt_temp(struct qpnp_chg_chip *chip)
 {
-	u8 batt_health;
-	int rc;
-
-	rc = qpnp_chg_read(chip, &batt_health,
-				chip->bat_if_base + CHGR_STATUS, 1);
-	if (rc) {
-		pr_err("Couldn't read battery health read failed rc=%d\n", rc);
-		return POWER_SUPPLY_HEALTH_UNKNOWN;
-	};
-
-	if (get_prop_batt_temp(chip) == BATT_REMOVE_TEMP)
-		return POWER_SUPPLY_HEALTH_UNKNOWN;
-
-	if (get_prop_battery_voltage_now(chip) == BATT_OVP_THR) {
-		return POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+/* OPPO 2013-08-26 wangjc Add begin for use fake battery temp */
+#ifdef CONFIG_VENDOR_EDIT
+	if(use_fake_temp)
+		return fake_temp;
+#endif
+/* OPPO 2013-08-26 wangjc Add end */
+		
+	if (qpnp_batt_gauge && qpnp_batt_gauge->get_battery_temperature)
+		return qpnp_batt_gauge->get_battery_temperature();
+	else {
+		pr_err("qpnp-charger no batt gauge assuming 35 deg G\n");
+		return AUTO_CHARGING_BATT_REMOVE_TEMP;
 	}
-
-	if (BATT_TEMP_OK & batt_health) {
-
-	} else if (BATT_TEMP_HOT & batt_health) {
-		return POWER_SUPPLY_HEALTH_OVERHEAT;
-	} else {
-		return POWER_SUPPLY_HEALTH_COLD;
-	}
-
-	if (chip->bat_is_overheat)
-		return POWER_SUPPLY_HEALTH_OVERHEAT;
-	else if (chip->bat_is_cold)
-		return POWER_SUPPLY_HEALTH_COLD;
-	/*
-	else if (chip->bat_is_cool)
-		return POWER_SUPPLY_HEALTH_COOL;
-	else if (chip->bat_is_warm)
-		return POWER_SUPPLY_HEALTH_WARM;
-	else if (chip->bat_is_little_cold)
-		return POWER_SUPPLY_HEALTH_LITTLE_COLD;
-	else if (chip->bat_is_little_cool)
-		return POWER_SUPPLY_HEALTH_LITTLE_COOL;
-	*/
-
-	return POWER_SUPPLY_HEALTH_GOOD;
-
 }
 #endif
-
+/* OPPO 2013-08-13 wangjc Modify end */
 static int get_prop_cycle_count(struct qpnp_chg_chip *chip)
 {
 	union power_supply_propval ret = {0,};
@@ -3094,25 +3743,34 @@ static int get_prop_online(struct qpnp_chg_chip *chip)
 	return qpnp_chg_is_batfet_closed(chip);
 }
 
+/* OPPO 2013-12-09 wangjc Add begin for set charge current */
+#ifdef CONFIG_VENDOR_EDIT
+static int qpnp_start_charging(struct qpnp_chg_chip *chip);
+#endif
+/* OPPO 2013-12-09 wangjc Add end */
+
+#ifdef CONFIG_PIC1503_FASTCG
+//Fuchun.Liao@EXP.Driver,2014/02/11,add for display fastchg icon quickly
+static void switch_fast_chg(struct qpnp_chg_chip *chip);
+#endif
+
 static void
 qpnp_batt_external_power_changed(struct power_supply *psy)
 {
 	struct qpnp_chg_chip *chip = container_of(psy, struct qpnp_chg_chip,
 								batt_psy);
 	union power_supply_propval ret = {0,};
-
-#ifdef CONFIG_VENDOR_EDIT
-	if (!chip->bms_psy) {
-			chip->bms_psy = power_supply_get_by_name("bms");
-			if (chip->bms_psy) {
-				schedule_work(&chip->soc_check_work);
-				power_supply_changed(&chip->batt_psy);
-			}
-		}
-#else
+	pr_info("%s chg_done:%d\n",__func__,chip->chg_done);
+/*OPPO 2013-10-24 liaofuchun add begin for bq24196 charger*/
+#ifdef CONFIG_BQ24196_CHARGER
+	if(chip->chg_done){
+		pr_info("%s chg done\n",__func__);
+		return ;
+	}	
+#endif
+/*OPPO 2013-10-24 liaofuchun add end*/
 	if (!chip->bms_psy)
 		chip->bms_psy = power_supply_get_by_name("bms");
-#endif
 
 	chip->usb_psy->get_property(chip->usb_psy,
 			  POWER_SUPPLY_PROP_ONLINE, &ret);
@@ -3129,16 +3787,50 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 
 		if (ret.intval <= 2 && !chip->use_default_batt_values &&
 						get_prop_batt_present(chip)) {
+/* OPPO 2013-11-01 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 			if (ret.intval ==  2)
 				qpnp_chg_usb_suspend_enable(chip, 1);
+#else
+			qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-01 wangjc Modify end */
+#ifndef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/05/26  Delete for don't use 100mA */
 			qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+#endif /*CONFIG_VENDOR_EDIT*/
+/* OPPO 2013-09-30 wangjc Add begin for reset temp region. */
+#ifdef CONFIG_VENDOR_EDIT
+			/* jingchun.wang@Onlinerd.Driver, 2013/12/23  Modify for error in reset current. */
+			qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__INVALID);
+			chip->charger_status = CHARGER_STATUS_GOOD;
+			/* jingchun.wang@Onlinerd.Driver, 2014/01/08  Add for set soft aicl to 0 */
+			chip->aicl_current = 0;
+#endif
+/* OPPO 2013-09-30 wangjc Add end */
 		} else {
-			qpnp_chg_usb_suspend_enable(chip, 0);
+/* OPPO 2013-09-30 wangjc Add begin for not enable charging when bad status */
+#ifdef CONFIG_VENDOR_EDIT
+			qpnp_check_charger_uovp(chip);
+
+			if(qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__HOT && 
+					qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__COLD && 
+					chip->charger_status != CHARGER_STATUS_OVER && 
+					qpnp_battery_status_get(chip) != BATTERY_STATUS_BAD) {
+#endif
+/* OPPO 2013-09-30 wangjc Add end */
+				//qpnp_chg_usb_suspend_enable(chip, 0);//sjc1113 delete
 			if (qpnp_is_dc_higher_prio(chip)
 				&& qpnp_chg_is_dc_chg_plugged_in(chip)) {
 					pr_debug("dc has higher priority\n");
 					qpnp_chg_iusbmax_set(chip,
 							QPNP_CHG_I_MAX_MIN_100);
+				qpnp_chg_charge_en(chip, !chip->charging_disabled);//wangjc add
+/* OPPO 2014-01-23 sjc Add begin for reason */
+#ifdef CONFIG_VENDOR_EDIT
+				power_supply_changed(&chip->batt_psy);
+#endif
+/* OPPO 2014-01-23 sjc Add end */
 			} else if (((ret.intval / 1000) > USB_WALL_THRESHOLD_MA)
 					&& (charger_monitor ||
 					!chip->charger_monitor_checked)) {
@@ -3148,20 +3840,40 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 					if (unlikely(ext_ovp_present)) {
 						qpnp_chg_iusbmax_set(chip,
 							OVP_USB_WALL_TRSH_MA);
+							/* OPPO 2013-11-01 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+						qpnp_chg_ibatmax_set(chip, USB_WALL_THRESHOLD_MA);
+#endif
+/* OPPO 2013-11-01 wangjc Add end */
 					} else if (unlikely(
 							ext_ovp_isns_present)) {
-						qpnp_chg_iusb_trim_set(chip,
-							chip->usb_trim_default);
+						qpnp_chg_iusb_trim_set(chip, 0);
 						qpnp_chg_iusbmax_set(chip,
 							IOVP_USB_WALL_TRSH_MA);
 					} else {
 						qpnp_chg_iusbmax_set(chip,
 							USB_WALL_THRESHOLD_MA);
+							/* OPPO 2013-11-01 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+						qpnp_chg_ibatmax_set(chip, OVP_USB_WALL_THRESHOLD_MA);
+#endif
+/* OPPO 2013-11-01 wangjc Add end */
 					}
 			} else {
+/* OPPO 2013-12-09 wangjc Add begin for set right current in little cold temp */
+#ifdef CONFIG_VENDOR_EDIT
+					if(get_prop_fast_chg_started(chip) == false) {
+						qpnp_start_charging(chip);
+					}
+#endif
+/* OPPO 2013-12-09 wangjc Add end */
+/* OPPO 2014-01-23 sjc Delete begin for reason(from android4.3) */
+#ifndef CONFIG_VENDOR_EDIT
 				qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+#endif
+/* OPPO 2014-01-23 sjc Delete end */
 			}
-
+#ifndef CONFIG_BQ24196_CHARGER
 			if ((chip->flags & POWER_STAGE_WA)
 			&& ((ret.intval / 1000) > USB_WALL_THRESHOLD_MA)
 			&& !chip->power_stage_workaround_running
@@ -3171,71 +3883,26 @@ qpnp_batt_external_power_changed(struct power_supply *psy)
 						charger_monitor);
 				schedule_work(&chip->reduce_power_stage_work);
 			}
-		}
-#ifdef CONFIG_VENDOR_EDIT
-		pr_debug("psy changed batt_psy\n");
-		power_supply_changed(&chip->batt_psy);
 #endif
+/* OPPO 2014-01-23 sjc Delete begin for reason */
+#ifndef CONFIG_VENDOR_EDIT
+				power_supply_changed(&chip->batt_psy);
+#endif
+/* OPPO 2014-01-23 sjc Delete end */	
+
+#ifdef CONFIG_PIC1503_FASTCG
+//Fuchun.Liao@EXP.Driver,2014/02/11,add for display fastchg icon quickly
+				switch_fast_chg(chip);
+#endif
+			}
+		}
 	}
 
 skip_set_iusb_max:
 	pr_debug("end of power supply changed\n");
-#ifndef CONFIG_VENDOR_EDIT
 	pr_debug("psy changed batt_psy\n");
-	power_supply_changed(&chip->batt_psy);
-#endif
+	//power_supply_changed(&chip->batt_psy);
 }
-
-#ifdef CONFIG_VENDOR_EDIT
-static int
-qpnp_chg_get_vusbin_uv(struct qpnp_chg_chip *chip)
-{
-	int rc = 0;
-	struct qpnp_vadc_result results;
-
-	rc = qpnp_vadc_read(chip->vadc_dev, USBIN, &results);
-	if (rc) {
-		pr_err("Unable to read vbat rc=%d\n", rc);
-		return 0;
-	}
-	return results.physical;
-}
-
-static
-int get_vusb_averaged(struct qpnp_chg_chip *chip, int sample_count)
-{
-	int vusb_uv = 0;
-	int i;
-
-	/* avoid  overflows */
-	if (sample_count > 256)
-		sample_count = 256;
-
-	for (i = 0; i < sample_count; i++)
-		vusb_uv += qpnp_chg_get_vusbin_uv(chip);
-
-	vusb_uv = vusb_uv / sample_count;
-	return vusb_uv;
-}
-
-static
-int get_vbat_averaged(struct qpnp_chg_chip *chip, int sample_count)
-{
-	int vbat_uv = 0;
-	int i;
-
-	/* avoid  overflows */
-	if (sample_count > 256)
-		sample_count = 256;
-
-	for (i = 0; i < sample_count; i++)
-		vbat_uv += get_prop_battery_voltage_now(chip);
-
-	vbat_uv = vbat_uv / sample_count;
-	return vbat_uv;
-}
-
-#endif
 
 #ifdef CONFIG_VENDOR_EDIT
 
@@ -3260,89 +3927,41 @@ static int get_prop_authentic(struct qpnp_chg_chip *chip)
 	if (!qpnp_chg_is_usb_chg_plugged_in(chip) &&
 			!qpnp_chg_is_dc_chg_plugged_in(chip)) {
 		pr_debug("no chg connected, stopping\n");
+		chip->chg_show_temp = false;
 		return 0;
 	}
 
-	if (chip->usbin_health == USBIN_OVP) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_CHARGER_VOP\n");
+	if (chip->charger_status == CHARGER_STATUS_OVER)
 		return CHG_PROTECT_CHARGER_VOP;
-	}
-	else if (!get_prop_batt_present(chip) || (get_prop_batt_temp(chip) <= BATT_REMOVE_TEMP)) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_BATTERY_STATUS_BAD\n");
+	else if (qpnp_battery_status_get(chip) == BATTERY_STATUS_BAD)
 		return  CHG_PROTECT_BATTERY_STATUS_BAD;
-	}
-	else if (get_prop_battery_voltage_now(chip) >= BATT_OVP_THR) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_BATTERY_OVER_VOLTAGE\n");
+	else if (get_prop_battery_voltage_now(chip) >= BATT_OVP_THR)
 		return CHG_PROTECT_BATTERY_OVER_VOLTAGE;
-	}
-	else if (chip->time_out) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_CHG_OVER_TIME\n");
+	else if (chip->time_out)
 		return CHG_PROTECT_CHG_OVER_TIME;
+	else if ((qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COOL) && (chip->chg_done || chip->chg_show_temp)) {
+		chip->chg_show_temp = true;
+		return CHG_PROTECT_TEMP_REGION_COOL;
 	}
-	else if (chip->bat_is_cool && chip->chg_show_temp) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_TEMP_REGION_COOL\n");
-		return 0;
-	}
-	else if (chip->bat_is_warm && chip->chg_show_temp) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_TEMP_REGION_WARM\n");
+	else if ((qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__WARM) && (chip->chg_done || chip->chg_show_temp)) {
+		chip->chg_show_temp = true;
 		return CHG_PROTECT_TEMP_REGION_WARM;
 	}
-	else if (chip->bat_is_cold) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_TEMP_REGION_COLD\n");
+	else if (qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD)
 		return CHG_PROTECT_TEMP_REGION_COLD;
-	}
-	else if (chip->bat_is_overheat) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_TEMP_REGION_HOT\n");
+	else if (qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT)
 		return CHG_PROTECT_TEMP_REGION_HOT;
-	}
-	else if (chip->bat_is_little_cool && chip->chg_show_temp) {
-		//if (printk_ratelimit())
-		//	pr_debug("CHG_PROTECT_TEMP_LITTLE_COOL\n");
+	else if ((qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL) && chip->chg_done)
 		return 0;
-	}
-	else if (chip->bat_is_little_cold && chip->chg_show_temp) {
-		//if (printk_ratelimit())
-		//	pr_info("CHG_PROTECT_TEMP_LITTLE_COLD\n");
+	else if ((qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION_LITTLE__COLD) && (chip->chg_done || chip->chg_show_temp)) {
+		chip->chg_show_temp = true;
 		return CHG_PROTECT_TEMP_LITTLE_COLD;
 	}
 	else
 		return 0;
+
 }
 
-static
-int get_prop_temp_status(struct qpnp_chg_chip *chip)
-{
-	if (chip->bat_is_overheat) {
-		return POWER_SUPPLY_TEMP_OVERHEAT;
-	}
-	else if (chip->bat_is_warm) {
-		return POWER_SUPPLY_TEMP_WARM;
-	}
-	else if (chip->bat_is_cold) {
-		return POWER_SUPPLY_TEMP_COLD;
-	}
-	else if (chip->bat_is_cool) {
-		return POWER_SUPPLY_TEMP_COOL;
-	}
-	else if (chip->bat_is_little_cold) {
-		return POWER_SUPPLY_TEMP_LITTLE_COLD;
-	}
-	else if (chip->bat_is_little_cool) {
-		return POWER_SUPPLY_TEMP_LITTLE_COOL;
-	}
-	else
-		return POWER_SUPPLY_TEMP_NORMAL;
-}
-
-static int qpnp_chg_ibatmax_get(struct qpnp_chg_chip *chip, int *chg_current);
 #endif
 
 static int
@@ -3356,17 +3975,14 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = get_prop_batt_status(chip);
-#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add begin for  sync with KK charge standard  */
 		if (val->intval == POWER_SUPPLY_STATUS_FULL
-			&& (!chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cold)
-			&& get_prop_capacity(chip) < 100) {
+				&& (qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL
+				|| qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL)
+				&& get_prop_capacity(chip) < 100) {//sjc20150104
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		}
-
-		break;
-	case POWER_SUPPLY_PROP_STATUS_FOR_BMS:
-		val->intval = get_prop_batt_status(chip);;
-#endif
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add end for  sync with KK charge standard  */
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		val->intval = get_prop_charge_type(chip);
@@ -3389,9 +4005,11 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = get_prop_battery_voltage_now(chip);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_OCV:
-		val->intval = chip->insertion_ocv_uv;
-		break;
+#ifndef CONFIG_VENDOR_EDIT
+	//case POWER_SUPPLY_PROP_VOLTAGE_OCV:
+	//	val->intval = chip->insertion_ocv_uv;
+	//	break;
+#endif /*CONFIG_VENDOR_EDIT*/
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = get_prop_batt_temp(chip);
 		break;
@@ -3401,27 +4019,11 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_WARM_TEMP:
 		val->intval = chip->warm_bat_decidegc;
 		break;
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	case POWER_SUPPLY_PROP_COLD_TEMP:
-		val->intval = chip->cold_bat_decidegc;
-		break;
-	case POWER_SUPPLY_PROP_OVERHEAT_TEMP:
-		val->intval = chip->overheat_bat_decidegc;
-		break;
-	// add by xcb
-	case POWER_SUPPLY_PROP_LITTLE_COOL_TEMP:
-		val->intval = chip->little_cool_bat_decidegc;
-		break;
-	case POWER_SUPPLY_PROP_LITTLE_COLD_TEMP:
-		val->intval = chip->little_cold_bat_decidegc;
-		break;
-#endif
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = get_prop_capacity(chip);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = get_prop_current_now(chip);
+		val->intval = get_prop_current_now(chip) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = get_prop_full_design(chip);
@@ -3459,29 +4061,33 @@ qpnp_batt_power_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VCHG_LOOP_DBC_BYPASS:
 		val->intval = qpnp_chg_vchg_loop_debouncer_setting_get(chip);
 		break;
+/* OPPO 2013-08-13 wangjc Add begin for charger voltage. */
 #ifdef CONFIG_VENDOR_EDIT
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		val->intval = qpnp_chg_get_vusbin_uv(chip) / 1000;
+		val->intval = get_prop_charger_voltage_now(chip);
 		break;
-	case POWER_SUPPLY_PROP_CHG_PROTECT_STATUS:
-	 val->intval = get_prop_authentic(chip);
+#ifdef CONFIG_BATTERY_BQ27541
+	//wangjc add for authentication
+	case POWER_SUPPLY_PROP_AUTHENTICATE:
+		val->intval = get_prop_authenticate(chip);
 		break;
+#endif /*CONFIG_BATTERY_BQ27541*/
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
 	case POWER_SUPPLY_PROP_CHARGE_TIMEOUT:
 		val->intval = (int)chip->time_out;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_OVP:
-		val->intval = 0;
-		if (qpnp_chg_is_usb_chg_plugged_in(chip) || qpnp_chg_is_dc_chg_plugged_in(chip)) {
-			if (chip->usbin_health == USBIN_OVP)
-				val->intval = 1;
-		}
-		break;
-	case POWER_SUPPLY_PROP_TEMP_STATUS:
-		val->intval = get_prop_temp_status(chip);;
-		break;
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		qpnp_chg_ibatmax_get(chip, &(val->intval));
-		val->intval *= 1000;
+#endif
+/* OPPO 2013-08-13 wangjc Add end */
+#ifdef CONFIG_VENDOR_EDIT
+		case POWER_SUPPLY_PROP_CHG_PROTECT_STATUS:
+		 val->intval = get_prop_authentic(chip);
+			break;
+	/* david.liu@bsp, 2016/06/17  Add battery type */
+	case POWER_SUPPLY_PROP_BATTERY_TYPE:
+		if (get_prop_batt_present(chip))
+			val->strval = default_batt_type;
+		else
+			val->strval = missing_batt_type;
 		break;
 #endif
 
@@ -3504,7 +4110,6 @@ qpnp_chg_bat_if_configure_btc(struct qpnp_chg_chip *chip)
 	if (!chip->bat_if_base)
 		return 0;
 
-	pr_debug("chip->hot_batt_p = %d, chip->cold_batt_p = %d\n", chip->hot_batt_p, chip->cold_batt_p);
 	if ((chip->hot_batt_p == HOT_THD_25_PCT)
 			|| (chip->hot_batt_p == HOT_THD_35_PCT)) {
 		btc_cfg |= btc_value[chip->hot_batt_p];
@@ -3551,6 +4156,8 @@ qpnp_chg_ibatsafe_set(struct qpnp_chg_chip *chip, int safe_current)
 #define QPNP_CHG_ITERM_MAX_MA		250
 #define QPNP_CHG_ITERM_STEP_MA		50
 #define QPNP_CHG_ITERM_MASK			0x03
+/* OPPO 2013-10-17 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_ibatterm_set(struct qpnp_chg_chip *chip, int term_current)
 {
@@ -3568,36 +4175,24 @@ qpnp_chg_ibatterm_set(struct qpnp_chg_chip *chip, int term_current)
 			chip->chgr_base + CHGR_IBAT_TERM_CHGR,
 			QPNP_CHG_ITERM_MASK, temp, 1);
 }
+#else
+static int
+qpnp_chg_ibatterm_set(struct qpnp_chg_chip *chip, int term_current)
+{
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_ibatterm_set)
+		return qpnp_ext_charger->chg_ibatterm_set(term_current);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-17 wangjc Modify end */
 
 #define QPNP_CHG_IBATMAX_MIN	50
 #define QPNP_CHG_IBATMAX_MAX	3250
-
-#ifdef CONFIG_VENDOR_EDIT
-static int
-qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current)
-{
-	u8 temp1, temp2;
-
-	if (chg_current < QPNP_CHG_IBATMAX_MIN
-			|| chg_current > QPNP_CHG_IBATMAX_MAX) {
-		pr_err("bad mA=%d asked to set\n", chg_current);
-		return -EINVAL;
-	}
-	pr_info("setting ibatmax = %dmA\n", chg_current);
-	temp1 = chg_current / QPNP_CHG_I_STEP_MA;
-
-	qpnp_chg_read(chip, &temp2, chip->chgr_base + CHGR_IBAT_MAX, 1);
-
-	if (temp1 == temp2) {
-		pr_debug("temp1 == temp2: %dmA\n", chg_current);
-		return 0;
-	}
-	else {
-		return qpnp_chg_masked_write(chip, chip->chgr_base + CHGR_IBAT_MAX,
-			QPNP_CHG_I_MASK, temp1, 1);
-	}
-}
-#else
+/* OPPO 2013-10-17 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int
 qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current)
 {
@@ -3612,7 +4207,28 @@ qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current)
 	return qpnp_chg_masked_write(chip, chip->chgr_base + CHGR_IBAT_MAX,
 			QPNP_CHG_I_MASK, temp, 1);
 }
+#else
+static int
+qpnp_chg_ibatmax_set(struct qpnp_chg_chip *chip, int chg_current)
+{
+	//wangjc add for authentication
+#ifdef CONFIG_BATTERY_BQ27541
+	if(!get_prop_authenticate(chip)) {
+		if(chg_current > 500) {
+			chg_current = 500;
+		}
+	}
 #endif
+
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_ibatmax_set)
+		return qpnp_ext_charger->chg_ibatmax_set(chg_current);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-17 wangjc Modify end */
 
 static int
 qpnp_chg_ibatmax_get(struct qpnp_chg_chip *chip, int *chg_current)
@@ -3637,23 +4253,12 @@ qpnp_chg_ibatmax_get(struct qpnp_chg_chip *chip, int *chg_current)
 #define QPNP_CHG_TCHG_MIN	4
 #define QPNP_CHG_TCHG_MAX	512
 #define QPNP_CHG_TCHG_STEP	4
+/* OPPO 2013-10-17 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static int qpnp_chg_tchg_max_set(struct qpnp_chg_chip *chip, int minutes)
 {
 	u8 temp;
 	int rc;
-
-#ifdef CONFIG_VENDOR_EDIT
-	// modify by xcb
-	rc = qpnp_chg_masked_write(chip, chip->chgr_base + CHGR_TCHG_MAX_EN,
-			QPNP_CHG_TCHG_EN_MASK, 0, 1);
-	if (rc) {
-		pr_err("failed write tchg_max_en rc=%d\n", rc);
-		return rc;
-	} else {
-		pr_info("Set charger timer 600 mins, Disable qcom charger timer\n");
-		return rc;
-	}
-#endif
 
 	if (minutes < QPNP_CHG_TCHG_MIN || minutes > QPNP_CHG_TCHG_MAX) {
 		pr_err("bad max minutes =%d asked to set\n", minutes);
@@ -3685,41 +4290,23 @@ static int qpnp_chg_tchg_max_set(struct qpnp_chg_chip *chip, int minutes)
 
 	return 0;
 }
-
-#ifdef CONFIG_VENDOR_EDIT
-static void
-qpnp_chg_set_appropriate_battery_current(struct qpnp_chg_chip *chip)
-{
-	unsigned int chg_current = chip->max_bat_chg_current;
-
-	if (chip->bat_is_cool)
-	{
-		unsigned int chg_cool_current;
-
-		if (chip->bat_is_cool2)
-			chg_cool_current = 350;
-		else
-			chg_cool_current = 600;
-
-		chg_current = min(chg_current, chg_cool_current);
-	}
-
-	if (chip->bat_is_warm)
-		chg_current = min(chg_current, chip->warm_bat_chg_ma);
-
-	if (chip->bat_is_little_cool)
-		chg_current = min(chg_current, chip->little_cool_bat_chg_ma);
-	if (chip->bat_is_little_cold)
-		chg_current = min(chg_current, chip->little_cold_bat_chg_ma);
-
-	//if (chip->therm_lvl_sel != 0 && chip->thermal_mitigation)
-	//	chg_current = min(chg_current,
-	//		chip->thermal_mitigation[chip->therm_lvl_sel]);
-
-	pr_debug("setting %d mA\n", chg_current);
-	qpnp_chg_ibatmax_set(chip, chg_current);
-}
 #else
+static int qpnp_chg_tchg_max_set(struct qpnp_chg_chip *chip, int minutes)
+{
+	if (qpnp_ext_charger && qpnp_ext_charger->check_charge_timeout)
+#ifdef CONGIF_OPPO_CMCC_OPTR
+/* OPPO 2014-06-19 sjc Add for CMCC test: set 1000 to disable HW timer */
+		return qpnp_ext_charger->check_charge_timeout(1000);
+#endif
+		return qpnp_ext_charger->check_charge_timeout(minutes);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+#endif
+/* OPPO 2013-10-17 wangjc Modify end */
+
 static void
 qpnp_chg_set_appropriate_battery_current(struct qpnp_chg_chip *chip)
 {
@@ -3738,7 +4325,6 @@ qpnp_chg_set_appropriate_battery_current(struct qpnp_chg_chip *chip)
 	pr_debug("setting %d mA\n", chg_current);
 	qpnp_chg_ibatmax_set(chip, chg_current);
 }
-#endif
 
 static int
 qpnp_chg_vddsafe_set(struct qpnp_chg_chip *chip, int voltage)
@@ -3822,8 +4408,6 @@ qpnp_chg_input_current_settled(struct qpnp_chg_chip *chip)
 	int rc, ibat_max_ma;
 	u8 reg, chgr_sts, ibat_trim, i;
 	bool usb_present = qpnp_chg_is_usb_chg_plugged_in(chip);
-
-	pr_info("AICL settled\n");
 
 	if (!usb_present) {
 		pr_debug("Ignoring AICL settled, since USB is removed\n");
@@ -3925,19 +4509,80 @@ qpnp_chg_input_current_settled(struct qpnp_chg_chip *chip)
 		}
 	}
 
-#ifdef CONFIG_VENDOR_EDIT
-/* david.liu@bsp, 20160627, fix charging current limit */
-	qpnp_chg_set_appropriate_battery_current(chip);
-#else
 	/* restore IBATMAX */
 	rc = qpnp_chg_ibatmax_set(chip, ibat_max_ma);
 	if (rc)
 		pr_err("failed to restore ibatmax rc=%d\n", rc);
-#endif
 
 	return rc;
 }
 
+/*OPPO 2013-10-31 liaofuchun add for bq charger*/
+#ifdef CONFIG_BQ24196_CHARGER
+
+static int
+qpnp_chg_ext_charger_reset(struct qpnp_chg_chip *chip,int reset)
+{
+	pr_info("%s reset:%d\n",__func__,reset);
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_regs_reset)
+		return qpnp_ext_charger->chg_regs_reset(reset);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+
+static int
+qpnp_chg_ext_charger_wdt_set(struct qpnp_chg_chip *chip,int seconds)
+{
+	pr_info("%s seconds:%d\n",__func__,seconds);
+	if (qpnp_ext_charger && qpnp_ext_charger->chg_wdt_set)
+		return qpnp_ext_charger->chg_wdt_set(seconds);
+	else {
+		pr_err("qpnp-charger no externel charger\n");
+		return -ENODEV;
+	}
+}
+
+static void qpnp_chg_ext_charger_hwinit(struct qpnp_chg_chip *chip)
+{
+/* OPPO 2014-05-21 liaofuchun modify begin for vph_pwr pulled down unexpectly when soc is 1% ~ 2%*/
+#ifdef CONFIG_PIC1503_FASTCG
+	if(get_prop_fast_chg_started(chip) == true){
+		pr_info("%s fast chg started,don't init bq24196\n",__func__);
+		return ;
+	}
+#endif
+/* OPPO 2014-05-21 liaofuchun modify end*/
+
+/* OPPO 2014-03-11 sjc Modify begin for OTG Vbus problem */
+	qpnp_chg_ext_charger_reset(chip, 1);
+/* OPPO 2014-03-11 sjc Modify end */
+	qpnp_chg_ext_charger_reset(chip, 0); //reset bq24196 regs to default
+	qpnp_chg_ext_charger_wdt_set(chip, 0); //disable wdt
+
+	if(chip->aicl_interrupt != true) {
+		qpnp_chg_charge_en(chip, 0);
+	} else {
+		qpnp_chg_charge_en(chip, 1);
+	}
+	qpnp_chg_vddmax_set(chip, chip->max_voltage_mv);
+	qpnp_chg_vinmin_set(chip, chip->min_voltage_mv);
+	qpnp_chg_ibatterm_set(chip, chip->term_current);
+	qpnp_chg_tchg_max_set(chip, chip->tchg_mins);
+}
+
+static void
+qpnp_chg_ext_charger_hwinit_work(struct work_struct *work)
+{
+	struct qpnp_chg_chip *chip = container_of(work,
+				struct qpnp_chg_chip,ext_charger_hwinit_work);
+
+	qpnp_chg_ext_charger_hwinit(chip);
+}
+
+#endif
+/*OPPO 2013-10-31 liaofuchun add end*/
 
 #define BOOST_MIN_UV	4200000
 #define BOOST_MAX_UV	5500000
@@ -3985,36 +4630,14 @@ static void
 qpnp_batt_system_temp_level_set(struct qpnp_chg_chip *chip, int lvl_sel)
 {
 	if (lvl_sel >= 0 && lvl_sel < chip->thermal_levels) {
-		pr_info("system_temp_level %d\n", lvl_sel);
 		chip->therm_lvl_sel = lvl_sel;
-#ifndef CONFIG_VENDOR_EDIT
 		if (lvl_sel == (chip->thermal_levels - 1)) {
 			/* disable charging if highest value selected */
 			qpnp_chg_buck_control(chip, 0);
 		} else {
 			qpnp_chg_buck_control(chip, 1);
-#endif
-
-#ifdef CONFIG_VENDOR_EDIT
-			// modify by dl
-			//if (lvl_sel == 0)
-			//	chip->thermal_limit = false;
-			//else
-			//	chip->thermal_limit = true;
-			//chip->thermal_limit_ma = chip->thermal_mitigation[chip->therm_lvl_sel];
-
-			//pr_info("thermal_limit=%d, limit iusb_max to %dmA\n",
-			//	chip->thermal_limit, chip->thermal_limit_ma);
-
-			//if (chip->last_iusbmax > chip->thermal_limit_ma)
-
-			oem_qpnp_chg_iusbmax_set(chip, chip->last_iusbmax);
-#else
 			qpnp_chg_set_appropriate_battery_current(chip);
-#endif
-#ifndef CONFIG_VENDOR_EDIT
 		}
-#endif
 	} else {
 		pr_err("Unsupported level selected %d\n", lvl_sel);
 	}
@@ -4127,9 +4750,11 @@ qpnp_chg_regulator_boost_enable(struct regulator_dev *rdev)
 			pr_debug("EXT OVP IC ISNS disabled\n");
 			gpio_direction_output(chip->ext_ovp_isns_gpio, 0);
 		}
-
+/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+#ifndef CONFIG_BQ24196_CHARGER
 		qpnp_chg_usb_suspend_enable(chip, 1);
-
+#endif
+/*OPPO 2013-10-31 liaofuchun delete end*/
 		rc = qpnp_chg_masked_write(chip,
 			chip->usb_chgpth_base + SEC_ACCESS,
 			0xFF,
@@ -4138,15 +4763,14 @@ qpnp_chg_regulator_boost_enable(struct regulator_dev *rdev)
 			pr_err("failed to write SEC_ACCESS rc=%d\n", rc);
 			return rc;
 		}
-		if (chip->type != SMBBP) {
-			rc = qpnp_chg_masked_write(chip,
-				chip->usb_chgpth_base + COMP_OVR1,
-				0xFF,
-				0x2F, 1);
-			if (rc) {
-				pr_err("failed to write COMP_OVR1 rc=%d\n", rc);
-				return rc;
-			}
+
+		rc = qpnp_chg_masked_write(chip,
+			chip->usb_chgpth_base + COMP_OVR1,
+			0xFF,
+			0x2F, 1);
+		if (rc) {
+			pr_err("failed to write COMP_OVR1 rc=%d\n", rc);
+			return rc;
 		}
 	}
 
@@ -4158,6 +4782,7 @@ qpnp_chg_regulator_boost_enable(struct regulator_dev *rdev)
 		pr_err("failed to enable boost rc = %d\n", rc);
 		return rc;
 	}
+#ifndef CONFIG_BQ24196_CHARGER	
 	/*
 	 * update battery status when charger is connected and state is full
 	 */
@@ -4166,7 +4791,7 @@ qpnp_chg_regulator_boost_enable(struct regulator_dev *rdev)
 			|| (get_prop_batt_status(chip) ==
 			POWER_SUPPLY_STATUS_FULL)))
 		power_supply_changed(&chip->batt_psy);
-
+#endif
 	return rc;
 }
 
@@ -4245,21 +4870,27 @@ qpnp_chg_regulator_boost_disable(struct regulator_dev *rdev)
 			pr_err("failed to write SEC_ACCESS rc=%d\n", rc);
 			return rc;
 		}
-		if (chip->type != SMBBP) {
-			rc = qpnp_chg_masked_write(chip,
-				chip->usb_chgpth_base + COMP_OVR1,
-				0xFF,
-				0x00, 1);
-			if (rc) {
-				pr_err("failed to write COMP_OVR1 rc=%d\n", rc);
-				return rc;
-			}
-		}
-		usleep(1000);
 
+		rc = qpnp_chg_masked_write(chip,
+			chip->usb_chgpth_base + COMP_OVR1,
+			0xFF,
+			0x00, 1);
+		if (rc) {
+			pr_err("failed to write COMP_OVR1 rc=%d\n", rc);
+			return rc;
+		}
+
+		usleep(1000);
+/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+#ifndef CONFIG_BQ24196_CHARGER
 		qpnp_chg_usb_suspend_enable(chip, 0);
+#else
+		qpnp_chg_charge_en(chip, 1);
+#endif
+/*OPPO 2013-10-31 liaofuchun delete end*/
 	}
 
+#ifndef CONFIG_BQ24196_CHARGER
 	/*
 	 * When a charger is connected,if state of charge is not full
 	 * resumeing charging else update battery status
@@ -4273,7 +4904,7 @@ qpnp_chg_regulator_boost_disable(struct regulator_dev *rdev)
 			power_supply_changed(&chip->batt_psy);
 		}
 	}
-
+#endif
 	if (ext_ovp_isns_present && chip->ext_ovp_ic_gpio_enabled) {
 		pr_debug("EXT OVP IC ISNS enable\n");
 		gpio_direction_output(chip->ext_ovp_isns_gpio, 1);
@@ -4439,52 +5070,11 @@ static struct regulator_ops qpnp_chg_batfet_vreg_ops = {
 	.is_enabled		= qpnp_chg_regulator_batfet_is_enabled,
 };
 
-#ifdef CONFIG_VENDOR_EDIT
-#define MAX_DELTA_VDD_MAX_MV			80
-#define MIN_DELTA_MV_TO_INCREASE_VDD_MAX	16
-#define MIN_DELTA_MV_TO_DECREASE_VDD_MAX	-8
-#define MIN_RBATT_MV			8
-
-static void
-qpnp_chg_adjust_vddmax(struct qpnp_chg_chip *chip, int vbat_mv, int ibat_ma)
-{
-	int delta_mv, closest_delta_mv;
-	int target_mv;
-
-	target_mv = qpnp_chg_vddmax_get(chip);
-	//if (target_mv != chip->max_voltage_mv)
-	//	return;
-
-	if ((ibat_ma * -1) > chip->term_current)
-		delta_mv = target_mv - (vbat_mv - MIN_RBATT_MV);
-	else
-		delta_mv = target_mv - vbat_mv;
-
-
-	if (delta_mv > MIN_DELTA_MV_TO_DECREASE_VDD_MAX &&
-		delta_mv < MIN_DELTA_MV_TO_INCREASE_VDD_MAX) {
-		pr_debug("vbat is not enough to inc/decrease vdd (%d %d %d)\n",
-			vbat_mv, target_mv, delta_mv);
-		return;
-	}
-	if (delta_mv > MAX_DELTA_VDD_MAX_MV ||
-		delta_mv < -MAX_DELTA_VDD_MAX_MV) {
-		pr_debug("vbat differs from max voltage (%d %d %d)\n",
-			vbat_mv, target_mv, delta_mv);
-		return;
-	}
-	closest_delta_mv =
-		delta_mv > 0 ? QPNP_CHG_V_STEP_MV : (-1 * QPNP_CHG_V_STEP_MV);
-	chip->delta_vddmax_mv = clamp(chip->delta_vddmax_mv + closest_delta_mv,
-			-MAX_DELTA_VDD_MAX_MV, MAX_DELTA_VDD_MAX_MV);
-	pr_debug("using delta_vddmax_mv = %d (closest_delta=%d, delta_mv=%d)\n",
-		chip->delta_vddmax_mv, closest_delta_mv, delta_mv);
-	qpnp_chg_set_appropriate_vddmax(chip);
-}
-#else
 #define MIN_DELTA_MV_TO_INCREASE_VDD_MAX	8
 #define MAX_DELTA_VDD_MAX_MV			80
 #define VDD_MAX_CENTER_OFFSET			4
+/* OPPO 2013-11-07 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static void
 qpnp_chg_adjust_vddmax(struct qpnp_chg_chip *chip, int vbat_mv)
 {
@@ -4509,238 +5099,11 @@ qpnp_chg_adjust_vddmax(struct qpnp_chg_chip *chip, int vbat_mv)
 }
 #endif
 
-#ifdef CONFIG_VENDOR_EDIT
-static int get_current_time(unsigned long *now_tm_sec)
-{
-	struct rtc_time tm;
-	struct rtc_device *rtc;
-	int rc;
-
-	rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-	if (rtc == NULL) {
-		pr_err("%s: unable to open rtc device (%s)\n",
-			__FILE__, CONFIG_RTC_HCTOSYS_DEVICE);
-		return -EINVAL;
-	}
-
-	rc = rtc_read_time(rtc, &tm);
-	if (rc) {
-		pr_err("Error reading rtc device (%s) : %d\n",
-			CONFIG_RTC_HCTOSYS_DEVICE, rc);
-		goto close_time;
-	}
-
-	rc = rtc_valid_tm(&tm);
-	if (rc) {
-		pr_err("Invalid RTC time (%s): %d\n",
-			CONFIG_RTC_HCTOSYS_DEVICE, rc);
-		goto close_time;
-	}
-	rtc_tm_to_time(&tm, now_tm_sec);
-
-close_time:
-	rtc_class_close(rtc);
-	return rc;
-}
-#endif
-
 #define CONSECUTIVE_COUNT	3
+#define CONSECUTIVE_COUNT_POSITIVE	12 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
 #define VBATDET_MAX_ERR_MV	50
-
-#ifdef CONFIG_VENDOR_EDIT
-#define USBIN_OVP_THR 5800000
-// 10 hours = 10*60*60 seconds
-#define CHARGE_TIME_OUT 36000
-
-static void
-qpnp_eoc_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct qpnp_chg_chip *chip = container_of(dwork,
-				struct qpnp_chg_chip, eoc_work);
-	static int count;
-	//static int vbat_low_count;
-	int ibat_ma, vbat_mv, rc = 0;
-	u8 batt_sts = 0, buck_sts = 0, chg_sts = 0;
-	unsigned long now_chg_sec = 0;
-	//bool vbat_lower_than_vbatdet;
-
-	pm_stay_awake(chip->dev);
-
-	//pr_debug("chip->usbin_health = %d \n",chip->usbin_health);
-	if (qpnp_chg_get_vusbin_uv(chip) > USBIN_OVP_THR) {
-		chip->usbin_health = USBIN_OVP;
-		qpnp_chg_charge_en(chip, 0);
-		pr_err(" USBIN_OVP \n");
-		//qpnp_chg_force_run_on_batt(chip, 1);
-		goto check_again_later;
-	} else if (chip->usbin_health != USBIN_OK && qpnp_chg_is_usb_chg_plugged_in(chip)) {
-		//qpnp_chg_charge_en(chip, !chip->charging_disabled);
-		//qpnp_chg_force_run_on_batt(chip, 0);
-		chip->usbin_health = USBIN_OK;
-	}
-
-	qpnp_chg_charge_en(chip, !chip->charging_disabled);
-
-	rc = qpnp_chg_read(chip, &batt_sts, INT_RT_STS(chip->bat_if_base), 1);
-	if (rc) {
-		pr_err("failed to read batt_if rc=%d\n", rc);
-		return;
-	}
-
-	rc = qpnp_chg_read(chip, &buck_sts, INT_RT_STS(chip->buck_base), 1);
-	if (rc) {
-		pr_err("failed to read buck rc=%d\n", rc);
-		return;
-	}
-
-	rc = qpnp_chg_read(chip, &chg_sts, INT_RT_STS(chip->chgr_base), 1);
-	if (rc) {
-		pr_err("failed to read chg_sts rc=%d\n", rc);
-		return;
-	}
-
-	pr_debug("chgr: 0x%x, bat_if: 0x%x, buck: 0x%x\n",
-		chg_sts, batt_sts, buck_sts);
-
-	if (!qpnp_chg_is_usb_chg_plugged_in(chip) &&
-			!qpnp_chg_is_dc_chg_plugged_in(chip)) {
-		pr_info("no chg connected, stopping\n");
-		goto stop_eoc;
-	}
-
-	if ((batt_sts & BAT_FET_ON_IRQ) && (chg_sts & FAST_CHG_ON_IRQ
-					|| chg_sts & TRKL_CHG_ON_IRQ)) {
-		ibat_ma = get_prop_current_now(chip) / 1000;
-		vbat_mv = get_prop_battery_voltage_now(chip) / 1000;
-
-		pr_debug("ibat_ma = %d vbat_mv = %d term_current_ma = %d\n",
-				ibat_ma, vbat_mv, chip->term_current);
-		/*
-		vbat_lower_than_vbatdet = !(chg_sts & VBAT_DET_LOW_IRQ);
-		if (vbat_lower_than_vbatdet && vbat_mv <
-				(qpnp_chg_vddmax_get(chip) - chip->vbatdet_max_err_mv)) {
-			vbat_low_count++;
-			pr_debug("woke up too early vbat_mv = %d, max_mv = %d, resume_mv = %d tolerance_mv = %d low_count = %d\n",
-					vbat_mv, qpnp_chg_vddmax_get(chip),
-					chip->resume_delta_mv,
-					chip->vbatdet_max_err_mv,
-					vbat_low_count);
-			if (vbat_low_count >= CONSECUTIVE_COUNT) {
-				pr_debug("woke up too early stopping\n");
-				qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
-				//goto stop_eoc;
-			} else {
-				goto check_again_later;
-			}
-		} else {
-			vbat_low_count = 0;
-		}
-		*/
-
-		if (chip->bat_is_cool) {
-			if (vbat_mv >= 4180 || chip->bat_is_cool2 == true)
-				qpnp_chg_ibatmax_set(chip, 350);
-			else
-				qpnp_chg_ibatmax_set(chip, 600);
-		}
-
-		if (buck_sts & VDD_LOOP_IRQ)
-			qpnp_chg_adjust_vddmax(chip, vbat_mv, ibat_ma);
-
-		if (!(buck_sts & VDD_LOOP_IRQ)) {
-			pr_debug("Not in CV\n");
-			count = 0;
-		} else if ((ibat_ma * -1) > chip->term_current) {
-			pr_debug("Not at EOC, battery current too high\n");
-			count = 0;
-#ifdef CONFIG_VENDOR_EDIT
-		} else if (ibat_ma > 15) {
-			pr_debug("Charging but system demand increased\n");
-			count = 0;
-#else
-		} else if (ibat_ma > 0) {
-			pr_debug("Charging but system demand increased\n");
-			count = 0;
-#endif
-		} else {
-			if (count == CONSECUTIVE_COUNT) {
-
-				if (!chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cold) {
-					pr_info("End of Charging\n");
-					chip->chg_done = true;
-
-				} else {
-					pr_info("stop charging: battery temp = %d, vddmax = %d reached\n",
-						get_prop_batt_temp(chip), qpnp_chg_vddmax_get(chip));
-				}
-				chip->chg_show_temp = true;
-
-				chip->delta_vddmax_mv = 0;
-				qpnp_chg_set_appropriate_vddmax(chip);
-				qpnp_chg_charge_en(chip, 0);
-				/* sleep for a second before enabling */
-				msleep(2000);
-				qpnp_chg_charge_en(chip,
-						!chip->charging_disabled);
-				pr_info("psy changed batt_psy\n");
-				power_supply_changed(&chip->batt_psy);
-				qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
-				goto check_again_later;
-			} else {
-				count += 1;
-				pr_info("EOC count = %d\n", count);
-			}
-		}
-	} else {
-
-		if (!chip->charging_disabled) {
-			chip->chg_show_temp = true;
-			pr_debug("psy changed batt_psy\n");
-			power_supply_changed(&chip->batt_psy);
-		}
-
-		if (get_prop_batt_status(chip) == POWER_SUPPLY_STATUS_FULL) {
-			if ((!chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cold)
-				&& get_prop_capacity(chip) < 100) {
-				pr_info("End of Charging, but SOC != 100\n");
-				goto check_again_later;
-			}
-		}
-		pr_info("not charging\n");
-		goto stop_eoc;
-	}
-
-	if (chip->chg_start_sec == 0)
-		get_current_time(&chip->chg_start_sec);
-
-	get_current_time(&now_chg_sec);
-
-	if ((now_chg_sec - chip->chg_start_sec) >= CHARGE_TIME_OUT) {
-		//pr_info("chip->time_out = true\n");
-		chip->time_out = true;
-		qpnp_chg_charge_en(chip, 0);
-		goto stop_eoc;
-	}
-
-
-check_again_later:
-	schedule_delayed_work(&chip->eoc_work,
-		msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
-	return;
-
-stop_eoc:
-
-	pr_info("stop_eoc\n");
-	chip->chg_start_sec = 0;
-
-	//vbat_low_count = 0;
-	count = 0;
-	pm_relax(chip->dev);
-
-	//power_supply_changed(&chip->batt_psy);
-}
-#else
+/* OPPO 2013-11-07 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 static void
 qpnp_eoc_work(struct work_struct *work)
 {
@@ -4835,10 +5198,10 @@ qpnp_eoc_work(struct work_struct *work)
 							? "cool" : "warm",
 						qpnp_chg_vddmax_get(chip));
 				}
-#ifdef CONFIG_VENDOR_EDIT
 				chip->delta_vddmax_mv = 0;
 				qpnp_chg_set_appropriate_vddmax(chip);
-#endif
+				chip->chg_done = true;
+				chip->chg_display_full = true;//wangjc add for charge full
 				qpnp_chg_charge_en(chip, 0);
 				/* sleep for a second before enabling */
 				msleep(2000);
@@ -4869,7 +5232,140 @@ stop_eoc:
 	pm_relax(chip->dev);
 }
 
+#else
+static void
+qpnp_eoc_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct qpnp_chg_chip *chip = container_of(dwork,
+				struct qpnp_chg_chip, eoc_work);
+	static int count;
+	int ibat_ma, vbat_mv;
+	u8 chg_sts = 0;
+	int bat_status = 0;
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/18  Add for solve mistake end of charging */
+	unsigned int max_comp_volt = 0;
+
+	pm_stay_awake(chip->dev);
+
+	chg_sts = get_prop_charge_type(chip);
+	if (!chg_sts) {
+		pr_err("failed to get charge type\n");
+	}
+
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip)) {
+		pr_debug("no chg connected, stopping\n");
+		count = 0;
+#ifdef CONFIG_VENDOR_EDIT
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/29  Add for solve missing remove event */
+		if(chip->usb_present) {
+			chip->usb_present = false;
+			chip->usbin_counts = 0;//sjc0522 for Find7s temp rising problem
+			schedule_work(&chip->stop_charge_work);
+			chip->prev_usb_max_ma = -EINVAL;
+			power_supply_set_present(chip->usb_psy, chip->usb_present);
+			/* jingchun.wang@Onlinerd.Driver, 2014/01/13  Add for if usb alread send disconnect ed event, it may miss usb plug out event */
+			if(!chip->usb_present) {
+				power_supply_set_online(chip->usb_psy, 0);
+				power_supply_set_current_limit(chip->usb_psy, 0);
+			}
+		}
+#endif /*CONFIG_VENDOR_EDIT*/
+		pm_relax(chip->dev);
+		return;
+	}
+
+	if ((chg_sts == POWER_SUPPLY_CHARGE_TYPE_TRICKLE)
+					|| (chg_sts == POWER_SUPPLY_CHARGE_TYPE_FAST) 
+					|| (chg_sts == POWER_SUPPLY_CHARGE_TYPE_TERMINATE)){
+		ibat_ma = get_prop_current_now(chip);
+		vbat_mv = get_prop_battery_voltage_now(chip) / 1000;
+
+		pr_debug("ibat_ma = %d vbat_mv = %d term_current_ma = %d\n",
+				ibat_ma, vbat_mv, chip->term_current);
+
+#ifdef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2013/12/18  Add for solve mistake end of charging, add 100mv confirm */
+		if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION_LITTLE__COLD) {
+			max_comp_volt = 4000 - 50;
+		} else if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COOL) {
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add begin for  sync with KK charge standard  */
+			max_comp_volt = chip->cool_bat_mv - 50;
+		} else if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL) {
+			max_comp_volt = chip->little_cool_bat_mv - 50;
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add end for  sync with KK charge standard  */
+		} else if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL) {
+			max_comp_volt = chip->max_voltage_mv - 50;
+		} else if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__WARM) {
+			max_comp_volt = chip->warm_bat_mv - 50;
+		}
+
+		if(vbat_mv < max_comp_volt) {
+			count = 0;
+			goto stop_eoc;
+		}
+#endif /*CONFIG_VENDOR_EDIT*/
+
+		if ((ibat_ma * -1) > chip->term_current) {
+			pr_debug("Not at EOC, battery current too high\n");
+			count = 0;
+		} else if (ibat_ma >= 0) {
+			if (count == CONSECUTIVE_COUNT_POSITIVE) {
+
+				if (qpnp_ext_charger && qpnp_ext_charger->chg_get_system_status)
+					bat_status = qpnp_ext_charger->chg_get_system_status();
+				if((bat_status & 0x30) == 0x30) {
+					pr_info("End of Charging when ibat>=0\n");
+					chip->delta_vddmax_mv = 0;
+					qpnp_chg_set_appropriate_vddmax(chip);
+					chip->chg_done = true;
+					chip->chg_display_full = true;//wangjc add for charge full
+					qpnp_chg_charge_en(chip, 0);
+					power_supply_changed(&chip->batt_psy);
+					qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
+					count = 0;
+					goto stop_eoc;
+				} else {
+					count = 0;
+				}
+			} else {
+				count += 1;
+				pr_debug("EOC count = %d\n", count);
+			}
+		} else {
+			if (count == CONSECUTIVE_COUNT) {
+				pr_info("End of Charging\n");
+				chip->delta_vddmax_mv = 0;
+				qpnp_chg_set_appropriate_vddmax(chip);
+				chip->chg_done = true;
+				chip->chg_display_full = true;//wangjc add for charge full
+				qpnp_chg_charge_en(chip, 0);
+				/* sleep for a second before enabling */
+				msleep(2000);
+
+				power_supply_changed(&chip->batt_psy);
+				qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
+				count = 0;
+				goto stop_eoc;
+			} else {
+				count += 1;
+				pr_debug("EOC count = %d\n", count);
+			}
+		}
+	} else {
+			pr_debug("not charging\n");
+			count = 0;
+			goto stop_eoc;
+	}
+
+stop_eoc:
+	schedule_delayed_work(&chip->eoc_work,
+		msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+
+}
+
 #endif
+/* OPPO 2013-11-07 wangjc Modify end */
 
 static void
 qpnp_chg_insertion_ocv_work(struct work_struct *work)
@@ -4894,7 +5390,7 @@ qpnp_chg_insertion_ocv_work(struct work_struct *work)
 			bat_if_sts, charge_en, chip->insertion_ocv_uv);
 	qpnp_chg_charge_en(chip, !chip->charging_disabled);
 	pr_debug("psy changed batt_psy\n");
-	power_supply_changed(&chip->batt_psy);
+	//power_supply_changed(&chip->batt_psy);
 }
 
 static void
@@ -4902,501 +5398,10 @@ qpnp_chg_soc_check_work(struct work_struct *work)
 {
 	struct qpnp_chg_chip *chip = container_of(work,
 				struct qpnp_chg_chip, soc_check_work);
-#ifdef CONFIG_VENDOR_EDIT
-	union power_supply_propval ret = {0,};
-	int battery_status, bms_status, soc, charger_in;
-	int vbat_mv = 0;
 
-	if (!get_prop_batt_present(chip))
-		return;
-
-	if (chip->bms_psy) {
-		chip->bms_psy->get_property(chip->bms_psy,
-				POWER_SUPPLY_PROP_CAPACITY, &ret);
-		soc = ret.intval;
-
-		vbat_mv += (get_prop_battery_voltage_now(chip) / 1000);
-
-		battery_status = get_prop_batt_status(chip);
-		chip->bms_psy->get_property(chip->bms_psy,
-				POWER_SUPPLY_PROP_STATUS, &ret);
-		bms_status = ret.intval;
-		charger_in = qpnp_chg_is_usb_chg_plugged_in(chip) ||
-			qpnp_chg_is_dc_chg_plugged_in(chip);
-
-		if (battery_status != POWER_SUPPLY_STATUS_CHARGING /* && bms_status != POWER_SUPPLY_STATUS_CHARGING */
-				&& charger_in && !chip->resuming_charging && !chip->charging_disabled) {
-
-			if (!chip->bat_is_warm && !chip->bat_is_cold
-					&& !chip->bat_is_overheat && !chip->bat_is_little_cold) {
-				if (soc >= 100)	{
-					chip->chg_done = true;
-					pr_info("set chip->chg_done = true at %d%% soc\n", soc);
-					pr_info("psy changed batt_psy\n");
-					power_supply_changed(&chip->batt_psy);
-					qpnp_chg_enable_irq(&chip->chg_vbatdet_lo);
-				}
-				else
-				{
-					pr_info("resuming charging at %d%% soc\n", soc);
-					chip->resuming_charging = true;
-					qpnp_chg_irq_wake_enable(&chip->chg_fastchg);
-					qpnp_chg_set_appropriate_vbatdet(chip);
-					qpnp_chg_charge_en(chip, !chip->charging_disabled);
-				}
-			}
-			else if ((chip->bat_is_warm && vbat_mv < chip->warm_bat_mv)
-					|| (chip->bat_is_little_cold && vbat_mv < chip->little_cold_bat_mv)) {
-
-				pr_info("resuming charging at vbat_mv %dmv\n", vbat_mv);
-				chip->resuming_charging = true;
-				qpnp_chg_irq_wake_enable(&chip->chg_fastchg);
-				qpnp_chg_set_appropriate_vbatdet(chip);
-				qpnp_chg_charge_en(chip, !chip->charging_disabled);
-
-			}
-		}
-	}
-#else
 	get_prop_capacity(chip);
-#endif
 }
 
-#ifdef CONFIG_VENDOR_EDIT
-// modify by xcb for different charging current set under different temperature
-#define HYSTERISIS_DECIDEGC 20
-static void
-qpnp_chg_adc_notification(enum qpnp_tm_state state, void *ctx)
-{
-	struct qpnp_chg_chip *chip = ctx;
-	bool bat_warm = false, bat_cool = false, bat_cold = false, bat_overheat = false,  bat_little_cool = false, bat_little_cold = false;
-	bool bat_cool2 = chip->bat_is_cool2;
-	int temp;
-
-	if (state >= ADC_TM_STATE_NUM) {
-		pr_err("invalid notification %d\n", state);
-		return;
-	}
-
-	temp = get_prop_batt_temp(chip);
-
-	pr_err("temp = %d state = %s\n", temp,
-			state == ADC_TM_WARM_STATE ? "warm" : "cool");
-
-	if (state == ADC_TM_WARM_STATE) {
-		if (temp >= chip->overheat_bat_decidegc) {
-			/* Warm to overheat */
-			bat_overheat = true;
-			chip->adc_param.low_temp = chip->overheat_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.state_request = ADC_TM_COOL_THR_ENABLE;
-		} else if (temp >= chip->warm_bat_decidegc) {
-			/* Normal to warm */
-			bat_warm = true;
-			chip->adc_param.low_temp = chip->warm_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.high_temp = chip->overheat_bat_decidegc;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp >= chip->little_cool_bat_decidegc) {
-			/* little Cool to normal */
-			chip->adc_param.low_temp = chip->little_cool_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.high_temp = chip->warm_bat_decidegc;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp >= chip->cool_bat_decidegc) {
-			/* Cool to little cool */
-			bat_little_cool = true;
-			chip->adc_param.low_temp = chip->cool_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.high_temp = chip->little_cool_bat_decidegc;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp >= chip->little_cold_bat_decidegc + HYSTERISIS_DECIDEGC) {
-			/* little Cold to cool */
-			bat_cool = true;
-			//chip->adc_param.low_temp = chip->little_cold_bat_decidegc;
-			//chip->adc_param.high_temp = chip->cool_bat_decidegc;
-			if (temp < chip->little_cold_bat_decidegc + 50) {
-				chip->adc_param.low_temp = chip->little_cold_bat_decidegc;
-				chip->adc_param.high_temp = chip->little_cold_bat_decidegc + 50;
-				bat_cool2 = true;
-			}
-			else
-			{
-				chip->adc_param.low_temp = chip->little_cold_bat_decidegc + 50;
-				chip->adc_param.high_temp = chip->cool_bat_decidegc;
-				bat_cool2 = false;
-			}
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp >= chip->cold_bat_decidegc + HYSTERISIS_DECIDEGC) {
-			/* Cold to little cold */
-			bat_little_cold = true;
-			chip->adc_param.low_temp = chip->cold_bat_decidegc;
-			chip->adc_param.high_temp = chip->little_cold_bat_decidegc + HYSTERISIS_DECIDEGC;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		}
-
-	} else {
-
-		if (temp <= chip->cold_bat_decidegc) {
-			/* little Cold to cold */
-			bat_cold = true;
-			chip->adc_param.high_temp = chip->cold_bat_decidegc + HYSTERISIS_DECIDEGC;
-			chip->adc_param.state_request = ADC_TM_WARM_THR_ENABLE;
-		} else if (temp <= chip->little_cold_bat_decidegc){
-			/* Cool to little cold */
-			bat_little_cold = true;
-			chip->adc_param.low_temp = chip->cold_bat_decidegc;
-			chip->adc_param.high_temp = chip->little_cold_bat_decidegc + HYSTERISIS_DECIDEGC;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp <= chip->cool_bat_decidegc - HYSTERISIS_DECIDEGC){
-			/* little cool to cool */
-			bat_cool = true;
-			//chip->adc_param.low_temp = chip->little_cold_bat_decidegc;
-			//chip->adc_param.high_temp = chip->cool_bat_decidegc;
-			if (temp < chip->little_cold_bat_decidegc + 50) {
-				chip->adc_param.low_temp = chip->little_cold_bat_decidegc;
-				chip->adc_param.high_temp = chip->little_cold_bat_decidegc + 50;
-				bat_cool2 = true;
-			}
-			else
-			{
-				chip->adc_param.low_temp = chip->little_cold_bat_decidegc + 50;
-				chip->adc_param.high_temp = chip->cool_bat_decidegc;
-				bat_cool2 = false;
-			}
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		}  else if (temp <= chip->little_cool_bat_decidegc - HYSTERISIS_DECIDEGC){
-			/* Normal to little cool */
-			bat_little_cool = true;
-			chip->adc_param.low_temp = chip->cool_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.high_temp = chip->little_cool_bat_decidegc;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp <= (chip->warm_bat_decidegc - HYSTERISIS_DECIDEGC)){
-			/* Warm to normal */
-			chip->adc_param.low_temp = chip->little_cool_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.high_temp = chip->warm_bat_decidegc;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		} else if (temp <= chip->overheat_bat_decidegc - HYSTERISIS_DECIDEGC){
-			/* Overheat to warm */
-			bat_warm = true;
-			chip->adc_param.low_temp = chip->warm_bat_decidegc - HYSTERISIS_DECIDEGC;
-			chip->adc_param.high_temp = chip->overheat_bat_decidegc;
-			chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-		}
-
-	}
-
-	if (chip->bat_is_cool ^ bat_cool || chip->bat_is_warm ^ bat_warm
-			|| chip->bat_is_cold ^ bat_cold || chip->bat_is_overheat ^ bat_overheat
-			|| chip->bat_is_little_cool ^ bat_little_cool || chip->bat_is_little_cold ^ bat_little_cold
-			|| chip->bat_is_cool2 ^ bat_cool2) {
-		chip->bat_is_cool = bat_cool;
-		chip->bat_is_warm = bat_warm;
-		chip->bat_is_cold = bat_cold;
-		chip->bat_is_overheat = bat_overheat;
-		chip->bat_is_little_cool = bat_little_cool;
-		chip->bat_is_little_cold = bat_little_cold;
-
-		chip->bat_is_cool2 = bat_cool2;
-
-		/**
-		 * set appropriate voltages and currents.
-		 *
-		 * Note that when the battery is hot or cold, the charger
-		 * driver will not resume with SoC. Only vbatdet is used to
-		 * determine resume of charging.
-		 */
-		if (bat_cold || bat_overheat) {
-			chip->resuming_charging = false;
-			chip->thermal_disable_charge = true;
-			qpnp_chg_charge_en(chip, !chip->thermal_disable_charge);
-
-		} else if (bat_warm || bat_little_cold) {
-			chip->resuming_charging = false;
-			chip->thermal_disable_charge = false;
-			qpnp_chg_set_appropriate_vbatdet(chip);
-
-			/* To avoid ARB, only vbatdet is configured in
-			 * warm/cold zones. Once vbat < vbatdet the
-			 * appropriate vddmax/ibatmax adjustments will
-			 * be made in the fast charge interrupt. */
-			bypass_vbatdet_comp(chip, 1);
-			qpnp_chg_charge_en(chip, !chip->charging_disabled);
-			qpnp_chg_charge_en(chip, chip->charging_disabled);
-			qpnp_chg_charge_en(chip, !chip->charging_disabled);
-			schedule_work(&chip->soc_check_work);
-		} else {
-			chip->thermal_disable_charge = false;
-			bypass_vbatdet_comp(chip, 0);
-			/* restore normal parameters */
-			qpnp_chg_set_appropriate_vbatdet(chip);
-			qpnp_chg_set_appropriate_vddmax(chip);
-			qpnp_chg_set_appropriate_battery_current(chip);
-			schedule_work(&chip->soc_check_work);
-		}
-
-		power_supply_changed(&chip->batt_psy);
-	}
-
-	pr_err("overheat %d, warm %d, cool %d, little cool %d, cold %d, little cold %d, low = %d deciDegC, high = %d deciDegC\n",
-			chip->bat_is_overheat, chip->bat_is_warm, chip->bat_is_cool, chip->bat_is_little_cool, chip->bat_is_cold, chip->bat_is_little_cold,
-			chip->adc_param.low_temp, chip->adc_param.high_temp);
-
-	if (qpnp_adc_tm_channel_measure(chip->adc_tm_dev, &chip->adc_param))
-		pr_err("request ADC error\n");
-}
-
-#if 0
-static void
-qpnp_chg_adc_notification_init(struct qpnp_chg_chip	*chip)
-{
-	bool bat_warm = false, bat_cool = false, bat_cold = false, bat_overheat = false,  bat_little_cool = false, bat_little_cold = false;
-	int temp;
-
-	temp = get_prop_batt_temp(chip);
-	pr_info("temp = %d \n", temp);
-
-	if (temp > chip->overheat_bat_decidegc) {
-		bat_overheat = true;
-		chip->adc_param.low_temp = chip->overheat_bat_decidegc - HYSTERISIS_DECIDEGC;
-		chip->adc_param.state_request = ADC_TM_COOL_THR_ENABLE;
-	} else if (temp >= chip->warm_bat_decidegc) {
-		bat_warm = true;
-		chip->adc_param.low_temp = chip->warm_bat_decidegc - HYSTERISIS_DECIDEGC;
-		chip->adc_param.high_temp = chip->overheat_bat_decidegc;
-		chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-	} else if (temp >= chip->little_cool_bat_decidegc) {
-		chip->adc_param.low_temp = chip->little_cool_bat_decidegc - HYSTERISIS_DECIDEGC;
-		chip->adc_param.high_temp = chip->warm_bat_decidegc;
-		chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-	} else if (temp >= chip->cool_bat_decidegc) {
-		bat_little_cool = true;
-		chip->adc_param.low_temp = chip->cool_bat_decidegc - HYSTERISIS_DECIDEGC;
-		chip->adc_param.high_temp = chip->little_cool_bat_decidegc;
-		chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-	} else if (temp >= chip->little_cold_bat_decidegc) {
-		bat_cool = true;
-		chip->adc_param.low_temp = chip->little_cold_bat_decidegc;
-		chip->adc_param.high_temp = chip->cool_bat_decidegc;
-		chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-	} else if (temp >= chip->cold_bat_decidegc) {
-		bat_little_cold = true;
-		chip->adc_param.low_temp = chip->cold_bat_decidegc;
-		chip->adc_param.high_temp = chip->little_cold_bat_decidegc + HYSTERISIS_DECIDEGC;
-		chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
-	} else if (temp < chip->cold_bat_decidegc) {
-		bat_cold = true;
-		chip->adc_param.high_temp = chip->cold_bat_decidegc + HYSTERISIS_DECIDEGC;
-		chip->adc_param.state_request = ADC_TM_WARM_THR_ENABLE;
-	}
-
-
-	chip->bat_is_cool = bat_cool;
-	chip->bat_is_warm = bat_warm;
-	chip->bat_is_cold = bat_cold;
-	chip->bat_is_overheat = bat_overheat;
-	chip->bat_is_little_cool = bat_little_cool;
-	chip->bat_is_little_cold = bat_little_cold;
-
-	/**
-	 * set appropriate voltages and currents.
-	 *
-	 * Note that when the battery is hot or cold, the charger
-	 * driver will not resume with SoC. Only vbatdet is used to
-	 * determine resume of charging.
-	 */
-	if (bat_cold || bat_overheat) {
-		chip->resuming_charging = false;
-		chip->thermal_disable_charge = true;
-		qpnp_chg_charge_en(chip, !chip->thermal_disable_charge);
-
-	} else if (bat_cool || bat_warm || bat_little_cold) {
-		chip->resuming_charging = false;
-		chip->thermal_disable_charge = false;
-		bypass_vbatdet_comp(chip, 1);
-		qpnp_chg_set_appropriate_vbatdet(chip);
-		qpnp_chg_set_appropriate_vddmax(chip);
-		qpnp_chg_set_appropriate_battery_current(chip);
-	} else {
-		chip->thermal_disable_charge = false;
-		bypass_vbatdet_comp(chip, 0);
-		qpnp_chg_set_appropriate_vbatdet(chip);
-		qpnp_chg_set_appropriate_vddmax(chip);
-		qpnp_chg_set_appropriate_battery_current(chip);
-	}
-
-	pr_err("overheat %d, warm %d, cool %d, little cool %d, cold %d, little cold %d, low = %d deciDegC, high = %d deciDegC\n",
-			chip->bat_is_overheat, chip->bat_is_warm, chip->bat_is_cool, chip->bat_is_little_cool, chip->bat_is_cold, chip->bat_is_little_cold,
-			chip->adc_param.low_temp, chip->adc_param.high_temp);
-	return;
-}
-#endif
-
-#define MIN_COOL_TEMP	-300
-#define MAX_WARM_TEMP	1000
-
-// modify by xcb for different charging current set under different temperature
-// OK
-static int
-qpnp_chg_configure_jeita(struct qpnp_chg_chip *chip,
-		enum power_supply_property psp, int temp_degc)
-{
-	int rc = 0;
-
-	if ((temp_degc < MIN_COOL_TEMP) || (temp_degc > MAX_WARM_TEMP)) {
-		pr_err("Bad temperature request %d\n", temp_degc);
-		return -EINVAL;
-	}
-
-	mutex_lock(&chip->jeita_configure_lock);
-	switch (psp) {
-	case POWER_SUPPLY_PROP_COOL_TEMP:
-		if (temp_degc >=
-			(chip->little_cool_bat_decidegc - HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set cool %d higher than little cool %d - hysterisis %d\n",
-					temp_degc, chip->little_cool_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-		} else if (temp_degc <=
-			(chip->little_cold_bat_decidegc + HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set cool %d lower than little cold %d + hysterisis %d\n",
-					temp_degc, chip->little_cold_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-
-		}
-
-		if (chip->bat_is_cool)
-			chip->adc_param.high_temp = temp_degc;
-		else if (chip->bat_is_little_cool)
-			chip->adc_param.low_temp = temp_degc - HYSTERISIS_DECIDEGC;
-
-		chip->cool_bat_decidegc = temp_degc;
-		break;
-	case POWER_SUPPLY_PROP_WARM_TEMP:
-		if (temp_degc >=
-			(chip->overheat_bat_decidegc - HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set warm %d higher than overheat %d - hysterisis %d\n",
-					temp_degc, chip->cold_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-
-		} else if (temp_degc <=
-			(chip->little_cool_bat_decidegc + HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set warm %d lower than little cool %d + hysterisis %d\n",
-					temp_degc, chip->little_cool_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-		}
-
-		if (chip->bat_is_warm)
-			chip->adc_param.low_temp = temp_degc - HYSTERISIS_DECIDEGC;
-		else if (!chip->bat_is_cool && !chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cool && !chip->bat_is_little_cold)
-			chip->adc_param.high_temp = temp_degc;
-
-		chip->warm_bat_decidegc = temp_degc;
-		break;
-
-	// add by xcb
-	case POWER_SUPPLY_PROP_COLD_TEMP:
-		if (temp_degc >=
-			(chip->little_cold_bat_decidegc - HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set cold %d higher than little cold %d - hysterisis %d\n",
-					temp_degc, chip->little_cold_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-		}
-		if (chip->bat_is_cold)
-			chip->adc_param.high_temp = temp_degc + HYSTERISIS_DECIDEGC;
-		else if (chip->bat_is_little_cold)
-			chip->adc_param.low_temp = temp_degc;
-
-		chip->cold_bat_decidegc = temp_degc;
-		break;
-
-	case POWER_SUPPLY_PROP_OVERHEAT_TEMP:
-		if (temp_degc <=
-			(chip->warm_bat_decidegc + HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set overheat %d lower than warm %d + hysterisis %d\n",
-					temp_degc, chip->warm_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-		}
-		if (chip->bat_is_overheat)
-			chip->adc_param.low_temp = temp_degc - HYSTERISIS_DECIDEGC;
-		else if (chip->bat_is_warm)
-			chip->adc_param.high_temp = temp_degc;
-
-
-		chip->overheat_bat_decidegc = temp_degc;
-		break;
-
-	case POWER_SUPPLY_PROP_LITTLE_COOL_TEMP:
-		if (temp_degc >=
-			(chip->warm_bat_decidegc - HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set little cool %d higher than waem %d - hysterisis %d\n",
-					temp_degc, chip->warm_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-		} else if (temp_degc <=
-			(chip->cool_bat_decidegc + HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set little cool %d lower than cool %d + hysterisis %d\n",
-					temp_degc, chip->cool_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-
-		}
-
-		if (chip->bat_is_little_cool)
-			chip->adc_param.high_temp = temp_degc;
-		else if (!chip->bat_is_cool && !chip->bat_is_warm && !chip->bat_is_cold && !chip->bat_is_overheat && !chip->bat_is_little_cool && !chip->bat_is_little_cold)
-			chip->adc_param.low_temp = temp_degc - HYSTERISIS_DECIDEGC;
-
-		chip->little_cool_bat_decidegc = temp_degc;
-		break;
-
-	case POWER_SUPPLY_PROP_LITTLE_COLD_TEMP:
-		if (temp_degc >=
-			(chip->cool_bat_decidegc - HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set little cold %d higher than cool %d - hysterisis %d\n",
-					temp_degc, chip->cool_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-		} else if (temp_degc <=
-			(chip->cold_bat_decidegc + HYSTERISIS_DECIDEGC)) {
-			pr_err("Can't set little cold %d lower than cold %d + hysterisis %d\n",
-					temp_degc, chip->cold_bat_decidegc,
-					HYSTERISIS_DECIDEGC);
-			rc = -EINVAL;
-			goto mutex_unlock;
-
-		}
-
-		if (chip->bat_is_little_cold)
-			chip->adc_param.high_temp = temp_degc + HYSTERISIS_DECIDEGC;
-		else if (chip->bat_is_cool)
-			chip->adc_param.low_temp = temp_degc;
-
-		chip->little_cold_bat_decidegc = temp_degc;
-		break;
-
-	default:
-		rc = -EINVAL;
-		goto mutex_unlock;
-	}
-
-	schedule_work(&chip->adc_measure_work);
-
-mutex_unlock:
-	mutex_unlock(&chip->jeita_configure_lock);
-	return rc;
-}
-#else
 #define HYSTERISIS_DECIDEGC 20
 static void
 qpnp_chg_adc_notification(enum qpnp_tm_state state, void *ctx)
@@ -5559,9 +5564,7 @@ mutex_unlock:
 	return rc;
 }
 
-#endif
-
-#define POWER_STAGE_REDUCE_CHECK_PERIOD_NS		(20LL * NSEC_PER_SEC)
+#define POWER_STAGE_REDUCE_CHECK_PERIOD_SECONDS		20
 #define POWER_STAGE_REDUCE_MAX_VBAT_UV			3900000
 #define POWER_STAGE_REDUCE_MIN_VCHG_UV			4800000
 #define POWER_STAGE_SEL_MASK				0x0F
@@ -5614,7 +5617,6 @@ qpnp_chg_power_stage_set(struct qpnp_chg_chip *chip, bool reduce)
 	return rc;
 }
 
-#ifndef CONFIG_VENDOR_EDIT
 static int
 qpnp_chg_get_vusbin_uv(struct qpnp_chg_chip *chip)
 {
@@ -5662,11 +5664,11 @@ int get_vbat_averaged(struct qpnp_chg_chip *chip, int sample_count)
 	vbat_uv = vbat_uv / sample_count;
 	return vbat_uv;
 }
-#endif
 
 static void
 qpnp_chg_reduce_power_stage(struct qpnp_chg_chip *chip)
 {
+	struct timespec ts;
 	bool power_stage_reduced_in_hw = qpnp_chg_is_power_stage_reduced(chip);
 	bool reduce_power_stage = false;
 	int vbat_uv = get_vbat_averaged(chip, 16);
@@ -5726,8 +5728,11 @@ qpnp_chg_reduce_power_stage(struct qpnp_chg_chip *chip)
 	}
 
 	if (usb_present && usb_ma_above_wall) {
-		alarm_start_relative(&chip->reduce_power_stage_alarm,
-				ns_to_ktime(POWER_STAGE_REDUCE_CHECK_PERIOD_NS));
+		getnstimeofday(&ts);
+		ts.tv_sec += POWER_STAGE_REDUCE_CHECK_PERIOD_SECONDS;
+		alarm_start_range(&chip->reduce_power_stage_alarm,
+					timespec_to_ktime(ts),
+					timespec_to_ktime(ts));
 	} else {
 		pr_debug("stopping power stage workaround\n");
 		chip->power_stage_workaround_running = false;
@@ -5762,15 +5767,13 @@ qpnp_chg_reduce_power_stage_work(struct work_struct *work)
 	qpnp_chg_reduce_power_stage(chip);
 }
 
-static enum alarmtimer_restart
-qpnp_chg_reduce_power_stage_callback(struct alarm *alarm, ktime_t now)
+static void
+qpnp_chg_reduce_power_stage_callback(struct alarm *alarm)
 {
 	struct qpnp_chg_chip *chip = container_of(alarm, struct qpnp_chg_chip,
 						reduce_power_stage_alarm);
 
 	schedule_work(&chip->reduce_power_stage_work);
-
-	return ALARMTIMER_NORESTART;
 }
 
 static int
@@ -5799,10 +5802,8 @@ qpnp_dc_power_set_property(struct power_supply *psy,
 		return -EINVAL;
 	}
 
-#ifndef CONFIG_VENDOR_EDIT
 	pr_debug("psy changed dc_psy\n");
-	power_supply_changed(&chip->dc_psy);
-#endif
+	//power_supply_changed(&chip->dc_psy);
 	return rc;
 }
 
@@ -5822,15 +5823,6 @@ qpnp_batt_power_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_WARM_TEMP:
 		rc = qpnp_chg_configure_jeita(chip, psp, val->intval);
 		break;
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	case POWER_SUPPLY_PROP_COLD_TEMP:
-	case POWER_SUPPLY_PROP_OVERHEAT_TEMP:
-	case POWER_SUPPLY_PROP_LITTLE_COOL_TEMP:
-	case POWER_SUPPLY_PROP_LITTLE_COLD_TEMP:
-		rc = qpnp_chg_configure_jeita(chip, psp, val->intval);
-		break;
-#endif
 	case POWER_SUPPLY_PROP_CAPACITY:
 		chip->fake_battery_soc = val->intval;
 		power_supply_changed(&chip->batt_psy);
@@ -5840,12 +5832,20 @@ qpnp_batt_power_set_property(struct power_supply *psy,
 		if (chip->charging_disabled) {
 			/* disable charging */
 			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 			qpnp_chg_force_run_on_batt(chip,
 						chip->charging_disabled);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
 		} else {
 			/* enable charging */
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 			qpnp_chg_force_run_on_batt(chip,
 					chip->charging_disabled);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
 			qpnp_chg_charge_en(chip, !chip->charging_disabled);
 		}
 		break;
@@ -5878,7 +5878,7 @@ qpnp_batt_power_set_property(struct power_supply *psy,
 	}
 
 	pr_debug("psy changed batt_psy\n");
-	power_supply_changed(&chip->batt_psy);
+	//power_supply_changed(&chip->batt_psy);
 	return rc;
 }
 
@@ -6023,34 +6023,33 @@ qpnp_chg_request_irqs(struct qpnp_chg_chip *chip)
 			qpnp_chg_irq_wake_enable(&chip->chg_trklchg);
 			qpnp_chg_irq_wake_enable(&chip->chg_failed);
 			qpnp_chg_irq_wake_enable(&chip->chg_vbatdet_lo);
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/01/16  Modify for solve bug:system can not suspend because of vbat_del_lo IRQ aways pending , */
 			qpnp_chg_disable_irq(&chip->chg_vbatdet_lo);
-			break;
+#endif /*CONFIG_VENDOR_EDIT*/
 
+			break;
 		case SMBB_BAT_IF_SUBTYPE:
 		case SMBBP_BAT_IF_SUBTYPE:
 		case SMBCL_BAT_IF_SUBTYPE:
-#ifdef CONFIG_VENDOR_EDIT
-			if (get_boot_mode() != MSM_BOOT_MODE__FACTORY) {
-				chip->batt_pres.irq = spmi_get_irq_byname(spmi,
-							spmi_resource, "batt-pres");
-				if (chip->batt_pres.irq < 0) {
-					pr_err("Unable to get batt-pres irq\n");
-					return rc;
-				}
-				rc = devm_request_irq(chip->dev, chip->batt_pres.irq,
-					qpnp_chg_bat_if_batt_pres_irq_handler,
-					IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
-					| IRQF_SHARED | IRQF_ONESHOT,
-					"batt-pres", chip);
-				if (rc < 0) {
-					pr_err("Can't request %d batt-pres irq: %d\n",
-							chip->batt_pres.irq, rc);
-					return rc;
-				}
-
-				qpnp_chg_irq_wake_enable(&chip->batt_pres);
+			chip->batt_pres.irq = spmi_get_irq_byname(spmi,
+						spmi_resource, "batt-pres");
+			if (chip->batt_pres.irq < 0) {
+				pr_err("Unable to get batt-pres irq\n");
+				return rc;
 			}
-#endif
+			rc = devm_request_irq(chip->dev, chip->batt_pres.irq,
+				qpnp_chg_bat_if_batt_pres_irq_handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
+				| IRQF_SHARED | IRQF_ONESHOT,
+				"batt-pres", chip);
+			if (rc < 0) {
+				pr_err("Can't request %d batt-pres irq: %d\n",
+						chip->batt_pres.irq, rc);
+				return rc;
+			}
+
+			qpnp_chg_irq_wake_enable(&chip->batt_pres);
 
 			chip->batt_temp_ok.irq = spmi_get_irq_byname(spmi,
 						spmi_resource, "bat-temp-ok");
@@ -6243,6 +6242,14 @@ qpnp_chg_hwinit(struct qpnp_chg_chip *chip, u8 subtype,
 			pr_debug("failed setting  min_voltage rc=%d\n", rc);
 			return rc;
 		}
+#ifdef CONFIG_BQ24196_CHARGER
+		rc = qpnp_chg_vddmax_set(chip, chip->max_voltage_mv);
+		if (rc) {
+			pr_debug("failed setting max_voltage rc=%d\n", rc);
+			return rc;
+		}
+#endif
+
 		rc = qpnp_chg_vddsafe_set(chip, chip->safe_voltage_mv);
 		if (rc) {
 			pr_debug("failed setting safe_voltage rc=%d\n", rc);
@@ -6385,6 +6392,21 @@ qpnp_chg_hwinit(struct qpnp_chg_chip *chip, u8 subtype,
 			reg = BAT_THM_EN;
 			break;
 		}
+
+#ifdef CONFIG_VENDOR_EDIT
+/* yangfangbiao@oneplus.cn, 2015/02/13  Add for  crashes in standby, QCOM    */		
+		//no low power mode 
+		if (chip->type == SMBB) 
+			rc = qpnp_chg_masked_write(chip, 
+				chip->bat_if_base + CHGR_BAT_IF_SPARE, 
+				BATFET_LPM_MASK, 
+				BATFET_NO_LPM, 1); 
+		else 
+			rc = qpnp_chg_masked_write(chip, 
+				chip->bat_if_base + CHGR_BAT_IF_BATFET_CTRL4, 
+				BATFET_LPM_MASK, 
+				BATFET_NO_LPM, 1); 
+#endif /*CONFIG_VENDOR_EDIT*/
 
 		rc = qpnp_chg_masked_write(chip,
 			chip->bat_if_base + BAT_IF_BPD_CTRL,
@@ -6611,19 +6633,20 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 	OF_PROP_READ(chip, maxinput_usb_ma, "maxinput-usb-ma", rc, 1);
 	OF_PROP_READ(chip, warm_bat_decidegc, "warm-bat-decidegc", rc, 1);
 	OF_PROP_READ(chip, cool_bat_decidegc, "cool-bat-decidegc", rc, 1);
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb
-	OF_PROP_READ(chip, cold_bat_decidegc, "cold-bat-decidegc", rc, 1);
-	OF_PROP_READ(chip, overheat_bat_decidegc, "overheat-bat-decidegc", rc, 1);
-	OF_PROP_READ(chip, little_cool_bat_decidegc, "little-cool-bat-decidegc", rc, 1);
-	OF_PROP_READ(chip, little_cold_bat_decidegc, "little-cold-bat-decidegc", rc, 1);
-#endif
 	OF_PROP_READ(chip, tchg_mins, "tchg-mins", rc, 1);
 	OF_PROP_READ(chip, hot_batt_p, "batt-hot-percentage", rc, 1);
 	OF_PROP_READ(chip, cold_batt_p, "batt-cold-percentage", rc, 1);
 	OF_PROP_READ(chip, soc_resume_limit, "resume-soc", rc, 1);
 	OF_PROP_READ(chip, batt_weak_voltage_mv, "vbatweak-mv", rc, 1);
 	OF_PROP_READ(chip, vbatdet_max_err_mv, "vbatdet-maxerr-mv", rc, 1);
+/* OPPO 2013-11-02 wangjc Add begin for disable adc tm */
+#ifdef CONFIG_VENDOR_EDIT
+	OF_PROP_READ(chip, warm_bat_mv, "warm-bat-mv", rc, 1);
+	OF_PROP_READ(chip, cool_bat_mv, "cool-bat-mv", rc, 1);
+	OF_PROP_READ(chip, little_cool_bat_mv, "little-cool-bat-mv", rc, 1); /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+	OF_PROP_READ(chip, default_charge_full_mah, "charge-full-mah", rc, 1);
+#endif
+/* OPPO 2013-11-02 wangjc Add end */
 
 	if (rc)
 		return rc;
@@ -6657,15 +6680,13 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 
 		OF_PROP_READ(chip, warm_bat_chg_ma, "ibatmax-warm-ma", rc, 1);
 		OF_PROP_READ(chip, cool_bat_chg_ma, "ibatmax-cool-ma", rc, 1);
+/* OPPO 2013-11-02 wangjc Delete begin for disable adc tm */
+#ifndef CONFIG_VENDOR_EDIT
 		OF_PROP_READ(chip, warm_bat_mv, "warm-bat-mv", rc, 1);
 		OF_PROP_READ(chip, cool_bat_mv, "cool-bat-mv", rc, 1);
-#ifdef CONFIG_VENDOR_EDIT
-		// add by xcb
-		OF_PROP_READ(chip, little_cool_bat_chg_ma, "ibatmax-little-cool-ma", rc, 1);
-		OF_PROP_READ(chip, little_cold_bat_chg_ma, "ibatmax-little-cold-ma", rc, 1);
-		OF_PROP_READ(chip, little_cool_bat_mv, "little-cool-bat-mv", rc, 1);
-		OF_PROP_READ(chip, little_cold_bat_mv, "little-cold-bat-mv", rc, 1);
+		OF_PROP_READ(chip, little_cool_bat_mv, "cool-bat-mv", rc, 1);/* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
 #endif
+/* OPPO 2013-11-02 wangjc Delete end */
 		if (rc)
 			return rc;
 	}
@@ -6751,6 +6772,1676 @@ qpnp_charger_read_dt_props(struct qpnp_chg_chip *chip)
 	return rc;
 }
 
+/* OPPO 2013-06-08 wangjc Add begin for temp control. */
+#ifdef CONFIG_VENDOR_EDIT
+static enum chg_battery_status_type qpnp_battery_status_get(struct qpnp_chg_chip *chip)
+{
+	return chip->battery_status;
+}
+static void qpnp_battery_status_set(struct qpnp_chg_chip *chip,
+											  enum chg_battery_status_type battery_status)
+{
+	chip->battery_status = battery_status;
+}
+
+static int qpnp_charger_type_get(struct qpnp_chg_chip *chip)
+{
+	union power_supply_propval ret = {0,};
+	
+#ifndef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2013/12/30  Modify for avoid race condition */
+	chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_TYPE, &ret);
+#else /*CONFIG_VENDOR_EDIT*/
+	chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_POWER_NOW, &ret);
+#endif /*CONFIG_VENDOR_EDIT*/
+	
+	return ret.intval;
+}
+
+static int set_prop_batt_health(struct qpnp_chg_chip *chip, int batt_health)
+{
+	chip->batt_health = batt_health;
+	return 0;
+}
+
+#define MAX_COUNT	50
+#ifdef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/01/02  Add for set soft aicl voltage to 4.4v */
+#define SOFT_AICL_VOL	4555
+#endif /*CONFIG_VENDOR_EDIT*/
+/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+static int soft_aicl(struct qpnp_chg_chip *chip)
+{
+	int i, chg_vol;
+
+	chip->aicl_interrupt = false;
+	qpnp_chg_vinmin_set(chip, 4440);
+	qpnp_chg_iusbmax_set(chip, 150);
+	qpnp_chg_ibatmax_set(chip, chip->max_bat_chg_current);
+	qpnp_chg_charge_en(chip, 1);
+	for (i = 0; i < MAX_COUNT / 5; i++) {
+		chg_vol = get_prop_charger_voltage_now(chip);
+		if (chg_vol < (SOFT_AICL_VOL - 50)) {
+			chip->aicl_current = 100;
+			pr_info("soft aicl s1:%d\n", chg_vol);
+			qpnp_chg_iusbmax_set(chip, 100);
+			return 0;
+		}
+	}
+
+	qpnp_chg_iusbmax_set(chip, 500);
+	for (i = 0; i < MAX_COUNT / 5; i++) {
+		if (!chip->usb_present)
+			goto aicl_err;
+		chg_vol = get_prop_charger_voltage_now(chip);
+		if (chg_vol < (SOFT_AICL_VOL - 50)) {
+			pr_info("soft aicl s2:%d\n", chg_vol);
+			qpnp_chg_iusbmax_set(chip, 150);
+			chip->aicl_current = 150;
+			return 0;
+		}
+	}
+
+	qpnp_chg_iusbmax_set(chip, 900);
+	for (i = 0; i < MAX_COUNT; i++) {
+		if (!chip->usb_present) {
+			qpnp_chg_iusbmax_set(chip, 500);
+			chip->aicl_current = 500;
+			chip->aicl_interrupt = true;
+			return 0;
+		}
+		chg_vol = get_prop_charger_voltage_now(chip);
+		if (chg_vol < SOFT_AICL_VOL) {
+			qpnp_chg_iusbmax_set(chip, 500);
+			qpnp_chg_iusbmax_set(chip, 500);//set 2 times
+			chip->aicl_current = 500;
+			if(!chip->usb_present) {
+				chip->aicl_interrupt = true;
+			}
+			return 0;
+		}
+	}
+
+	qpnp_chg_iusbmax_set(chip, 1200);
+	for (i = 0; i < MAX_COUNT; i++) {
+		if (!chip->usb_present) {
+			qpnp_chg_iusbmax_set(chip, 900);
+			chip->aicl_current = 900;
+			chip->aicl_interrupt = true;
+			return 0;
+		}
+		chg_vol = get_prop_charger_voltage_now(chip);
+		if (chg_vol < SOFT_AICL_VOL + 50) {
+			qpnp_chg_iusbmax_set(chip, 900);
+			qpnp_chg_iusbmax_set(chip, 900);//set 2 times
+			chip->aicl_current = 900;
+			qpnp_chg_vinmin_set(chip, chip->min_voltage_mv + 280);///4.68V sjc0401 add for improving current noise (bq24196 hardware bug)
+			if(!chip->usb_present) {
+				chip->aicl_interrupt = true;
+			}
+			return 0;
+		}
+	}
+	
+	qpnp_chg_ibatmax_set(chip, 1216);
+	qpnp_chg_iusbmax_set(chip, 1500);
+	for (i = 0; i < MAX_COUNT + 30; i++) {
+		if (!chip->usb_present) {
+			//goto aicl_err;
+			qpnp_chg_iusbmax_set(chip, 900);
+			chip->aicl_current = 900;
+			chip->aicl_interrupt = true;
+			return 0;
+		}
+		if (i == 20)
+			qpnp_chg_ibatmax_set(chip, 1344);
+		else if (i == 40)
+			qpnp_chg_ibatmax_set(chip, 1536);
+		else if (i == 60)
+			qpnp_chg_ibatmax_set(chip, 1728);
+		chg_vol = get_prop_charger_voltage_now(chip);
+		if (chg_vol < SOFT_AICL_VOL) {
+			qpnp_chg_iusbmax_set(chip, 900);
+			qpnp_chg_iusbmax_set(chip, 900);
+			chip->aicl_current = 900;
+			qpnp_chg_vinmin_set(chip, chip->min_voltage_mv + 280);///4.68V sjc0401 add for improving current noise (bq24196 hardware bug)
+			if (!chip->usb_present) {
+				chip->aicl_interrupt = true;
+			}
+			return 0;
+		}
+	}
+	
+	qpnp_chg_ibatmax_set(chip, 1536);
+	qpnp_chg_iusbmax_set(chip, 2000);
+	for (i = 0; i < MAX_COUNT + 30; i++) {
+		if (!chip->usb_present) {
+			//goto aicl_err;
+			qpnp_chg_iusbmax_set(chip, 1500);
+			chip->aicl_current = 1500;
+			chip->aicl_interrupt = true;
+			return 0;
+		}
+		if (i == 20)
+			qpnp_chg_ibatmax_set(chip, 1728);
+		else if (i == 40)
+			qpnp_chg_ibatmax_set(chip, 1920);
+		else if (i == 60)
+			qpnp_chg_ibatmax_set(chip, 2112);
+		chg_vol = get_prop_charger_voltage_now(chip);
+		if (chg_vol < SOFT_AICL_VOL - 30) {
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+			qpnp_chg_iusbmax_set(chip, 1200);
+			qpnp_chg_iusbmax_set(chip, 1200);
+#else
+			qpnp_chg_iusbmax_set(chip, 1500);
+			qpnp_chg_iusbmax_set(chip, 1500);
+#endif
+			chip->aicl_current = 1500;
+			qpnp_chg_vinmin_set(chip, chip->min_voltage_mv + 280);///4.68V sjc0401 add for improving current noise (bq24196 hardware bug)
+			if (!chip->usb_present) {
+				chip->aicl_interrupt = true;
+			}
+			return 0;
+		}
+	}
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+	qpnp_chg_iusbmax_set(chip, 1200);
+	qpnp_chg_iusbmax_set(chip, 1200);
+#else
+	qpnp_chg_iusbmax_set(chip, 1500);
+	qpnp_chg_iusbmax_set(chip, 1500);
+#endif
+	chip->aicl_current = 2000;
+	return 0;
+	
+aicl_err:
+	chip->aicl_current = 0;
+	return 0;
+}
+
+static int qpnp_start_charging(struct qpnp_chg_chip *chip)
+{
+	int rc = -1;
+	unsigned int chg_current = chip->max_bat_chg_current;
+	union power_supply_propval ret = {0,};
+	int batt_temp = get_prop_batt_temp(chip);
+	
+	pr_err("%s:starting to enable charging\n", __func__);
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip)){
+		pr_err("%s:charger maybe removed \n", __func__);
+		return rc;
+	}
+	if (batt_temp <= chip->mBatteryTempBoundT0){   // -10
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__COLD);
+/* OPPO 2013-11-05 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+		qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-05 wangjc Add end */
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_COLD);
+		return rc;
+	}else if (batt_temp <= chip->mBatteryTempBoundT1){ // -10 ~ 0
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION_LITTLE__COLD);
+
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+
+		qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+
+		
+		qpnp_chg_vddmax_set(chip, 4000);
+
+#ifdef CONFIG_VENDOR_EDIT
+		/* yangfangbiao@oneplus.cn, 2015/03/15  set ibat to 300ma  */
+		qpnp_chg_ibatmax_set(chip, 300);
+#endif /*CONFIG_VENDOR_EDIT*/
+
+		qpnp_chg_vbatdet_set(chip, 4000
+				- chip->resume_delta_mv);
+	}else if (batt_temp <= chip->mBatteryTempBoundT2){ // 0 ~ 10
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__COOL);
+
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		
+		qpnp_chg_vddmax_set(chip, chip->cool_bat_mv); /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP){
+			if(ret.intval / 1000 == 500)
+				//chg_current = 500;
+				chg_current = 1024;//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+			else
+				//chg_current = 900;
+				chg_current = 1024;//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+		}
+		else{
+			chg_current = 500;
+		}
+		qpnp_chg_ibatmax_set(chip, chg_current);
+		qpnp_chg_ibatmax_set(chip, chg_current);//set 2 times
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add begin for  sync with KK charge standard  */
+		qpnp_chg_vbatdet_set(chip, chip->cool_bat_mv
+				- chip->resume_delta_mv);
+	} else if(batt_temp <= chip->mBatteryTempBoundT3){	//10-15
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__LITTLE_COOL);
+
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		if(ret.intval / 1000 == 500) {
+			qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		} else {
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset current. */
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+			if(chip->aicl_current == 0) {
+				soft_aicl(chip);
+			} else {
+				if (chip->aicl_current >= 1500) {
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+					qpnp_chg_iusbmax_set(chip, 1200);
+					qpnp_chg_iusbmax_set(chip, 1200);
+#else
+					qpnp_chg_iusbmax_set(chip, 1500);
+					qpnp_chg_iusbmax_set(chip, 1500);//set 2 times
+#endif
+				} else {
+					qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+					qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+				}
+			}	
+		}
+		
+		qpnp_chg_vddmax_set(chip, chip->little_cool_bat_mv);
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP){
+			if(ret.intval / 1000 == 500) {
+				//qpnp_chg_ibatmax_set(chip, 500);
+				qpnp_chg_ibatmax_set(chip, 500);//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+				qpnp_chg_ibatmax_set(chip, 500);
+			} else {
+				qpnp_chg_ibatmax_set(chip, 1400);
+				qpnp_chg_ibatmax_set(chip, 1400);
+			}
+		}else {
+			//qpnp_chg_ibatmax_set(chip, 500);
+			qpnp_chg_ibatmax_set(chip, 500);//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+			qpnp_chg_ibatmax_set(chip, 500);
+		}
+		
+		qpnp_chg_vbatdet_set(chip,
+				chip->little_cool_bat_mv - chip->resume_delta_mv);
+	} else if (batt_temp <= chip->mBatteryTempBoundT4){ // 15 ~ 45
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add end for  sync with KK charge standard  */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__NORMAL);
+
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		if(ret.intval / 1000 == 500) {
+			qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		} else {
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset current. */
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+			if(chip->aicl_current == 0) {
+				soft_aicl(chip);
+			} else {
+				if (chip->aicl_current >= 1500) {
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+					qpnp_chg_iusbmax_set(chip, 1200);
+					qpnp_chg_iusbmax_set(chip, 1200);
+#else
+					qpnp_chg_iusbmax_set(chip, 1500);
+					qpnp_chg_iusbmax_set(chip, 1500);//set 2 times
+#endif
+				} else {
+					qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+					qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+				}
+			}
+				
+		}
+		
+		qpnp_chg_vddmax_set(chip, chip->max_voltage_mv);
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP){
+			if(ret.intval / 1000 == 500) {
+				//qpnp_chg_ibatmax_set(chip, 500);
+				qpnp_chg_ibatmax_set(chip, 500);//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+				qpnp_chg_ibatmax_set(chip, 500);
+			} else {
+				if (chip->aicl_current != 0 && chip->aicl_current <= 1500) {
+					qpnp_chg_ibatmax_set(chip, chip->aicl_current);
+					qpnp_chg_ibatmax_set(chip, chip->aicl_current);
+				} else {
+					qpnp_chg_ibatmax_set(chip, chip->max_bat_chg_current);
+					qpnp_chg_ibatmax_set(chip, chip->max_bat_chg_current);
+				}
+			}
+		}else {
+			//qpnp_chg_ibatmax_set(chip, 500);
+			qpnp_chg_ibatmax_set(chip, 500);//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+			qpnp_chg_ibatmax_set(chip, 500);
+		}
+		
+		qpnp_chg_vbatdet_set(chip,
+				chip->max_voltage_mv - chip->resume_delta_mv);
+	}else if (batt_temp <= chip->mBatteryTempBoundT5){  // 45 ~ 55 /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__WARM);
+
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		
+		qpnp_chg_vddmax_set(chip, chip->warm_bat_mv);
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP){
+			if(ret.intval / 1000 == 500)
+				//chg_current = 500;
+				chg_current = 1024;//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+			else
+				//chg_current = 900;
+				chg_current = 1024;//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+		}
+		else {
+			chg_current = 500;
+		}
+		qpnp_chg_ibatmax_set(chip, chg_current);
+		qpnp_chg_ibatmax_set(chip, chg_current);//set 2 times
+		qpnp_chg_vbatdet_set(chip, chip->warm_bat_mv
+				- chip->resume_delta_mv);
+	}else{
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__HOT);
+/* OPPO 2013-11-05 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+		qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-05 wangjc Add end */
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_OVERHEAT);
+		return rc;
+	}
+	/*OPPO 2013-10-24 liaofuchun add begin for bq24196 charger*/
+	#ifndef CONFIG_BQ24196_CHARGER
+	rc = qpnp_chg_usb_suspend_enable(chip, 0);
+	#else
+	rc = qpnp_chg_charge_en(chip, 1);
+	chip->chg_done = false;
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+	chip->time_out = false;
+	#endif
+	/*OPPO 2013-10-24 liaofuchun add end*/
+	if (rc){
+		pr_err("%s:starting charging failed\n", __func__);
+	}
+	
+	return rc;
+}
+
+static int qpnp_handle_battery_uovp(struct qpnp_chg_chip *chip)
+{
+	pr_info("%s\n", __func__);
+
+	//qpnp_chg_usb_suspend_enable(chip, 1);//sjc1113 delete
+
+	set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_OVERVOLTAGE);
+	//qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+/* OPPO 2013-11-05 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+		qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-05 wangjc Add end */
+	
+	return 0;
+}
+
+static int qpnp_handle_battery_restore_from_uovp(struct qpnp_chg_chip *chip)
+{
+	pr_info("%s\n", __func__);
+
+	/*restore charging form battery ovp*/
+	//qpnp_chg_usb_suspend_enable(chip, 0);//sjc1113 delete
+	qpnp_start_charging(chip);
+	set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_GOOD);
+	
+	return 0;
+}
+
+/*Tbatt <-10C*/
+static int handle_batt_temp_cold(struct qpnp_chg_chip *chip)
+{
+	if (qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__COLD)
+	{
+		pr_err("%s\n", __func__);
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 1);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+/* OPPO 2013-11-05 wangjc Delete begin for use bq charger */
+#if 0
+		qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+#endif
+/* OPPO 2013-11-05 wangjc Delete end */
+/* OPPO 2013-11-05 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+		qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-05 wangjc Add end */
+
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__COLD);
+		
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0 + AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COLD_TO_COOL;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1 + AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COLD_TO_COOL;
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2 + AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL;
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3;
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5; /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_COLD);
+	}
+	return 0;
+}
+
+/* -10 C <=Tbatt <= 0C*/
+static int handle_batt_temp_little_cold(struct qpnp_chg_chip *chip)
+{
+	//unsigned int chg_current = chip->max_bat_chg_current;
+	union power_supply_propval ret = {0,};
+
+	if(chip->charger_status == CHARGER_STATUS_OVER)
+		return 0;
+	
+	if (qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION_LITTLE__COLD)
+	{
+		pr_info("%s\n", __func__);
+
+		if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT || 
+			qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD)
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 0);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+
+		qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+
+		
+		
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_force_run_on_batt(chip, 0);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
+		qpnp_chg_vddmax_set(chip, 4000);
+#ifdef CONFIG_VENDOR_EDIT
+		/* yangfangbiao@oneplus.cn, 2015/01/09	Add for  sync with KK charge standard  */
+		qpnp_chg_ibatmax_set(chip, 300);
+#endif /*CONFIG_VENDOR_EDIT*/
+
+		qpnp_chg_vbatdet_set(chip, 4000
+				- chip->resume_delta_mv);
+		
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION_LITTLE__COLD);
+		
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1 + AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL;
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2; /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3;
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5; /* yangfangbiao@oneplus.cn, 2015/01/06  Add for  sync with KK charge standard  */
+
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_GOOD);
+
+	}
+	return 0;
+}
+ 
+/* 0 C <Tbatt <= 10C*/
+static int handle_batt_temp_cool(struct qpnp_chg_chip *chip)
+{
+	unsigned int chg_current = chip->max_bat_chg_current;
+	union power_supply_propval ret = {0,};
+
+	if(chip->charger_status == CHARGER_STATUS_OVER)
+		return 0;
+	
+	if (qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__COOL)
+	{
+       	pr_err("%s\n", __func__);
+
+		if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT || 
+			qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD)
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 0);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+/*OPPO 2014-10-21 sjc Modify begin becase interface function ibatmax_set(500~1024) was changed for BATFET OCP */
+#if 0
+		qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+#else
+		if (ret.intval / 1000 == 500) {
+			qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		} else {
+			if (chip->aicl_current > 0 && chip->aicl_current < 900)
+				qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+			else
+				qpnp_chg_iusbmax_set(chip, 900);
+		}
+#endif
+/* OPPO 2014-10-21 sjc Modify end */
+		
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_force_run_on_batt(chip, 0);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
+		qpnp_chg_vddmax_set(chip, chip->cool_bat_mv); /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP) {
+			if(ret.intval / 1000 == 500)
+				chg_current = 500;
+			else
+				//chg_current = 900;
+				chg_current = 1024;//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+		}
+		else {
+			chg_current = 500;
+		}
+		qpnp_chg_ibatmax_set(chip, chg_current);
+		qpnp_chg_vbatdet_set(chip, chip->cool_bat_mv
+				- chip->resume_delta_mv);     /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+
+		/* Update battery temp region */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__COOL);
+
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1 - AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL; /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2 + AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL;
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3;
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5; /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_GOOD);
+
+	}
+	return 0;
+}
+/* yangfangbiao@oneplus.cn, 2015/01/06  Add begin for  sync with KK charge standard  */
+/* 10 C <Tbatt <= 15C*/
+static int handle_batt_temp_little_cool(struct qpnp_chg_chip *chip)
+{
+	unsigned int chg_current = chip->max_bat_chg_current;
+	union power_supply_propval ret = {0,};
+
+	if(chip->charger_status == CHARGER_STATUS_OVER)
+		return 0;
+	
+	if (qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__LITTLE_COOL)
+	{
+       	pr_err("%s\n", __func__);
+
+		if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT || 
+			qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD)
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 0);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		if(ret.intval / 1000 == 500) {
+			qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		} else {
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+			if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP) {
+				if(chip->aicl_current == 0) {
+					soft_aicl(chip);
+				} else {
+					if (chip->aicl_current >= 1500) {
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+						qpnp_chg_iusbmax_set(chip, 1200);
+#else
+						qpnp_chg_iusbmax_set(chip, 1500);
+#endif
+					} else {
+						qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+					}
+				}
+			}
+		}
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP) {
+			if(ret.intval / 1000 == 500)
+				chg_current = 500;
+			else
+				chg_current = 1400;
+		}
+		else {
+			chg_current = 500;
+		}
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_force_run_on_batt(chip, 0);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
+		qpnp_chg_vddmax_set(chip, chip->little_cool_bat_mv);
+		qpnp_chg_ibatmax_set(chip, chg_current);
+		qpnp_chg_vbatdet_set(chip, chip->little_cool_bat_mv
+				- chip->resume_delta_mv);
+
+		/* Update battery temp region */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__LITTLE_COOL);
+
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1;
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2 - AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL;
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3 + AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL;
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5;
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_GOOD);
+
+	}
+	return 0;
+}
+/* yangfangbiao@oneplus.cn, 2015/01/06  End for  sync with KK charge standard  */
+/* 15 C <Tbatt <45C*/
+static int handle_batt_temp_normal(struct qpnp_chg_chip *chip)
+{
+	union power_supply_propval ret = {0,};
+
+	if(chip->charger_status == CHARGER_STATUS_OVER)
+		return 0;
+	
+	if (qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__NORMAL)
+	{
+		pr_info("%s\n", __func__);
+
+		if (qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT || 
+			qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD)
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		
+		/* Update battery temp region */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__NORMAL);
+		
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 0);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		if(ret.intval / 1000 == 500) {
+			qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		} else {
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+			if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP) {
+				if(chip->aicl_current == 0) {
+					soft_aicl(chip);
+				} else {
+					if (chip->aicl_current >= 1500) {
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+						qpnp_chg_iusbmax_set(chip, 1200);
+#else
+						qpnp_chg_iusbmax_set(chip, 1500);
+#endif
+					} else {
+						qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+					}
+				}
+			}
+		}
+		
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP) {
+			if(ret.intval / 1000 == 500)
+				qpnp_chg_ibatmax_set(chip, 500);
+			else {
+				if (chip->aicl_current != 0 && chip->aicl_current <= 1500)
+					qpnp_chg_ibatmax_set(chip, chip->aicl_current);
+				else
+					qpnp_chg_ibatmax_set(chip, chip->max_bat_chg_current);
+			}
+		}
+		else {
+			qpnp_chg_ibatmax_set(chip, 500);
+		}
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_force_run_on_batt(chip, 0);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
+		qpnp_chg_vddmax_set(chip, chip->max_voltage_mv);
+		
+		qpnp_chg_vbatdet_set(chip,
+				chip->max_voltage_mv - chip->resume_delta_mv);
+
+		qpnp_chg_charge_en(chip, 1);
+
+		/* Update battery temp region */
+		//qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__NORMAL);
+
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1;
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2;
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3 - AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_COOL_TO_NORMAL; /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5; /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_GOOD);
+	}
+	return 0;
+}
+ 
+/* 45C <=Tbatt <=55C*/
+static int handle_batt_temp_warm(struct qpnp_chg_chip *chip)
+{
+	unsigned int chg_current = chip->max_bat_chg_current;
+	union power_supply_propval ret = {0,};
+
+	if(chip->charger_status == CHARGER_STATUS_OVER)
+		return 0;
+	
+	if(qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__WARM)
+	{
+	    
+		pr_info("%s\n", __func__);
+		if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__HOT || 
+			qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__COLD)
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 0);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+		chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+		if (ret.intval / 1000 == 500) {//sjc0915
+			qpnp_chg_iusbmax_set(chip, ret.intval / 1000);
+		} else {
+/*OPPO 2014-10-21 sjc Modify begin becase interface function ibatmax_set(500~1024) was changed for BATFET OCP */
+#if 0
+			if (qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP)
+				qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+#else
+			if (chip->aicl_current > 0 && chip->aicl_current < 900)
+				qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+			else
+				qpnp_chg_iusbmax_set(chip, 900);
+#endif
+		}
+		
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_force_run_on_batt(chip, 0);
+#endif
+/* OPPO 2013-10-17 wangjc Delete end */
+		qpnp_chg_vddmax_set(chip, chip->warm_bat_mv);
+		if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP) {
+			if(ret.intval / 1000 == 500)
+				chg_current = 500;
+			else
+				//chg_current = 900;
+				chg_current = 1024;//sjc modify: charger IC OCP lead to VPH_PWR shutdown
+		}
+		else {
+			chg_current = 500;
+		}
+		qpnp_chg_ibatmax_set(chip, chg_current);
+		qpnp_chg_vbatdet_set(chip, chip->warm_bat_mv
+				- chip->resume_delta_mv);
+
+		qpnp_chg_charge_en(chip, 1);//sjc0915
+		
+		/* Update battery temp region */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__WARM);
+
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1;
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2;
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify begin for  sync with KK charge standard  */
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3;
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4 - AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_WARM_TO_NORMAL;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5;
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify end for  sync with KK charge standard  */
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_GOOD);
+	}
+	return 0;	
+}
+ 
+/* 55C <Tbatt*/
+static int handle_batt_temp_hot(struct qpnp_chg_chip *chip)
+{
+	if(qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__HOT)
+	{
+	
+		pr_info("%s\n", __func__);
+		/*OPPO 2013-10-31 liaofuchun delete for bq charger*/
+		#ifndef CONFIG_BQ24196_CHARGER
+		qpnp_chg_usb_suspend_enable(chip, 1);
+		#endif
+		/*OPPO 2013-10-31 liaofuchun delete end*/
+/* OPPO 2013-11-05 wangjc Delete begin for use bq charger */
+#if 0
+		qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+#endif
+/* OPPO 2013-11-05 wangjc Delete end */
+/* OPPO 2013-11-05 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+		qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-05 wangjc Add end */
+
+		/* Update battery temp region */
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__HOT);
+
+		/* Update the temperature boundaries */
+		chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+		chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1;
+		chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2;
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify begin  for  sync with KK charge standard  */
+		chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3;
+		chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4 - AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_WARM_TO_NORMAL;
+		chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5 - AUTO_CHARGING_BATTERY_TEMP_HYST_FROM_HOT_TO_WARM;
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify end for  sync with KK charge standard  */
+		set_prop_batt_health(chip, POWER_SUPPLY_HEALTH_OVERHEAT);
+	}
+	return 0;
+}
+
+static void qpnp_check_charge_timeout(struct qpnp_chg_chip *chip)
+{
+	static int count = 0;
+	int rc = -1;
+	union power_supply_propval ret = {0,};
+
+#ifdef CONGIF_OPPO_CMCC_OPTR
+/* OPPO 2014-06-19 sjc Add for CMCC test */
+	return;
+#endif
+
+	if (chip->chg_done)
+		return;
+
+	if(qpnp_chg_is_usb_chg_plugged_in(chip))
+		count++;
+	else
+		count = 0;
+
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+	chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+
+	if(((ret.intval / 1000 != 500) && count > BATT_CHG_TIMEOUT_COUNT_DCP)
+		||((ret.intval / 1000 == 500) && count > BATT_CHG_TIMEOUT_COUNT_USB_PRO)){
+		pr_err("%s:chg timeout stop chaging\n", __func__);
+/* OPPO 2013-11-01 wangjc Modify begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
+		rc = qpnp_chg_usb_suspend_enable(chip, 1);
+#else
+		rc = qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-01 wangjc Modify end */
+		if (!rc)
+			count= 0;
+#ifndef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/01/27  Delete for MTBF test */
+		qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+#endif /*CONFIG_VENDOR_EDIT*/
+		/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+		chip->time_out = true;
+	}
+}
+
+
+static void qpnp_check_charger_uovp(struct qpnp_chg_chip *chip)
+{
+	int vchg_mv = CHARGER_VOLTAGE_NORMAL;
+	
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip)) {
+#ifdef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2013/12/29  Add for solve missing remove event */
+		if(chip->usb_present) {
+			chip->usb_present = false;
+			chip->usbin_counts = 0;//sjc0522 for Find7s temp rising problem
+			schedule_work(&chip->stop_charge_work);
+			chip->prev_usb_max_ma = -EINVAL;
+			power_supply_set_present(chip->usb_psy, chip->usb_present);
+			/* jingchun.wang@Onlinerd.Driver, 2014/01/13  Add for if usb alread send disconnect ed event, it may miss usb plug out event */
+			if(!chip->usb_present) {
+				power_supply_set_online(chip->usb_psy, 0);
+				power_supply_set_current_limit(chip->usb_psy, 0);
+			}
+		}
+#endif /*CONFIG_VENDOR_EDIT*/
+		return;
+	}
+
+	vchg_mv = get_prop_charger_voltage_now(chip);
+
+	pr_info("%s %d %d\n", __func__, vchg_mv, chip->charger_status);
+
+	if(chip->charger_status == CHARGER_STATUS_GOOD) {
+		if(vchg_mv > CHARGER_SOFT_OVP_VOLTAGE || 
+			vchg_mv <= CHARGER_SOFT_UVP_VOLTAGE) {
+			pr_info("charger over voltage\n");
+
+			//qpnp_chg_usb_suspend_enable(chip, 1);//sjc1113 delete
+
+			qpnp_chg_iusbmax_set(chip, QPNP_CHG_I_MAX_MIN_100);
+/* OPPO 2013-11-05 wangjc Add begin for use bq charger */
+#ifdef CONFIG_BQ24196_CHARGER
+			qpnp_chg_charge_en(chip, 0);
+#endif
+/* OPPO 2013-11-05 wangjc Add end */
+			chip->charger_status = CHARGER_STATUS_OVER;
+		}
+	}else if(chip->charger_status == CHARGER_STATUS_OVER){
+		if(vchg_mv < (CHARGER_SOFT_OVP_VOLTAGE - 100) && 
+		     vchg_mv > (CHARGER_SOFT_UVP_VOLTAGE + 100)) {
+			//qpnp_chg_usb_suspend_enable(chip, 0);//sjc1113 delete
+			qpnp_chg_charge_en(chip, !chip->charging_disabled);
+			qpnp_start_charging(chip);
+			chip->charger_status = CHARGER_STATUS_GOOD;
+		}
+	}
+	return ;
+}
+
+static void qpnp_check_battery_uovp(struct qpnp_chg_chip *chip)
+{
+	int battery_voltage=0;
+	enum chg_battery_status_type battery_status_pre;
+	
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip))
+		return;
+	battery_status_pre = qpnp_battery_status_get(chip);	
+
+	battery_voltage = get_prop_battery_voltage_now(chip);
+	pr_info("%s bat vol:%d\n", __func__, battery_voltage);
+	if(battery_voltage > BATTERY_SOFT_OVP_VOLTAGE) {
+		if (battery_status_pre == BATTERY_STATUS_GOOD) {
+			qpnp_battery_status_set(chip, BATTERY_STATUS_BAD);
+			qpnp_handle_battery_uovp(chip);
+		}
+	}
+	else {
+		if (battery_status_pre == BATTERY_STATUS_BAD) {
+			qpnp_battery_status_set(chip, BATTERY_STATUS_GOOD);
+			qpnp_handle_battery_restore_from_uovp(chip);
+		}
+	}
+
+	return;
+}
+
+
+static int qpnp_check_battery_temp(struct qpnp_chg_chip *chip)
+{
+	int rc = -1;
+	int temperature = 0;
+
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip))
+		return rc;
+	temperature = get_prop_batt_temp(chip);
+	pr_info("%s temp:%d\n", __func__, temperature);
+	
+	if(temperature < chip->mBatteryTempBoundT0) /* battery is cold */
+	{
+	        rc = handle_batt_temp_cold(chip);
+	}
+		else if( (temperature >=  chip->mBatteryTempBoundT0) && 
+	         (temperature <= chip->mBatteryTempBoundT1) ) /* battery is more cool */
+	{
+	        rc = handle_batt_temp_little_cold(chip);
+	}
+	else if( (temperature >=  chip->mBatteryTempBoundT1) && 
+	         (temperature <= chip->mBatteryTempBoundT2) ) /* battery is cool */
+	{
+	        rc = handle_batt_temp_cool(chip);
+	}
+	else if( (temperature > chip->mBatteryTempBoundT2) && 
+	         (temperature < chip->mBatteryTempBoundT3) ) /* battery is little cool */
+	{
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify begin  for  sync with KK charge standard  */
+	        rc = handle_batt_temp_little_cool(chip);
+	}
+	else if( (temperature > chip->mBatteryTempBoundT3) && 
+	         (temperature < chip->mBatteryTempBoundT4) ) /* battery is normal */
+	{
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify end for  sync with KK charge standard  */
+	        rc = handle_batt_temp_normal(chip);
+	}
+	else if( (temperature >= chip->mBatteryTempBoundT4) && 
+	         (temperature <=  chip->mBatteryTempBoundT5) ) /* battery is warm */ /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+	{
+	        rc = handle_batt_temp_warm(chip);
+	}
+	else if(temperature > chip->mBatteryTempBoundT5)/* battery is hot */ /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+	{
+	        rc = handle_batt_temp_hot(chip);
+	}
+		
+	return rc;
+}
+
+#define BATT_RECHARGING_VOLTAGE__LITTLE_COLD 	3900 * 1000
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify begin for  sync with KK charge standard  */
+#define BATT_RECHARGING_VOLTAGE__COOL 			4100 * 1000
+#define BATT_RECHARGING_VOLTAGE__LITTLE_COOL	4220 * 1000
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify end for  sync with KK charge standard  */
+#define BATT_RECHARGING_VOLTAGE__NORMAL 		4220 * 1000
+#define BATT_RECHARGING_VOLTAGE__WARM  		4000 * 1000
+#define BATT_RECHARGING_CHECK_COUNT				5
+
+static void qpnp_check_recharging(struct qpnp_chg_chip *chip)
+{
+	chg_cv_battery_temp_region_type batt_temp_region;
+	int batt_volt;
+	int compare_volt;
+	static int count = 0;
+	
+	if (chip->charging_disabled)
+		return;
+/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for battery display full wrong. */
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip)) {
+		chip->chg_done = false;
+		chip->chg_display_full = false;
+		return;
+	}
+	if (!chip->chg_done)
+		return;
+
+	if (chip->time_out)//sjc1125
+		return;
+
+	batt_temp_region = qpnp_battery_temp_region_get(chip);
+	batt_volt = get_prop_battery_voltage_now(chip);
+	switch (batt_temp_region){
+		case CV_BATTERY_TEMP_REGION__COLD:
+			return;
+		case CV_BATTERY_TEMP_REGION_LITTLE__COLD:
+			compare_volt = BATT_RECHARGING_VOLTAGE__LITTLE_COLD;
+			break;
+		case CV_BATTERY_TEMP_REGION__COOL:
+			compare_volt = BATT_RECHARGING_VOLTAGE__COOL;
+			break;
+		case CV_BATTERY_TEMP_REGION__LITTLE_COOL:
+			compare_volt = BATT_RECHARGING_VOLTAGE__LITTLE_COOL; /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+			break;
+		case CV_BATTERY_TEMP_REGION__NORMAL:
+			//wangjc add for authentication
+#ifndef CONFIG_BATTERY_BQ27541
+			compare_volt = BATT_RECHARGING_VOLTAGE__NORMAL;
+#else /*CONFIG_BATTERY_BQ27541*/
+			if(!get_prop_authenticate(chip)) {
+				compare_volt = BATT_RECHARGING_VOLTAGE__COOL;
+			} else {
+				compare_volt = BATT_RECHARGING_VOLTAGE__NORMAL;
+			}
+#endif /*CONFIG_BATTERY_BQ27541*/
+			
+			break;
+		case CV_BATTERY_TEMP_REGION__WARM:
+			compare_volt = BATT_RECHARGING_VOLTAGE__WARM;
+			break;
+		case CV_BATTERY_TEMP_REGION__HOT:
+			return;
+		default:
+			return;
+	}
+
+	if (batt_volt <  compare_volt){
+		count++;
+		pr_err("%s:count=%d compare_volt:%d\n", __func__, count, compare_volt);
+	}else
+		count= 0;
+	if (count > BATT_RECHARGING_CHECK_COUNT){
+		qpnp_start_charging(chip);
+	}
+}
+
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-05-22 sjc Add for Find7s temp rising problem */
+#define USBIN_COUNT_FULL		10
+#define USBIN_COUNT_FLAG		(USBIN_COUNT_FULL + 1)
+static void qpnp_check_chg_current(struct qpnp_chg_chip *chip)
+{
+	if (get_pcb_version() < HW_VERSION__20 //Find7, 1+
+			|| get_pcb_version() >= HW_VERSION__30 //N3
+			|| qpnp_charger_type_get(chip) != POWER_SUPPLY_TYPE_USB_DCP
+			|| qpnp_get_fast_chg_ing(chip))
+		return;
+
+	if (qpnp_battery_temp_region_get(chip) != CV_BATTERY_TEMP_REGION__NORMAL
+			|| chip->charger_status != CHARGER_STATUS_GOOD)
+		return;
+		
+	if (chip->usbin_counts < USBIN_COUNT_FULL)
+		chip->usbin_counts++;
+		
+	if (chip->usbin_counts == USBIN_COUNT_FULL) {//60s
+		if (chip->aicl_current > 900 && !atomic_read(&chip->suspended)) {
+			qpnp_chg_iusbmax_set(chip, 900);
+			chip->usbin_counts = USBIN_COUNT_FLAG;
+			printk(KERN_ERR "%s: iusbmax set 900.\n", __func__);
+		}
+	}
+
+	return;
+}
+#endif /* CONFIG_VENDOR_EDIT */
+
+/* OPPO 2013-12-22 liaofuchun add for fastchg */
+#ifdef CONFIG_PIC1503_FASTCG
+bool is_alow_fast_chg(struct qpnp_chg_chip *chip)
+{
+	bool auth = false;
+	int temp = 0;
+	int cap = 0;
+	int chg_type = 0;
+	bool low_temp_full = 0;
+	
+	auth = get_prop_authenticate(chip);
+	temp = get_prop_batt_temp(chip);
+	cap = get_prop_capacity(chip);
+	chg_type = qpnp_charger_type_get(chip);
+	low_temp_full = qpnp_get_fast_low_temp_full(chip);
+	
+	pr_err("%s auth:%d,temp:%d,cap:%d,chg_type:%d,low_temp_full:%d\n",__func__,auth,temp,cap,chg_type,low_temp_full);
+	if(auth == false)
+		return false;
+	if(chg_type != POWER_SUPPLY_TYPE_USB_DCP)
+		return false;
+#ifndef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/02/25  Modify for use different temp range of 14001 */
+	if(temp < 105)
+		return false;
+//lfc add for 13097: 10 ~ 15.5 decigec,fastchg vddmax = 4250mv
+	if((temp < 155) && (low_temp_full == 1)){
+		return false;
+	}
+//lfc add for 13097 end
+#else /*CONFIG_VENDOR_EDIT*/
+	if(temp < 205)
+		return false;
+#endif /*CONFIG_VENDOR_EDIT*/
+	if(temp > 420)
+		return false;
+	if(cap < 1)
+		return false;
+	if(cap > 90) /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+		return false;
+	if(get_prop_fast_switch_to_normal(chip) == true){
+		pr_err("%s fast_switch_to_noraml is true\n",__func__);
+		return false;
+	}
+	return true;
+}
+
+#define AP_SWITCH_USB	GPIO_CFG(96, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
+#define AP_SWITCH_FAST	GPIO_CFG(96, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA)
+
+static void switch_fast_chg(struct qpnp_chg_chip *chip)
+{
+
+	int ret = 0;
+	//pr_info("%s alow_fast_chg:%d\n",__func__,qpnp_get_fast_chg_allow(chip));
+
+	if(gpio_get_value(96))
+		return;
+
+#ifdef CONFIG_VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2014/03/11  Add for can't turn gpio 96 */
+	if(!qpnp_chg_is_usb_chg_plugged_in(chip))
+		return;
+#endif /*CONFIG_VENDOR_EDIT*/
+	
+	if(qpnp_get_fast_chg_allow(chip) == false){
+		if(is_alow_fast_chg(chip) == true) {
+			//swtich on fast chg
+			mcu_en_gpio_set(0);//sjc0623 add
+			gpio_set_value(96, 1);
+			ret = gpio_tlmm_config(AP_SWITCH_FAST, GPIO_CFG_ENABLE);
+			if (ret) {
+				pr_info("%s switch fast error %d\n", __func__, ret);
+			}
+			pr_info("%s switch on fastchg,GPIO96:%d\n", __func__,gpio_get_value(96));
+			qpnp_set_fast_chg_allow(chip,true);
+		}
+	}
+	pr_info("%s end,allow_fast_chg:%d\n",__func__,qpnp_get_fast_chg_allow(chip));
+}
+#endif
+/*OPPO 2013-12-22 liaofuchun add end */
+
+static void update_heartbeat(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct qpnp_chg_chip *chip = container_of(dwork,
+				struct qpnp_chg_chip, update_heartbeat_work);
+	
+/* OPPO 2013-12-22 liaofuchun add for fastchg */
+#ifdef CONFIG_PIC1503_FASTCG	
+	int charge_type = qpnp_charger_type_get(chip);
+
+	if(get_prop_fast_chg_started(chip) == true) {
+		switch_fast_chg(chip);
+		pr_info("%s fast chg started,GPIO96:%d\n", __func__,gpio_get_value(96));
+		//lfc move it to fastcg_work_func in bq27541.c
+		//power_supply_changed(&chip->batt_psy);
+		//lfc add for disable normal charge begin
+		if(qpnp_chg_get_charge_en() == 1 && qpnp_get_fast_chg_ing(chip) == 1){
+			qpnp_chg_charge_en(chip,false);
+		}
+		//lfc add for disable normal charge end
+		/*update time 6s*/
+		schedule_delayed_work(&chip->update_heartbeat_work,
+				      round_jiffies_relative(msecs_to_jiffies
+							     (BATT_HEARTBEAT_INTERVAL)));
+		return;
+	}
+	if(charge_type == POWER_SUPPLY_TYPE_USB_DCP) {
+		switch_fast_chg(chip);
+		//pr_info("%s fast chg not started,GPIO96:%d\n",__func__,gpio_get_value(96));
+	}
+#endif
+/* OPPO 2013-12-22 liaofuchun add end*/
+	qpnp_check_charger_uovp(chip);
+	qpnp_check_charge_timeout(chip);
+	qpnp_check_battery_uovp(chip);
+	qpnp_check_battery_temp(chip);
+
+	pr_err("%s current:%d\n", __func__, get_prop_current_now(chip));
+	
+	qpnp_check_recharging(chip);
+
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-05-22 sjc Add for Find7s temp rising problem */
+	qpnp_check_chg_current(chip);
+#endif
+
+	power_supply_changed(&chip->batt_psy);
+	
+	/*update time 6s*/
+	schedule_delayed_work(&chip->update_heartbeat_work,
+			      round_jiffies_relative(msecs_to_jiffies
+						     (BATT_HEARTBEAT_INTERVAL)));
+	//qpnp_dump_info(chip);
+}
+
+#ifdef CONFIG_BQ24196_CHARGER
+/*OPPO 2013-10-19 liaofuchun add for bq24196 stop charging*/
+static void qpnp_start_charge(struct work_struct *work)
+{
+	struct qpnp_chg_chip *chip = container_of(work,
+		struct qpnp_chg_chip,start_charge_work);
+	
+	qpnp_chg_charge_en(chip, 1);
+}
+static void qpnp_stop_charge(struct work_struct *work)
+{
+	struct qpnp_chg_chip *chip = container_of(work,
+		struct qpnp_chg_chip,stop_charge_work);
+
+#ifdef CONFIG_PIC1503_FASTCG
+/* jingchun.wang@Onlinerd.Driver, 2014/02/11  Add for fastchg */
+	int ret = 0;
+#endif /*CONFIG_VENDOR_EDIT*/
+	
+	/* OPPO 2013-12-22 liaofuchun add for fastchg */
+	#ifndef CONFIG_PIC1503_FASTCG
+	qpnp_chg_charge_en(chip, 0);
+	#else
+	//when plugged in fastchg,the OVP handle in usbin_valid_irq run
+	if(get_prop_fast_chg_started(chip) == false) {
+		qpnp_chg_charge_en(chip,0);
+		pr_err("%s switch off fastchg\n", __func__);
+		gpio_set_value(96, 0);
+		mcu_en_gpio_set(1);//sjc0623 add
+		ret = gpio_tlmm_config(AP_SWITCH_USB, GPIO_CFG_ENABLE);
+		if (ret) {
+			pr_err("%s switch usb error %d\n", __func__, ret);
+		}
+		//lfc modify for mistakenly set fast_switch_to_normal false,fastchg will restart after fastchg full
+		//set_switch_to_noraml_false(chip);
+	}
+	set_fast_switch_to_normal_false(chip);
+	set_fast_normal_to_warm_false(chip);
+	//whenever charger gone, mask allo fast chg.
+	qpnp_set_fast_chg_allow(chip,false);
+	qpnp_set_fast_low_temp_full_false(chip);
+	#endif
+	/* OPPO 2013-12-22 liaofuchun add end */
+	
+	//solve the problem it can't charge when plug out within 5 minutes after full.
+	chip->chg_done = false;
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+	chip->time_out = false;
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+	chip->aicl_current = 0;
+	chip->chg_display_full = false;//wangjc add for charge full
+	/* jingchun.wang@Onlinerd.Driver, 2014/12/16  Add for don't show charger over when chager plugged out. */
+	if(chip->charger_status == CHARGER_STATUS_OVER) {
+		chip->charger_status = CHARGER_STATUS_GOOD;  /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+	}
+}
+
+#endif
+/*OPPO 2013-10-19 liaofuchun add end*/
+static void qpnp_charge_info_init(struct qpnp_chg_chip *chip)
+{
+	if (!qpnp_chg_is_usb_chg_plugged_in(chip)) {//sjc1111 add for TEMP_REGION sync
+		qpnp_battery_temp_region_set(chip, CV_BATTERY_TEMP_REGION__NORMAL);
+	}
+	chip->mBatteryTempBoundT0 = AUTO_CHARGING_BATT_TEMP_T0;
+	chip->mBatteryTempBoundT1 = AUTO_CHARGING_BATT_TEMP_T1;
+	chip->mBatteryTempBoundT2 = AUTO_CHARGING_BATT_TEMP_T2;
+	chip->mBatteryTempBoundT3 = AUTO_CHARGING_BATT_TEMP_T3;
+	chip->mBatteryTempBoundT4 = AUTO_CHARGING_BATT_TEMP_T4;
+	chip->mBatteryTempBoundT5 = AUTO_CHARGING_BATT_TEMP_T5;  /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+	chip->charger_status = CHARGER_STATUS_GOOD;
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+	chip->aicl_current = 0;
+	chip->aicl_interrupt = false;
+}
+
+static ssize_t test_temp_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size) {
+	long val = simple_strtol(buf, NULL, 10);
+
+	if(val == 9898) {
+		use_fake_temp = false;
+		fake_temp = 300;
+	}else {
+		use_fake_temp = true;
+		fake_temp = val;
+	}
+		
+	return size;
+}
+static DEVICE_ATTR(test_temp, S_IRUGO | S_IWUSR, NULL, test_temp_store);
+
+static ssize_t test_chg_vol_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size) {
+	long val = simple_strtol(buf, NULL, 10);
+
+	if(val == 9898) {
+		use_fake_chgvol= false;
+		fake_chgvol= 0;
+	}else {
+		use_fake_chgvol = true;
+		fake_chgvol = val;
+	}
+		
+	return size;
+}
+static DEVICE_ATTR(test_chg_vol, S_IRUGO | S_IWUSR, NULL, test_chg_vol_store);
+
+void qpnp_battery_gauge_register(struct qpnp_battery_gauge *batt_gauge)
+{
+	if (qpnp_batt_gauge) {
+		qpnp_batt_gauge = batt_gauge;
+		pr_err("qpnp-charger %s multiple battery gauge called\n",
+								__func__);
+	} else {
+		qpnp_batt_gauge = batt_gauge;
+	}
+}
+EXPORT_SYMBOL(qpnp_battery_gauge_register);
+
+void qpnp_battery_gauge_unregister(struct qpnp_battery_gauge *batt_gauge)
+{
+	qpnp_batt_gauge = NULL;
+}
+EXPORT_SYMBOL(qpnp_battery_gauge_unregister);
+
+void qpnp_external_charger_register(struct qpnp_external_charger *external_charger)
+{
+	if (qpnp_ext_charger) {
+		qpnp_ext_charger = external_charger;
+		pr_err("qpnp-charger %s multiple external charger called\n",
+								__func__);
+	} else {
+		qpnp_ext_charger = external_charger;
+	}
+}
+EXPORT_SYMBOL(qpnp_external_charger_register);
+
+void qpnp_external_charger_unregister(struct qpnp_external_charger *external_charger)
+{
+	qpnp_ext_charger = NULL;
+}
+EXPORT_SYMBOL(qpnp_external_charger_unregister);
+
+#if defined(CONFIG_FB)
+/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset charge current when screen is off */
+static int fb_notifier_callback(struct notifier_block *self,
+				 unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+	struct qpnp_chg_chip *chip =
+		container_of(self, struct qpnp_chg_chip, fb_notif);
+	union power_supply_propval ret = {0,};
+
+	if (evdata && evdata->data && chip) {
+		if (event == FB_EVENT_BLANK) {
+			blank = evdata->data;
+			chip->usb_psy->get_property(chip->usb_psy,
+			  POWER_SUPPLY_PROP_CURRENT_MAX, &ret);
+			/* jingchun.wang@Onlinerd.Driver, 2013/12/30  Add for recognize dcp use 2000mA */
+			if(ret.intval / 1000 != 2000) {
+				//not DCP charger, don't care
+				return 0;
+			}
+			
+			/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset charge current when temp is normal */
+			if(qpnp_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL) {
+				if (*blank == FB_BLANK_UNBLANK) {
+					atomic_set(&chip->suspended, 0);//sjc0522 for Find7s temp rising problem
+					/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+					if(chip->aicl_current != 0) {
+						if (chip->aicl_current >= 1500) {
+							/* OPPO 2014-05-22 sjc Add for Find7s temp rising problem */
+							if (get_pcb_version() >= HW_VERSION__20 && get_pcb_version() < HW_VERSION__30) {//Find7s
+								if (chip->usbin_counts == USBIN_COUNT_FLAG && !qpnp_get_fast_chg_ing(chip))
+									qpnp_chg_iusbmax_set(chip, 900);
+							} else {
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-06-03 sjc Modify for Find7op temp rising problem */
+								qpnp_chg_iusbmax_set(chip, 1200);
+#else
+								qpnp_chg_iusbmax_set(chip, 1500);
+#endif
+							}
+						} else {
+							qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+						}
+					}
+					if (chip->aicl_current != 0 && chip->aicl_current <= 1500)
+						qpnp_chg_ibatmax_set(chip, chip->aicl_current);
+					else
+						qpnp_chg_ibatmax_set(chip, chip->max_bat_chg_current);
+				} else if (*blank == FB_BLANK_POWERDOWN) {
+					atomic_set(&chip->suspended, 1);//sjc0522 for Find7s temp rising problem
+					/* jingchun.wang@Onlinerd.Driver, 2013/12/27  Add for auto adapt current by software. */
+					if(chip->aicl_current != 0) {
+						qpnp_chg_iusbmax_set(chip, chip->aicl_current);
+					}
+					if (chip->aicl_current != 0 && chip->aicl_current <= 1500)
+						qpnp_chg_ibatmax_set(chip, chip->aicl_current);
+					else
+						qpnp_chg_ibatmax_set(chip, 2496);
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+#endif /*CONFIG_FB*/
+
+/* jingchun.wang@Onlinerd.Driver, 2014/04/24  Add for control charger */
+static ssize_t write_charger(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	if (count) {
+		long val = simple_strtol(buf, NULL, 10);
+
+		if(val == 1) {
+			pr_info("allow charger\n");
+			qpnp_chg_usb_suspend_enable(g_chip, 0);
+			qpnp_chg_charge_en(g_chip, !g_chip->charging_disabled);
+			qpnp_start_charging(g_chip);
+		}else {
+			pr_info("not allow charger\n");
+			qpnp_chg_usb_suspend_enable(g_chip, 1);
+
+			qpnp_chg_iusbmax_set(g_chip, QPNP_CHG_I_MAX_MIN_100);
+
+			qpnp_chg_charge_en(g_chip, 0);
+		}
+	}
+
+	return count;
+}
+
+static const struct file_operations proc_charger_operations = {
+	.write		= write_charger,
+	.llseek		= noop_llseek,
+};
+
+static void charger_init_procfs(void)
+{
+	if (!proc_create("charger", S_IWUSR | S_IWGRP, NULL,
+			 &proc_charger_operations))
+		pr_err("Failed to register proc interface\n");
+}
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify begin  for  sync with KK charge standard  */
+static ssize_t read_batter_cc(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	size_t ret = 0;
+	char buffer[16] = {0};
+	
+	if (!g_chip)
+		return ret;
+	sprintf(buffer, "%d\n", get_prop_battery_cc(g_chip));
+	return simple_read_from_buffer(buf, count, ppos, buffer, strlen(buffer));
+}
+
+static const struct file_operations proc_batt_cc_operations = {
+	.read		= read_batter_cc,
+	.llseek		= default_llseek,
+};
+
+static void battery_cc_init_procfs(void)
+{
+	if (!proc_create("batt_cc", S_IRUSR | S_IRGRP | S_IROTH, NULL,
+			 &proc_batt_cc_operations))
+		pr_err("Failed to register batt_cc proc interface\n");
+}
+
+static ssize_t read_batter_fcc(struct file *file, char __user *buf, size_t count, loff_t *ppos)//sjc20150105
+{
+	size_t ret = 0;
+	char buffer[32] = {0};
+	
+	if (!g_chip)
+		return ret;
+	sprintf(buffer, "%dmAh\n", get_prop_battery_fcc(g_chip));
+	return simple_read_from_buffer(buf, count, ppos, buffer, strlen(buffer));
+}
+
+static const struct file_operations proc_batt_fcc_operations = {//sjc20150105
+	.read		= read_batter_fcc,
+	.llseek		= default_llseek,
+};
+
+static void battery_fcc_init_procfs(void)//sjc20150105
+{
+	if (!proc_create("batt_fcc", S_IRUSR | S_IRGRP | S_IROTH, NULL,
+			 &proc_batt_fcc_operations))
+		pr_err("Failed to register batt_fcc proc interface\n");
+}
+/* yangfangbiao@oneplus.cn, 2015/01/06  Modify  end for  sync with KK charge standard  */
+#endif
+/* OPPO 2013-06-08 wangjc Add end */
+#define SOC_INVALID			0x7E
+#define SOC_DATA_REG_0		0x40B0
+#define SOC_STORAGE_MASK	0xFE
+static int load_data(struct qpnp_chg_chip *chip)
+{
+	u8 stored_soc = 0;
+	int rc = 0;
+	int shutdown_soc = 0;
+
+	if (chip == NULL) {
+		printk(KERN_ERR "%s: chip is NULL !\n", __func__);
+		return SOC_INVALID;
+	}
+	rc = qpnp_chg_read(chip, &stored_soc, SOC_DATA_REG_0, 1);
+	if (rc) {
+		printk(KERN_ERR "%s: failed to read addr[0x%x], rc=%d\n", __func__, SOC_DATA_REG_0, rc);
+		return SOC_INVALID;
+	}
+
+	if ((stored_soc >> 1) > 0)
+		shutdown_soc = (stored_soc >> 1) - 1;
+	else
+		shutdown_soc = SOC_INVALID;
+	printk(KERN_ERR "%s: stored_soc[0x%x], shutdown_soc[%d]\n", __func__, stored_soc, shutdown_soc);
+	return shutdown_soc;
+}
+
+int load_soc(void)
+{
+	int soc = 0;
+
+	soc = load_data(g_chip);
+	if (soc == SOC_INVALID || soc < 0 || soc > 100)
+		return -1;
+	return soc;
+}
+
+static void backup_soc(struct qpnp_chg_chip *chip, int soc)
+{
+	int rc = 0;
+
+	if (chip == NULL || soc < 0 || soc > 100) {
+		printk(KERN_ERR "%s: chip or soc invalid, store an invalid soc\n", __func__);
+		qpnp_chg_masked_write(chip, SOC_DATA_REG_0, SOC_STORAGE_MASK, SOC_STORAGE_MASK, 1);
+		return;
+	}
+
+	printk(KERN_ERR "%s: backup_soc[%d]\n", __func__, soc);
+	rc = qpnp_chg_masked_write(chip, SOC_DATA_REG_0, SOC_STORAGE_MASK, (soc + 1) << 1, 1);
+	if (rc) {
+		printk(KERN_ERR "%s: failed to write addr[0x%x], rc=%d\n", __func__, SOC_DATA_REG_0, rc);
+	}
+}
+void backup_soc_ex(int soc)
+{
+	backup_soc(g_chip, soc);
+}
+
 static int __devinit
 qpnp_charger_probe(struct spmi_device *spmi)
 {
@@ -6766,12 +8457,11 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		pr_err("kzalloc() failed.\n");
 		return -ENOMEM;
 	}
-
 	chip->prev_usb_max_ma = -EINVAL;
 	chip->fake_battery_soc = -EINVAL;
 	chip->dev = &(spmi->dev);
 	chip->spmi = spmi;
-
+	g_chip = chip;
 	chip->usb_psy = power_supply_get_by_name("usb");
 	if (!chip->usb_psy) {
 		pr_err("usb supply not found deferring probe\n");
@@ -6779,13 +8469,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		goto fail_chg_enable;
 	}
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
-    chip_temp = chip;
-#endif
-
 	mutex_init(&chip->jeita_configure_lock);
 	spin_lock_init(&chip->usbin_health_monitor_lock);
-	alarm_init(&chip->reduce_power_stage_alarm, ALARM_REALTIME,
+	alarm_init(&chip->reduce_power_stage_alarm, ANDROID_ALARM_RTC_WAKEUP,
 			qpnp_chg_reduce_power_stage_callback);
 	INIT_WORK(&chip->reduce_power_stage_work,
 			qpnp_chg_reduce_power_stage_work);
@@ -7021,7 +8707,10 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	}
 
 	INIT_DELAYED_WORK(&chip->eoc_work, qpnp_eoc_work);
+/* OPPO 2013-10-17 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 	INIT_DELAYED_WORK(&chip->arb_stop_work, qpnp_arb_stop_work);
+#endif
 	INIT_DELAYED_WORK(&chip->usbin_health_check,
 			qpnp_usbin_health_check_work);
 	INIT_WORK(&chip->soc_check_work, qpnp_chg_soc_check_work);
@@ -7061,18 +8750,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		}
 	}
 
-#ifdef CONFIG_VENDOR_EDIT
-	// add by xcb cold_bat_decidegc is minus
-	chip->cold_bat_decidegc = 0 - chip->cold_bat_decidegc;
-#endif
-
 	if ((chip->cool_bat_decidegc || chip->warm_bat_decidegc)
 							&& chip->bat_if_base) {
-#ifdef CONFIG_VENDOR_EDIT
-		chip->adc_param.low_temp = chip->little_cool_bat_decidegc;
-#else
 		chip->adc_param.low_temp = chip->cool_bat_decidegc;
-#endif
 		chip->adc_param.high_temp = chip->warm_bat_decidegc;
 		chip->adc_param.timer_interval = ADC_MEAS2_INTERVAL_1S;
 		chip->adc_param.state_request = ADC_TM_HIGH_LOW_THR_ENABLE;
@@ -7081,13 +8761,7 @@ qpnp_charger_probe(struct spmi_device *spmi)
 						qpnp_chg_adc_notification;
 		chip->adc_param.channel = LR_MUX1_BATT_THERM;
 
-#ifdef CONFIG_VENDOR_EDIT
-		//qpnp_chg_adc_notification_init(chip);
-#endif
-
 		if (get_prop_batt_present(chip)) {
-			pr_info("setting adc_tm high=%d, low=%d\n",
-				chip->adc_param.high_temp, chip->adc_param.low_temp);
 			rc = qpnp_adc_tm_channel_measure(chip->adc_tm_dev,
 							&chip->adc_param);
 			if (rc) {
@@ -7102,9 +8776,25 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		goto unregister_dc_psy;
 	}
 
-	chip->usb_trim_default = qpnp_chg_iusb_trim_get(chip);
+/* OPPO 2013-11-21 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 	qpnp_chg_charge_en(chip, !chip->charging_disabled);
+#endif
+/* OPPO 2013-11-21 wangjc Delete end */
+
+/* OPPO 2013-08-19 wangjc Add begin for ftm test mode. */
+#ifdef CONFIG_VENDOR_EDIT
+	if(get_boot_mode() != MSM_BOOT_MODE__NORMAL) {
+		qpnp_chg_usb_suspend_enable(chip, 1);
+	}
+#endif
+/* OPPO 2013-08-19 wangjc Add end */
+
+/* OPPO 2013-10-16 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 	qpnp_chg_force_run_on_batt(chip, chip->charging_disabled);
+#endif
+/* OPPO 2013-10-16 wangjc Delete end */
 	qpnp_chg_set_appropriate_vddmax(chip);
 
 	if (chip->parallel_ovp_mode) {
@@ -7123,7 +8813,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 
 	qpnp_chg_usb_chg_gone_irq_handler(chip->chg_gone.irq, chip);
 	qpnp_chg_usb_usbin_valid_irq_handler(chip->usbin_valid.irq, chip);
+#ifndef CONFIG_BQ24196_CHARGER
 	qpnp_chg_dc_dcin_valid_irq_handler(chip->dcin_valid.irq, chip);
+#endif
 	power_supply_set_present(chip->usb_psy,
 			qpnp_chg_is_usb_chg_plugged_in(chip));
 
@@ -7132,8 +8824,64 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	if (qpnp_chg_is_usb_chg_plugged_in(chip))
 		power_supply_set_online(chip->usb_psy, 1);
 
+/* OPPO 2013-10-16 wangjc Delete begin for use bq charger */
+#ifndef CONFIG_BQ24196_CHARGER
 	schedule_delayed_work(&chip->aicl_check_work,
 		msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
+#endif
+/* OPPO 2013-10-16 wangjc Delete end */
+/* OPPO 2013-06-08 wangjc Add begin for heart beat. */
+#ifdef CONFIG_VENDOR_EDIT
+	qpnp_charge_info_init(chip);
+	/* jingchun.wang@Onlinerd.Driver, 2014/04/24  Add for control charger */
+	g_chip = chip;
+
+	INIT_DELAYED_WORK(&chip->update_heartbeat_work,
+							update_heartbeat);
+	schedule_delayed_work(&chip->update_heartbeat_work,
+			      round_jiffies_relative(msecs_to_jiffies
+						(BATT_HEARTBEAT_INTERVAL)));
+/*OPPO 2013-10-24 liaofuchun add begin for bq24196 charger*/
+#ifdef CONFIG_BQ24196_CHARGER
+	INIT_WORK(&chip->stop_charge_work,qpnp_stop_charge);
+	INIT_WORK(&chip->start_charge_work,qpnp_start_charge);
+	INIT_WORK(&chip->ext_charger_hwinit_work,qpnp_chg_ext_charger_hwinit_work);
+#endif
+/*OPPO 2013-10-24 liaofuchun add end*/
+
+#ifdef CONFIG_VENDOR_EDIT
+/* OPPO 2014-05-22 sjc Add for Find7s temp rising problem */
+	atomic_set(&chip->suspended, 0);
+	chip->usbin_counts = 0;
+#endif
+	
+#if defined(CONFIG_FB)
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset charge current when screen is off */
+	chip->fb_notif.notifier_call = fb_notifier_callback;
+
+	rc = fb_register_client(&chip->fb_notif);
+
+	if (rc)
+		pr_err("Unable to register fb_notifier: %d\n", rc);
+#endif /*CONFIG_FB*/
+	rc = device_create_file(chip->dev, &dev_attr_test_temp);
+	if (rc < 0) {
+		pr_err("%s: creat test temp file failed ret = %d\n", 
+					__func__, rc);
+		device_remove_file(chip->dev, &dev_attr_test_temp);
+	}
+	rc = device_create_file(chip->dev, &dev_attr_test_chg_vol);
+	if (rc < 0) {
+		pr_err("%s: creat test charger voltage file failed ret = %d\n", 
+					__func__, rc);
+		device_remove_file(chip->dev, &dev_attr_test_chg_vol);
+	}
+/* jingchun.wang@Onlinerd.Driver, 2014/04/24  Add for control charger */
+	charger_init_procfs();
+	battery_cc_init_procfs();//sjc20150105  /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+	battery_fcc_init_procfs();//sjc20150105  /* yangfangbiao@oneplus.cn, 2015/01/06  Modify for  sync with KK charge standard  */
+#endif
+/* OPPO 2013-06-08 wangjc Add end */
 	pr_info("success chg_dis = %d, bpd = %d, usb = %d, dc = %d b_health = %d batt_present = %d\n",
 			chip->charging_disabled,
 			chip->bpd_detection,
@@ -7184,32 +8932,30 @@ qpnp_charger_remove(struct spmi_device *spmi)
 
 	regulator_unregister(chip->otg_vreg.rdev);
 	regulator_unregister(chip->boost_vreg.rdev);
+#if defined(CONFIG_FB)
+	/* jingchun.wang@Onlinerd.Driver, 2013/12/14  Add for reset charge current when screen is off */
+	if (fb_unregister_client(&chip->fb_notif))
+		pr_err("Error occurred while unregistering fb_notifier.\n");
+#endif /*CONFIG_FB*/
 
 	return 0;
 }
 
-#ifdef VENDOR_EDIT/*If the torch is enabled, enable BATFET_LPM mode*/
- int qpnp_chg_set_lpm(void){
-	int rc = 0;
+/* OPPO 2014-01-07 sjc Add begin for reason */
+#ifdef CONFIG_VENDOR_EDIT
+static void qpnp_charger_shutdown(struct spmi_device *spmi)
+{
+#ifdef CONFIG_BQ24196_CHARGER
+	struct qpnp_chg_chip *chip = dev_get_drvdata(&spmi->dev);
 
-    if(chip_temp == NULL){
-	    pr_info("oneplus:Set chg lpm mode faield, chip_temp is NULL\n");
-		return 0;
-	}
-	if (chip_temp->type == SMBB)
-		rc = qpnp_chg_masked_write(chip_temp,
-			chip_temp->bat_if_base + CHGR_BAT_IF_SPARE,
-			BATFET_LPM_MASK,
-			BATFET_NO_LPM, 1);
-	else
-		rc = qpnp_chg_masked_write(chip_temp,
-			chip_temp->bat_if_base + CHGR_BAT_IF_BATFET_CTRL4,
-			BATFET_LPM_MASK,
-			BATFET_NO_LPM , 1);
-	pr_info("oneplus: Set chg lpm mode sucessfully\n");
-	return 0;
+	if (qpnp_chg_regulator_otg_is_enabled(chip->otg_vreg.rdev))
+		qpnp_chg_regulator_otg_disable(chip->otg_vreg.rdev);
+
+	return;
+#endif
 }
 #endif
+/* OPPO 2014-01-07 sjc Add end */
 
 static int qpnp_chg_resume(struct device *dev)
 {
@@ -7234,17 +8980,10 @@ static int qpnp_chg_suspend(struct device *dev)
 	int rc = 0;
 
 	if (chip->bat_if_base) {
-#ifdef CONFIG_VENDOR_EDIT
-		rc = qpnp_chg_masked_write(chip,
-			chip->bat_if_base + BAT_IF_VREF_BAT_THM_CTRL,
-			VREF_BATT_THERM_FORCE_ON,
-			VREF_BATT_THERM_FORCE_ON, 1);
-#else
 		rc = qpnp_chg_masked_write(chip,
 			chip->bat_if_base + BAT_IF_VREF_BAT_THM_CTRL,
 			VREF_BATT_THERM_FORCE_ON,
 			VREF_BAT_THM_ENABLED_FSM, 1);
-#endif
 		if (rc)
 			pr_debug("failed to set FSM VREF_BAT_THM rc=%d\n", rc);
 	}
@@ -7260,6 +8999,7 @@ static const struct dev_pm_ops qpnp_chg_pm_ops = {
 static struct spmi_driver qpnp_charger_driver = {
 	.probe		= qpnp_charger_probe,
 	.remove		= __devexit_p(qpnp_charger_remove),
+	.shutdown	= qpnp_charger_shutdown,
 	.driver		= {
 		.name		= QPNP_CHARGER_DEV_NAME,
 		.owner		= THIS_MODULE,
@@ -7272,18 +9012,18 @@ static struct spmi_driver qpnp_charger_driver = {
  * qpnp_chg_init() - register spmi driver for qpnp-chg
  */
 int __init
-qpnp_chg_init(void)
+oem_qpnp_chg_init(void)
 {
 	return spmi_driver_register(&qpnp_charger_driver);
 }
-module_init(qpnp_chg_init);
+module_init(oem_qpnp_chg_init);
 
 static void __exit
-qpnp_chg_exit(void)
+oem_qpnp_chg_exit(void)
 {
 	spmi_driver_unregister(&qpnp_charger_driver);
 }
-module_exit(qpnp_chg_exit);
+module_exit(oem_qpnp_chg_exit);
 
 
 MODULE_DESCRIPTION("QPNP charger driver");
