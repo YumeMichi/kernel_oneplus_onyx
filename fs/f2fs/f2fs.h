@@ -1937,10 +1937,11 @@ static inline bool f2fs_cp_error(struct f2fs_sb_info *sbi)
 	return is_set_ckpt_flags(sbi, CP_ERROR_FLAG);
 }
 
+/* Implementation of file_inode added to include/linux/fs.h
 static inline struct inode *file_inode(struct file *f)
 {
 	return f->f_path.dentry->d_inode;
-}
+}*/
 
 static inline bool is_dot_dotdot(const struct qstr *str)
 {
