@@ -27,6 +27,7 @@
 #include <linux/qpnp/qpnp-adc.h>
 #include <linux/qpnp/power-on.h>
 #include <linux/of_batterydata.h>
+#include <linux/wakelock.h>
 
 
 #ifdef CONFIG_MACH_MSM8974_15055
