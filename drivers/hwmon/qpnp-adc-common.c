@@ -44,6 +44,8 @@
    and provided to the battery driver in the units desired for
    their framework which is 0.1DegC. True resolution of 0.1DegC
    will result in the below table size to increase by 10 times */
+/* OPPO 2013-06-07 wangjc Modify begin for use new adcmap. */
+#ifndef CONFIG_MACH_MSM8974_15055
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-300,	1642},
 	{-200,	1544},
@@ -129,6 +131,39 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{780,	208},
 	{790,	203}
 };
+#else
+static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
+    {-400,  1696},
+    {-350,  1666},
+    {-300,  1629},
+    {-250,  1586},
+    {-200,  1525},
+    {-150,  1478},
+    {-100,  1414},
+    {-50,   1344},
+    {0, 1269},
+    {50,    1191},
+    {100,   1112},
+    {150,   1033},
+    {200,   955},
+    {250,   880},
+    {300,   809},
+    {350,   743},
+    {400,   682},
+    {450,   627},
+    {500,   576},
+    {550,   532},
+    {600,   492},
+    {650,   457},
+    {700,   426},
+    {750,   399},
+    {800,   376},
+    {850,   355},
+    {900,   337},
+    {950,   321},
+    {1000,  307}
+};
+#endif
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
 	{-200,	1540},

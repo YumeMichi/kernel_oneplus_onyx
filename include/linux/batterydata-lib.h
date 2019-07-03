@@ -125,6 +125,14 @@ struct bms_battery_data {
 	int			cutoff_uv;
 	int			iterm_ua;
 	int			batt_id_kohm;
+
+	
+#ifdef CONFIG_MACH_MSM8974_15055
+	int			best_id_kohm;
+
+	const char		*battery_type; // add by xcb
+#endif /*CONFIG_MACH_MSM8974_15055*/
+
 };
 
 #if defined(CONFIG_PM8921_BMS) || \

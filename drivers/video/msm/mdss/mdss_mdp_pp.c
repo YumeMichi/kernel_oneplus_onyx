@@ -432,7 +432,7 @@ static inline void pp_sts_set_split_bits(u32 *sts, u32 bits);
 
 static u32 last_sts, last_state;
 
-inline int linear_map(int in, int *out, int in_max, int out_max)
+static inline int linear_map(int in, int *out, int in_max, int out_max)
 {
 	if (in < 0 || !out || in_max <= 0 || out_max <= 0)
 		return -EINVAL;
@@ -1710,7 +1710,7 @@ int mdss_mdp_pp_setup(struct mdss_mdp_ctl *ctl)
 	/* TODO: have some sort of reader/writer lock to prevent unclocked
 	 * access while display power is toggled */
 	mutex_lock(&ctl->lock);
-	if (!ctl->power_on) {
+	if (!mdss_mdp_ctl_is_power_on(ctl)) {
 		ret = -EPERM;
 		goto error;
 	}
@@ -1800,12 +1800,19 @@ int mdss_mdp_pp_resume(struct mdss_mdp_ctl *ctl, u32 dspp_num)
 	u32 flags = 0, disp_num, bl, ret = 0;
 	struct pp_sts_type pp_sts;
 	struct mdss_ad_info *ad;
-	struct mdss_data_type *mdata = ctl->mdata;
 	struct msm_fb_data_type *bl_mfd;
+	struct mdss_data_type *mdata;
+
+	if (!ctl || !ctl->mdata || !ctl->mfd)
+		return -EPERM;
+
+	mdata = ctl->mdata;
+
 	if (dspp_num >= MDSS_MDP_MAX_DSPP) {
 		pr_warn("invalid dspp_num");
 		return -EINVAL;
 	}
+
 	disp_num = ctl->mfd->index;
 	pp_sts = mdss_pp_res->pp_disp_sts[disp_num];
 
@@ -2030,7 +2037,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 		pr_debug("AD not supported on device.\n");
 		return ret;
 	} else if (ret || !ad) {
-		pr_err("Failed to get ad info: ret = %d, ad = 0x%p.\n",
+		pr_err("Failed to get ad info: ret = %d, ad = 0x%pK.\n",
 				ret, ad);
 		return ret;
 	}
@@ -2046,7 +2053,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 
 	if (!ad->bl_mfd || !ad->bl_mfd->panel_info ||
 			!ad->bl_att_lut) {
-		pr_err("Invalid ad info: bl_mfd = 0x%p, ad->bl_mfd->panel_info = 0x%p, bl_att_lut = 0x%p\n",
+		pr_err("Invalid ad info: bl_mfd = 0x%pK, ad->bl_mfd->panel_info = 0x%pK, bl_att_lut = 0x%pK\n",
 				ad->bl_mfd,
 				(!ad->bl_mfd) ? NULL : ad->bl_mfd->panel_info,
 				ad->bl_att_lut);
@@ -3541,7 +3548,7 @@ int mdss_mdp_hist_intr_req(struct mdss_intr *intr, u32 bits, bool en)
 	unsigned long flag;
 	int ret = 0;
 	if (!intr) {
-		pr_err("NULL addr passed, %p", intr);
+		pr_err("NULL addr passed, %pK", intr);
 		return -EINVAL;
 	}
 
@@ -4071,7 +4078,7 @@ static struct msm_fb_data_type *mdss_get_mfd_from_index(int index)
 
 	for (i = 0; i < mdata->nctl; i++) {
 		ctl = mdata->ctl_off + i;
-		if ((ctl->power_on) && (ctl->mfd)
+		if ((mdss_mdp_ctl_is_power_on(ctl)) && (ctl->mfd)
 				&& (ctl->mfd->index == index))
 			out = ctl->mfd;
 	}
@@ -4208,7 +4215,7 @@ static int pp_ad_invalidate_input(struct msm_fb_data_type *mfd)
 
 	ret = mdss_mdp_get_ad(mfd, &ad);
 	if (ret || !ad) {
-		pr_err("Fail to get ad: ret = %d, ad = 0x%p\n", ret, ad);
+		pr_err("Fail to get ad: ret = %d, ad = 0x%pK\n", ret, ad);
 		return -EINVAL;
 	}
 	pr_debug("AD backlight level changed (%d), trigger update to AD\n",
@@ -4346,7 +4353,7 @@ int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
 	mutex_lock(&ad->lock);
 	if ((!PP_AD_STATE_IS_INITCFG(ad->state) &&
 			!PP_AD_STS_IS_DIRTY(ad->sts)) &&
-			!input->mode == MDSS_AD_MODE_CALIB) {
+			(input->mode != MDSS_AD_MODE_CALIB)) {
 		pr_warn("AD not initialized or configured.");
 		ret = -EPERM;
 		goto error;

@@ -1550,7 +1550,7 @@
 	};
 
 	i2c@f9928000 { /* BLSP-1 QUP-6 */
-		cell-index = <3>;
+		cell-index = <6>;
 		compatible = "qcom,i2c-qup";
 		reg = <0xf9928000 0x1000>;
 		#address-cells = <1>;
@@ -1563,6 +1563,7 @@
 		qcom,sda-gpio = <&msmgpio 29 0>;
 		qcom,scl-gpio = <&msmgpio 30 0>;
 		qcom,master-id = <86>;
+		qcom,active-only;
 	};
 };
 
@@ -1756,7 +1757,8 @@
 
 &memory_hole {
 	qcom,memblock-remove = <0x05a00000 0x7800000
-				0x0fa00000 0x500000>; /* Address and size of the hole */
+				0x0fa00000 0x500000
+				0x05900000 0x100000>; /* Address and size of the hole */
 };
 
 &gdsc_venus {

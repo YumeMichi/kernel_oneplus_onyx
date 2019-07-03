@@ -50,8 +50,9 @@
 #define C1_B_Cb		1	/* B/Cb */
 #define C0_G_Y		0	/* G/luma */
 
-/* wait for at most 2 vsync for lowest refresh rate (24hz) */
-#define KOFF_TIMEOUT msecs_to_jiffies(84)
+/* wait for 300ms to take into account scheduling related delays
+ * This number is empirical*/
+#define KOFF_TIMEOUT msecs_to_jiffies(300)
 
 #define OVERFETCH_DISABLE_TOP		BIT(0)
 #define OVERFETCH_DISABLE_BOTTOM	BIT(1)
@@ -167,7 +168,7 @@ struct mdss_mdp_ctl {
 	char __iomem *base;
 	char __iomem *wb_base;
 	u32 ref_cnt;
-	int power_on;
+	int power_state;
 
 	u32 intf_num;
 	u32 intf_type;
@@ -211,7 +212,7 @@ struct mdss_mdp_ctl {
 	u8 roi_changed;
 
 	int (*start_fnc) (struct mdss_mdp_ctl *ctl);
-	int (*stop_fnc) (struct mdss_mdp_ctl *ctl);
+	int (*stop_fnc) (struct mdss_mdp_ctl *ctl, int panel_power_state);
 	int (*prepare_fnc) (struct mdss_mdp_ctl *ctl, void *arg);
 	int (*display_fnc) (struct mdss_mdp_ctl *ctl, void *arg);
 	int (*wait_fnc) (struct mdss_mdp_ctl *ctl, void *arg);
@@ -223,6 +224,7 @@ struct mdss_mdp_ctl {
 					struct mdss_mdp_vsync_handler *);
 	int (*config_fps_fnc) (struct mdss_mdp_ctl *ctl,
 				struct mdss_mdp_ctl *sctl, int new_fps);
+	int (*restore_fnc) (struct mdss_mdp_ctl *ctl);
 
 	struct blocking_notifier_head notifier_head;
 
@@ -278,7 +280,8 @@ struct mdss_mdp_plane_sizes {
 
 struct mdss_mdp_img_data {
 	u32 addr;
-	u32 len;
+	unsigned long len;
+	u32 offset;
 	u32 flags;
 	int p_need;
 	bool mapped;
@@ -522,6 +525,27 @@ static inline int mdss_mdp_line_buffer_width(void)
 	return MAX_LINE_BUFFER_WIDTH;
 }
 
+static inline bool mdss_mdp_ctl_is_power_off(struct mdss_mdp_ctl *ctl)
+{
+	return mdss_panel_is_power_off(ctl->power_state);
+}
+
+static inline bool mdss_mdp_ctl_is_power_on_interactive(
+	struct mdss_mdp_ctl *ctl)
+{
+	return mdss_panel_is_power_on_interactive(ctl->power_state);
+}
+
+static inline bool mdss_mdp_ctl_is_power_on(struct mdss_mdp_ctl *ctl)
+{
+	return mdss_panel_is_power_on(ctl->power_state);
+}
+
+static inline bool mdss_mdp_ctl_is_power_on_lp(struct mdss_mdp_ctl *ctl)
+{
+	return mdss_panel_is_power_on_lp(ctl->power_state);
+}
+
 static inline void mdss_update_sd_client(struct mdss_data_type *mdata,
 							bool status)
 {
@@ -560,11 +584,6 @@ int mdss_mdp_overlay_req_check(struct msm_fb_data_type *mfd,
 			       struct mdp_overlay *req,
 			       struct mdss_mdp_format_params *fmt);
 int mdss_mdp_overlay_vsync_ctrl(struct msm_fb_data_type *mfd, int en);
-int mdss_mdp_overlay_get_buf(struct msm_fb_data_type *mfd,
-			     struct mdss_mdp_data *data,
-			     struct msmfb_data *planes,
-			     int num_planes,
-			     u32 flags);
 int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	struct mdp_overlay *req, struct mdss_mdp_pipe **ppipe);
 void mdss_mdp_handoff_cleanup_pipes(struct msm_fb_data_type *mfd,
@@ -591,7 +610,7 @@ int mdss_mdp_ctl_split_display_setup(struct mdss_mdp_ctl *ctl,
 		struct mdss_panel_data *pdata);
 int mdss_mdp_ctl_destroy(struct mdss_mdp_ctl *ctl);
 int mdss_mdp_ctl_start(struct mdss_mdp_ctl *ctl, bool handoff);
-int mdss_mdp_ctl_stop(struct mdss_mdp_ctl *ctl);
+int mdss_mdp_ctl_stop(struct mdss_mdp_ctl *ctl, int panel_power_mode);
 int mdss_mdp_ctl_intf_event(struct mdss_mdp_ctl *ctl, int event, void *arg);
 int mdss_mdp_perf_bw_check(struct mdss_mdp_ctl *ctl,
 		struct mdss_mdp_pipe **left_plist, int left_cnt,
@@ -710,9 +729,11 @@ int mdss_mdp_get_rau_strides(u32 w, u32 h, struct mdss_mdp_format_params *fmt,
 void mdss_mdp_data_calc_offset(struct mdss_mdp_data *data, u16 x, u16 y,
 	struct mdss_mdp_plane_sizes *ps, struct mdss_mdp_format_params *fmt);
 struct mdss_mdp_format_params *mdss_mdp_get_format_params(u32 format);
-int mdss_mdp_put_img(struct mdss_mdp_img_data *data);
-int mdss_mdp_get_img(struct msmfb_data *img, struct mdss_mdp_img_data *data);
-int mdss_mdp_overlay_free_buf(struct mdss_mdp_data *data);
+int mdss_mdp_data_get(struct mdss_mdp_data *data, struct msmfb_data *planes,
+		int num_planes, u32 flags);
+int mdss_mdp_data_map(struct mdss_mdp_data *data);
+void mdss_mdp_data_free(struct mdss_mdp_data *data);
+
 u32 mdss_get_panel_framerate(struct msm_fb_data_type *mfd);
 int mdss_mdp_calc_phase_step(u32 src, u32 dst, u32 *out_phase);
 void mdss_mdp_intersect_rect(struct mdss_mdp_img_rect *res_rect,
@@ -749,8 +770,7 @@ int mdss_mdp_wb_get_format(struct msm_fb_data_type *mfd,
 
 int mdss_mdp_wb_set_secure(struct msm_fb_data_type *mfd, int enable);
 int mdss_mdp_wb_get_secure(struct msm_fb_data_type *mfd, uint8_t *enable);
-void mdss_mdp_ctl_restore(struct mdss_mdp_ctl *ctl);
-int mdss_mdp_footswitch_ctrl_ulps(int on, struct device *dev);
+void mdss_mdp_ctl_restore(void);
 
 int mdss_mdp_pipe_program_pixel_extn(struct mdss_mdp_pipe *pipe);
 #define mfd_to_mdp5_data(mfd) (mfd->mdp.private1)

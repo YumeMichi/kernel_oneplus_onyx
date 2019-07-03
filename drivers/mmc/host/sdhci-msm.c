@@ -297,6 +297,11 @@ struct sdhci_msm_pltfm_data {
 	unsigned char sup_clk_cnt;
 	int mpm_sdiowakeup_int;
 	int sdiowakeup_irq;
+
+#ifdef CONFIG_MACH_MSM8974_15055
+//hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
+    int sdcard_2p95_en;
+#endif
 };
 
 struct sdhci_msm_bus_vote {
@@ -347,6 +352,10 @@ enum vdd_io_level {
 	VDD_IO_SET_LEVEL,
 };
 
+#ifdef CONFIG_MACH_MSM8974_15055
+extern int tf_card_status;
+extern int mmc_cd_get_status(struct mmc_host *host);
+#endif
 /* MSM platform specific tuning */
 static inline int msm_dll_poll_ck_out_en(struct sdhci_host *host,
 						u8 poll)
@@ -1002,6 +1011,10 @@ static int sdhci_msm_setup_pins(struct sdhci_msm_pltfm_data *pdata, bool enable)
 
 	if (!pdata->pin_data || (pdata->pin_data->cfg_sts == enable))
 		return 0;
+#ifdef CONFIG_MACH_MSM8974_15055
+	if(tf_card_status==0 && enable && pdata->sdcard_2p95_en)
+		return 0;
+#endif
 	if (pdata->pin_data->is_gpio)
 		ret = sdhci_msm_setup_gpio(pdata, enable);
 	else
@@ -1355,7 +1368,8 @@ out:
 }
 
 /* Parse platform data */
-static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
+static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
+				struct sdhci_host *host)
 {
 	struct sdhci_msm_pltfm_data *pdata = NULL;
 	struct device_node *np = dev->of_node;
@@ -1366,6 +1380,11 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 	u32 *clk_table = NULL;
 	enum of_gpio_flags flags = OF_GPIO_ACTIVE_LOW;
 
+#ifdef CONFIG_MACH_MSM8974_15055
+//hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
+    int sdcard_2p95_en;
+#endif
+
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		dev_err(dev, "failed to allocate memory for platform data\n");
@@ -1375,6 +1394,13 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 	pdata->status_gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &flags);
 	if (gpio_is_valid(pdata->status_gpio) & !(flags & OF_GPIO_ACTIVE_LOW))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+
+#ifdef CONFIG_MACH_MSM8974_15055
+//hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
+    if(!of_property_read_u32(np, "sdcard_2p95_en", &sdcard_2p95_en)){
+        pdata->sdcard_2p95_en = sdcard_2p95_en;
+    }
+#endif
 
 	of_property_read_u32(np, "qcom,bus-width", &bus_width);
 	if (bus_width == 8)
@@ -1461,6 +1487,9 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 		pdata->mpm_sdiowakeup_int = mpm_int;
 	else
 		pdata->mpm_sdiowakeup_int = -1;
+
+	if (of_property_read_bool(np, "qcom,wakeup-on-idle"))
+		host->mmc->wakeup_on_idle = true;
 
 	return pdata;
 out:
@@ -1844,6 +1873,10 @@ static int sdhci_msm_setup_vreg(struct sdhci_msm_pltfm_data *pdata,
 			 __func__);
 		goto out;
 	}
+#ifdef CONFIG_MACH_MSM8974_15055
+	if(tf_card_status==0 && enable && pdata->sdcard_2p95_en)
+		return 0;
+#endif
 
 	vreg_table[0] = curr_slot->vdd_data;
 	vreg_table[1] = curr_slot->vdd_io_data;
@@ -1939,6 +1972,11 @@ static int sdhci_msm_set_vdd_io_vol(struct sdhci_msm_pltfm_data *pdata,
 		return ret;
 
 	vdd_io_reg = pdata->vreg_data->vdd_io_data;
+#ifdef CONFIG_MACH_MSM8974_15055/*add for sd card hot plug*/
+	if((tf_card_status==0) && (level ==VDD_IO_HIGH) && (pdata->sdcard_2p95_en)){
+		return 0;
+	}
+#endif
 	if (vdd_io_reg && vdd_io_reg->is_enabled) {
 		switch (level) {
 		case VDD_IO_LOW:
@@ -2006,6 +2044,10 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 	int pwr_state = 0, io_level = 0;
 	unsigned long flags;
 
+#ifdef CONFIG_MACH_MSM8974_15055/*Get sd card detect status*/
+    if(host->mmc->sdcard_2p95_en)
+		tf_card_status = mmc_cd_get_status(host->mmc);
+#endif
 	irq_status = readb_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
 	pr_debug("%s: Received IRQ(%d), status=0x%x\n",
 		mmc_hostname(msm_host->mmc), irq, irq_status);
@@ -2750,7 +2792,7 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 			goto pltfm_free;
 		}
 
-		msm_host->pdata = sdhci_msm_populate_pdata(&pdev->dev);
+		msm_host->pdata = sdhci_msm_populate_pdata(&pdev->dev, host);
 		if (!msm_host->pdata) {
 			dev_err(&pdev->dev, "DT parsing error\n");
 			goto pltfm_free;
@@ -3005,6 +3047,25 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 			goto vreg_deinit;
 		}
 	}
+
+#ifdef CONFIG_MACH_MSM8974_15055
+//hefaxi@filesystems, 2015/08/07, add for drop power if sdcard not present
+	if(msm_host->pdata->sdcard_2p95_en){
+		ret = gpio_request_one(msm_host->pdata->sdcard_2p95_en,
+		            GPIOF_INIT_HIGH,"sdcard_2p95_en");
+		msm_host->mmc->sdcard_2p95_en = msm_host->pdata->sdcard_2p95_en;
+		if(ret < 0){
+			pr_err("%s: Failed to request gpio 64(%d)\n",
+				mmc_hostname(host->mmc),ret);
+			return ret;
+		}
+	}
+	if(msm_host->pdata && 
+		msm_host->pdata->vreg_data && 
+		msm_host->pdata->vreg_data->vdd_io_data){
+		msm_host->mmc->sdcard_vdd_io_regulator = msm_host->pdata->vreg_data->vdd_io_data->reg;
+	}
+#endif
 
 	if (dma_supported(mmc_dev(host->mmc), DMA_BIT_MASK(32))) {
 		host->dma_mask = DMA_BIT_MASK(32);

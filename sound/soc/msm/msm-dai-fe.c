@@ -266,6 +266,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.rate_max = 192000,
 		},
 		.ops = &msm_fe_Multimedia_dai_ops,
+		.compress_dai = 1,
 		.name = "MultiMedia7",
 	},
 	{
@@ -610,6 +611,8 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.ops = &msm_fe_dai_ops,
 		.name = "PRI_MI2S_TX_HOSTLESS",
 	},
+#ifndef CONFIG_MACH_MSM8974_15055
+/*wangdongdong@MultiMedia.AudioDrv,2015/06/01,add for i2s*/
 	{
 		.playback = {
 			.stream_name = "Secondary MI2S_RX Hostless Playback",
@@ -624,6 +627,23 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.ops = &msm_fe_dai_ops,
 		.name = "SEC_MI2S_RX_HOSTLESS",
 	},
+#else
+   {
+		.playback = {
+			.stream_name = "Secondary MI2S Hostless Playback",
+			.aif_name = "SEC_MI2S_DL_HL",
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+						SNDRV_PCM_FMTBIT_S24_LE),
+			.channels_min = 1,
+			.channels_max = 8,
+			.rate_min =     8000,
+			.rate_max =     192000,
+		},
+		.ops = &msm_fe_dai_ops,
+		.name = "SEC_MI2S_HOSTLESS",
+	},
+#endif
 	{
 		.playback = {
 			.stream_name = "Voice2 Playback",

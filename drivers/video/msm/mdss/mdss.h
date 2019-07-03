@@ -129,6 +129,7 @@ struct mdss_data_type {
 	u32 has_no_lut_read;
 	atomic_t sd_client_count;
 	u8 has_wb_ad;
+	bool idle_pc_enabled;
 
 	u32 rotator_ot_limit;
 	u32 mdp_irq_mask;
@@ -207,11 +208,13 @@ struct mdss_data_type {
 
 	int handoff_pending;
 	struct mdss_prefill_data prefill_data;
-	bool ulps;
 	int iommu_ref_cnt;
 
 	u64 ab[MDSS_MAX_HW_BLK];
 	u64 ib[MDSS_MAX_HW_BLK];
+	bool idle_pc;
+
+	atomic_t active_intf_cnt;
 };
 extern struct mdss_data_type *mdss_res;
 

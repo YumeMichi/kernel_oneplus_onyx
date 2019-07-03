@@ -13,41 +13,63 @@
 
 &pm8941_lsid1 {
 	qcom,leds@d000 {
+		qcom,rgb-sync;
+
 		status = "okay";
 		qcom,rgb_0 {
 			label = "rgb";
-			linux,name = "led:rgb_red";
+			linux,name = "red";
 			qcom,mode = "pwm";
 			qcom,pwm-channel = <6>;
 			qcom,pwm-us = <1000>;
 			qcom,max-current = <12>;
 			qcom,default-state = "off";
 			qcom,id = <3>;
-			linux,default-trigger =
-				"battery-charging";
+			qcom,duty-pcts = [00 0B 16 21 2C 37 42 4D 58 64];
+			qcom,lut-flags = <31>; /* loop, ramp up, reverse, pause hi, pause lo */
+			qcom,pause-hi = <0>;
+			qcom,pause-lo = <0>;
+			qcom,ramp-step-ms = <100>;
+			qcom,start-idx = <0>;
+			qcom,turn-off-delay-ms = <500>;
+			qcom,use-blink;
 		};
 
 		qcom,rgb_1 {
 			label = "rgb";
-			linux,name = "led:rgb_green";
+			linux,name = "green";
 			qcom,mode = "pwm";
 			qcom,pwm-channel = <5>;
 			qcom,pwm-us = <1000>;
 			qcom,max-current = <12>;
 			qcom,default-state = "off";
 			qcom,id = <4>;
-			linux,default-trigger = "battery-full";
+			qcom,duty-pcts = [00 0B 16 21 2C 37 42 4D 58 64];
+			qcom,lut-flags = <31>; /* loop, ramp up, reverse, pause hi, pause lo */
+			qcom,pause-hi = <0>;
+			qcom,pause-lo = <0>;
+			qcom,ramp-step-ms = <100>;
+			qcom,start-idx = <10>;
+			qcom,turn-off-delay-ms = <500>;
+			qcom,use-blink;
 		};
 
 		qcom,rgb_2 {
 			label = "rgb";
-			linux,name = "led:rgb_blue";
+			linux,name = "blue";
 			qcom,mode = "pwm";
 			qcom,pwm-channel = <4>;
 			qcom,pwm-us = <1000>;
 			qcom,max-current = <12>;
 			qcom,id = <5>;
-			status = "disabled";
+			qcom,duty-pcts = [00 0B 16 21 2C 37 42 4D 58 64];
+			qcom,lut-flags = <31>; /* loop, ramp up, reverse, pause hi, pause lo */
+			qcom,pause-hi = <0>;
+			qcom,pause-lo = <0>;
+			qcom,ramp-step-ms = <100>;
+			qcom,start-idx = <20>;
+			qcom,turn-off-delay-ms = <500>;
+			qcom,use-blink;
 		};
 	};
 
@@ -74,7 +96,7 @@
 				"flash0_trigger";
 			qcom,id = <1>;
 			linux,name = "led:flash_0";
-			qcom,current = <625>;
+			qcom,current = <585>;
 		};
 
 		pm8941_flash1: qcom,flash_1 {
@@ -90,11 +112,11 @@
 			label = "flash";
 			qcom,id = <2>;
 			linux,name = "led:flash_1";
-			qcom,current = <625>;
+			qcom,current = <585>;
 		};
 
 		pm8941_torch: qcom,flash_torch {
-			qcom,max-current = <200>;
+			qcom,max-current = <400>;
 			qcom,default-state = "off";
 			qcom,headroom = <0>;
 			qcom,startup-dly = <1>;
@@ -103,7 +125,7 @@
 			label = "flash";
 			qcom,id = <2>;
 			linux,name = "led:flash_torch";
-			qcom,current = <200>;
+			qcom,current = <190>;
 			qcom,torch-enable;
 		};
 	};
@@ -124,8 +146,48 @@
 		status = "disabled";
 	};
 
+	qcom,leds@d800 {
+		status = "disabled";
+	};
+
+	qcom,leds@d900 {
+		status = "disabled";
+	};
+
+	qcom,leds@da00 {
+		status = "disabled";
+	};
+
+	qcom,leds@db00 {
+		status = "disabled";
+	};
+
+	qcom,leds@dc00 {
+		status = "disabled";
+	};
+
+	qcom,leds@dd00 {
+		status = "disabled";
+	};
+
+	qcom,leds@de00 {
+		status = "disabled";
+	};
+
+	qcom,leds@df00 {
+		status = "disabled";
+	};
+
+	qcom,leds@e000 {
+		status = "disabled";
+	};
+
+	qcom,leds@e100 {
+		status = "disabled";
+	};
+
 	qcom,leds@e200 {
-		status = "okay";
+		status = "disabled";
 
 		qcom,kpdbl1 {
 			label = "kpdbl";

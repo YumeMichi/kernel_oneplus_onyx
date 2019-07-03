@@ -280,13 +280,12 @@ config ARCH_MSM8974
 	select ARM_HAS_SG_CHAIN
 	select MSM_RUN_QUEUE_STATS
 	select MEMORY_HOLE_CARVEOUT
-	select MSM_RPM_STATS_LOG
 	select QMI_ENCDEC
 	select MSM_ULTRASOUND_B
-	select MSM_RPM_LOG
 	select ARCH_WANT_KMAP_ATOMIC_FLUSH
 	select KRAIT_REGULATOR
 	select ENABLE_VMALLOC_SAVINGS
+	select HAS_MACH_MEMUTILS
 
 config ARCH_APQ8084
 	bool "APQ8084"
@@ -696,6 +695,8 @@ config MSM_REMOTE_SPINLOCK_SFPB
 	bool
 config MSM_ADM3
 	bool
+
+source "arch/arm/mach-msm/oneplus/Kconfig"
 
 menu "MSM Board Selection"
 
@@ -1849,27 +1850,6 @@ config MSM_DALRPC_TEST
 	default m
 	help
 	  Exercises DAL RPC calls to QDSP6.
-
-if CPU_FREQ_MSM
-
-config MSM_CPU_FREQ_SET_MIN_MAX
-	bool "Set Min/Max CPU frequencies."
-	default n
-	help
-	  Allow setting min and max CPU frequencies. Sysfs can be used
-	  to override these values.
-
-config MSM_CPU_FREQ_MAX
-	int "Max CPU Frequency"
-	depends on MSM_CPU_FREQ_SET_MIN_MAX
-	default 384000
-
-config MSM_CPU_FREQ_MIN
-	int "Min CPU Frequency"
-	depends on MSM_CPU_FREQ_SET_MIN_MAX
-	default 245760
-
-endif # CPU_FREQ_MSM
 
 config MSM_DEVFREQ_CPUBW
 	bool "Devfreq device for CPU<->DDR IB/AB BW voting"
@@ -3043,6 +3023,12 @@ config KRAIT_REGULATOR
 	 line from the PMIC. This supply line is powered by multiple
 	 regulators running in ganged mode inside the PMIC. Enable
 	 this option to support such configurations.
+
+config HAS_MACH_MEMUTILS
+	default n
+	bool "Motorola MSM memcpy enhancements"
+	help
+	Faster memcpy performance for Krait
 endif
 
 config KERNEL_TEXT_MPU_PROT

@@ -45,6 +45,8 @@
 #define MDP_PP_AD_BL_LINEAR	0x0
 #define MDP_PP_AD_BL_LINEAR_INV	0x1
 
+#define FB_LP_COOLOFF 750
+
 /**
  * enum mdp_notify_event - Different frame events to indicate frame update state
  *
@@ -73,7 +75,7 @@ enum mdp_notify_event {
 
 struct disp_info_type_suspend {
 	int op_enable;
-	int panel_power_on;
+	int panel_power_state;
 };
 
 struct disp_info_notify {
@@ -173,13 +175,15 @@ struct msm_fb_data_type {
 
 	int idle_time;
 	struct delayed_work idle_notify_work;
+	int lp_coff;
+	struct delayed_work lp_cooloff_work;
 
 	int op_enable;
 	u32 fb_imgType;
 	int panel_reconfig;
 
 	u32 dst_format;
-	int panel_power_on;
+	int panel_power_state;
 	struct disp_info_type_suspend suspend;
 
 	struct ion_handle *ihdl;
@@ -255,6 +259,27 @@ static inline void mdss_fb_update_notify_update(struct msm_fb_data_type *mfd)
 		add_timer(&mfd->no_update.timer);
 		mutex_unlock(&mfd->no_update.lock);
 	}
+}
+
+static inline bool mdss_fb_is_power_off(struct msm_fb_data_type *mfd)
+{
+	return mdss_panel_is_power_off(mfd->panel_power_state);
+}
+
+static inline bool mdss_fb_is_power_on_interactive(
+	struct msm_fb_data_type *mfd)
+{
+	return mdss_panel_is_power_on_interactive(mfd->panel_power_state);
+}
+
+static inline bool mdss_fb_is_power_on(struct msm_fb_data_type *mfd)
+{
+	return mdss_panel_is_power_on(mfd->panel_power_state);
+}
+
+static inline bool mdss_fb_is_power_on_lp(struct msm_fb_data_type *mfd)
+{
+	return mdss_panel_is_power_on_lp(mfd->panel_power_state);
 }
 
 int mdss_fb_get_phys_info(unsigned long *start, unsigned long *len, int fb_num);

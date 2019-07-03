@@ -23,21 +23,6 @@
 		      <218 0x10000>;
 };
 
-&soc {
-	i2c@f9928000 { /* BLSP1 QUP6 */
-		nfc-nci@e {
-			compatible = "qcom,nfc-nci";
-			reg = <0x0e>;
-			qcom,irq-gpio = <&msmgpio 57 0x00>;
-			qcom,dis-gpio = <&msmgpio 13 0x00>;
-			qcom,clk-src = "BBCLK2";
-			interrupt-parent = <&msmgpio>;
-			interrupts = <57 0>;
-			qcom,clk-gpio = <&pm8941_gpios 32 0>;
-		};
-	};
-};
-
 &pm8941_gpios {
 	gpio@df00 {
 		/* NFC clk request */

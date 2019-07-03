@@ -213,6 +213,8 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(G723_24_1B),
 	FORMAT(G723_40),
 	FORMAT(G723_40_1B),
+	FORMAT(DSD_U8),
+	FORMAT(DSD_U16_LE),
 };
 
 const char *snd_pcm_format_name(snd_pcm_format_t format)
@@ -1089,8 +1091,7 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 		       PAGE_ALIGN(sizeof(struct snd_pcm_mmap_control)));
 	kfree(runtime->hw_constraints.rules);
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	if (runtime->hwptr_log)
-		kfree(runtime->hwptr_log);
+	kfree(runtime->hwptr_log);
 #endif
 	kfree(runtime);
 	substream->runtime = NULL;

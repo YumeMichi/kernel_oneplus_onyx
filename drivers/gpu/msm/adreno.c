@@ -434,12 +434,13 @@ static int adreno_perfcounter_start(struct adreno_device *adreno_dev)
 					KGSL_PERFCOUNTER_BROKEN)
 				continue;
 
-			if (adreno_dev->gpudev->perfcounter_enable)
+			if (adreno_dev->gpudev->perfcounter_enable) {
 				ret = adreno_dev->gpudev->perfcounter_enable(
 					adreno_dev, i, j,
 					group->regs[j].countable);
 				if (ret)
 					goto done;
+			}
 		}
 	}
 done:
@@ -1735,7 +1736,7 @@ static int adreno_of_get_pdata(struct platform_device *pdev)
 
 	if (adreno_of_read_property(pdev->dev.of_node, "qcom,idle-timeout",
 		&pdata->idle_timeout))
-		pdata->idle_timeout = HZ/12;
+		pdata->idle_timeout = 80;
 
 	pdata->strtstp_sleepwake = of_property_read_bool(pdev->dev.of_node,
 						"qcom,strtstp-sleepwake");
@@ -3024,7 +3025,7 @@ int adreno_idle(struct kgsl_device *device)
 			adreno_getreg(adreno_dev, ADRENO_REG_RBBM_STATUS) << 2,
 			0x110, 0x110);
 
-	while (time_before(jiffies, wait)) {
+	do {
 		/*
 		 * If we fault, stop waiting and return an error. The dispatcher
 		 * will clean up the fault from the work queue, but we need to
@@ -3037,7 +3038,19 @@ int adreno_idle(struct kgsl_device *device)
 
 		if (adreno_isidle(device))
 			return 0;
-	}
+
+	} while (time_before(jiffies, wait));
+
+	/*
+	 * Under rare conditions, preemption can cause the while loop to exit
+	 * without checking if the gpu is idle. check one last time before we
+	 * return failure.
+	 */
+	if (adreno_gpu_fault(adreno_dev) != 0)
+			return -EDEADLK;
+
+	if (adreno_isidle(device))
+			return 0;
 
 	return -ETIMEDOUT;
 }

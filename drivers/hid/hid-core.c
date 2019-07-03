@@ -1323,7 +1323,7 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		hdev->claimed |= HID_CLAIMED_INPUT;
 	if (hdev->quirks & HID_QUIRK_MULTITOUCH) {
 		/* this device should be handled by hid-multitouch, skip it */
-		return -ENODEV;
+		goto err;
 	}
 
 	if ((connect_mask & HID_CONNECT_HIDDEV) && hdev->hiddev_connect &&
@@ -1335,7 +1335,7 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 
 	if (!hdev->claimed) {
 		hid_err(hdev, "claimed by neither input, hiddev nor hidraw\n");
-		return -ENODEV;
+		goto err;
 	}
 
 	if ((hdev->claimed & HID_CLAIMED_INPUT) &&
@@ -1382,8 +1382,10 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	hid_info(hdev, "%s: %s HID v%x.%02x %s [%s] on %s\n",
 		 buf, bus, hdev->version >> 8, hdev->version & 0xff,
 		 type, hdev->name, hdev->phys);
-
 	return 0;
+
+err:
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(hid_connect);
 
@@ -1530,6 +1532,9 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HANVON, USB_DEVICE_ID_HANVON_MULTITOUCH) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HANVON_ALT, USB_DEVICE_ID_HANVON_ALT_MULTITOUCH) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_IDEACOM, USB_DEVICE_ID_IDEACOM_IDC6650) },
+#if IS_ENABLED(CONFIG_HID_FIIO)
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GYROCOM, USB_DEVICE_ID_GYROCOM_E18) },
+#endif
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK, USB_DEVICE_ID_HOLTEK_ON_LINE_GRIP) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ILITEK, USB_DEVICE_ID_ILITEK_MULTITOUCH) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IRTOUCHSYSTEMS, USB_DEVICE_ID_IRTOUCH_INFRARED_USB) },

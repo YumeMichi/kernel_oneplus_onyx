@@ -1448,6 +1448,7 @@ static struct rcg_clk ce1_clk_src = {
 static struct clk_freq_tbl ftbl_gcc_ce2_clk[] = {
 	F( 50000000,  gpll0,  12,   0,   0),
 	F(100000000,  gpll0,   6,   0,   0),
+	F(150000000,  gpll0,   4,   0,   0),
 	F_END
 };
 
@@ -1468,7 +1469,7 @@ static struct rcg_clk ce2_clk_src = {
 	.c = {
 		.dbg_name = "ce2_clk_src",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP2(LOW, 50000000, NOMINAL, 100000000),
+		VDD_DIG_FMAX_MAP2(LOW, 50000000, NOMINAL, 150000000),
 		CLK_INIT(ce2_clk_src.c),
 	},
 };
@@ -4874,11 +4875,27 @@ static struct clk_lookup msm_clocks_8974pro_only[] __initdata = {
 	CLK_LOOKUP("cam_src_clk", mclk1_clk_src.c, "90.qcom,camera"),
 	CLK_LOOKUP("cam_clk", camss_mclk1_clk.c, "90.qcom,camera"),
 	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "0.qcom,camera"),
+#ifdef CONFIG_MACH_MSM8974_15055
+	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "1.qcom,camera"),
+#else
 	CLK_LOOKUP("cam_src_clk", mclk1_clk_src.c, "1.qcom,camera"),
+#endif
 	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "2.qcom,camera"),
 	CLK_LOOKUP("cam_clk", camss_mclk0_clk.c, "0.qcom,camera"),
+#ifdef CONFIG_MACH_MSM8974_15055
+	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "1.qcom,camera"),
+#else
 	CLK_LOOKUP("cam_clk", camss_mclk1_clk.c, "1.qcom,camera"),
+#endif
 	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "2.qcom,camera"),
+/* oneplus 2015-5-30 longxiaowu@camera porting start for 15055 camera eeprom */
+#ifdef CONFIG_MACH_MSM8974_15055
+	CLK_LOOKUP("cam_src_clk", mclk0_clk_src.c, "0.qcom,eeprom"),
+	CLK_LOOKUP("cam_clk", camss_mclk0_clk.c, "0.qcom,eeprom"),
+	CLK_LOOKUP("cam_src_clk", mclk2_clk_src.c, "1.qcom,eeprom"),
+	CLK_LOOKUP("cam_clk", camss_mclk2_clk.c, "1.qcom,eeprom"),
+#endif
+/* oneplus 2015-5-30 longxiaowu@camera porting end for 15055 camera eeprom */
 };
 
 static struct clk_lookup msm_clocks_8974_only[] __initdata = {
@@ -4942,20 +4959,29 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 
 	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9967000.i2c"),
 	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9966000.spi"),
+	#ifdef CONFIG_MACH_MSM8974_15055
+	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, ""), //ranfei
+	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f9968000.spi"), //ranfei
+	#endif
 	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f995e000.serial"),
 	CLK_LOOKUP("iface_clk", gcc_blsp2_ahb_clk.c, "f995d000.uart"),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup1_i2c_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup1_spi_apps_clk.c, ""),
+/*OPPO yuyi 2013-03-22 delete begin for nfc pn65T*/	
+#ifndef CONFIG_MACH_MSM8974_15055
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup2_i2c_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup2_spi_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup3_i2c_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup3_spi_apps_clk.c, ""),
+#endif
+/*OPPO yuyi 2014-02-24 delete end for nfc pn65T*/
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup4_i2c_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup5_i2c_apps_clk.c, "f9967000.i2c"),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup4_spi_apps_clk.c, "f9966000.spi"),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup5_spi_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup6_i2c_apps_clk.c, ""),
 	CLK_LOOKUP("core_clk", gcc_blsp2_qup6_spi_apps_clk.c, ""),
+	CLK_LOOKUP("core_clk", gcc_blsp2_qup6_spi_apps_clk.c, "f9968000.spi"), //ranfei
 	CLK_LOOKUP("core_clk", gcc_blsp2_uart1_apps_clk.c, "f995d000.uart"),
 	CLK_LOOKUP("core_clk", gcc_blsp2_uart2_apps_clk.c, "f995e000.serial"),
 	CLK_LOOKUP("core_clk", gcc_blsp2_uart3_apps_clk.c, ""),
@@ -4977,15 +5003,15 @@ static struct clk_lookup msm_clocks_8974_common[] __initdata = {
 	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,         "qcedev.0"),
 
 
-	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "fd440000.qcom,qcrypto"),
-	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "fd440000.qcom,qcrypto"),
-	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "fd440000.qcom,qcrypto"),
-	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "fd440000.qcom,qcrypto"),
+	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "fd440000.qcrypto"),
+	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "fd440000.qcrypto"),
+	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "fd440000.qcrypto"),
+	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "fd440000.qcrypto"),
 
-	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "fd440000.qcom,qcrypto1"),
-	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "fd440000.qcom,qcrypto1"),
-	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "fd440000.qcom,qcrypto1"),
-	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "fd440000.qcom,qcrypto1"),
+	CLK_LOOKUP("core_clk",     gcc_ce2_clk.c,     "fd440000.qcrypto1"),
+	CLK_LOOKUP("iface_clk",    gcc_ce2_ahb_clk.c, "fd440000.qcrypto1"),
+	CLK_LOOKUP("bus_clk",      gcc_ce2_axi_clk.c, "fd440000.qcrypto1"),
+	CLK_LOOKUP("core_clk_src", ce2_clk_src.c,     "fd440000.qcrypto1"),
 
 	CLK_LOOKUP("core_clk",     gcc_ce1_clk.c,         "qseecom"),
 	CLK_LOOKUP("iface_clk",    gcc_ce1_ahb_clk.c,     "qseecom"),

@@ -392,6 +392,12 @@ struct mmc_host {
 
 	unsigned int		actual_clock;	/* Actual HC clock rate */
 
+#ifdef CONFIG_MACH_MSM8974_15055
+//hefaxi@bsp,2015/08/13, add for configuate sdcard_2p95_en gpio in dtsi
+    int sdcard_2p95_en;
+	struct regulator *sdcard_vdd_io_regulator;
+#endif
+
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
 	struct {
 		struct sdio_cis			*cis;
@@ -422,6 +428,7 @@ struct mmc_host {
 		unsigned int	down_threshold;
 		ktime_t		start_busy;
 		bool		enable;
+		bool		scale_down_in_low_wr_load;
 		bool		initialized;
 		bool		in_progress;
 		/* freq. transitions are not allowed in invalid state */
@@ -430,6 +437,7 @@ struct mmc_host {
 		enum mmc_load	state;
 	} clk_scaling;
 	enum dev_state dev_status;
+	bool			wakeup_on_idle;
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

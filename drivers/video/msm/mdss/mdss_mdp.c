@@ -60,6 +60,8 @@
 #define CREATE_TRACE_POINTS
 #include "mdss_mdp_trace.h"
 
+#define AUTOSUSPEND_TIMEOUT_MS	200
+
 struct mdss_data_type *mdss_res;
 
 static int mdss_fb_mem_get_iommu_domain(void)
@@ -88,6 +90,7 @@ static DEFINE_SPINLOCK(mdp_lock);
 static DEFINE_MUTEX(mdp_clk_lock);
 static DEFINE_MUTEX(bus_bw_lock);
 static DEFINE_MUTEX(mdp_iommu_lock);
+static DEFINE_MUTEX(mdp_fs_idle_pc_lock);
 
 static struct mdss_panel_intf pan_types[] = {
 	{"dsi", MDSS_PANEL_INTF_DSI},
@@ -220,7 +223,7 @@ int mdss_register_irq(struct mdss_hw *hw)
 	if (!mdss_irq_handlers[hw->hw_ndx])
 		mdss_irq_handlers[hw->hw_ndx] = hw;
 	else
-		pr_err("panel %d's irq at %p is already registered\n",
+		pr_err("panel %d's irq at %pK is already registered\n",
 			hw->hw_ndx, hw->irq_handler);
 	spin_unlock_irqrestore(&mdss_lock, irq_flags);
 
@@ -656,8 +659,7 @@ int mdss_iommu_ctrl(int enable)
 		__builtin_return_address(0), enable, mdata->iommu_ref_cnt);
 
 	if (enable) {
-
-		if (mdata->iommu_ref_cnt == 0)
+		if (!mdata->iommu_attached && !mdata->handoff_pending)
 			rc = mdss_iommu_attach(mdata);
 		mdata->iommu_ref_cnt++;
 	} else {
@@ -675,6 +677,41 @@ int mdss_iommu_ctrl(int enable)
 		return rc;
 	else
 		return mdata->iommu_ref_cnt;
+}
+
+/**
+ * mdss_mdp_idle_pc_restore() - Restore MDSS settings when exiting idle pc
+ *
+ * MDSS GDSC can be voted off during idle-screen usecase for MIPI DSI command
+ * mode displays, referred to as MDSS idle power collapse. Upon subsequent
+ * frame update, MDSS GDSC needs to turned back on and hw state needs to be
+ * restored.
+ */
+static int mdss_mdp_idle_pc_restore(void)
+{
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+	int rc = 0;
+
+	mutex_lock(&mdp_fs_idle_pc_lock);
+	if (!mdata->idle_pc) {
+		pr_debug("no idle pc, no need to restore\n");
+		goto end;
+	}
+
+	pr_debug("called from %pS\n", __builtin_return_address(0));
+	rc = mdss_iommu_ctrl(1);
+	if (IS_ERR_VALUE(rc)) {
+		pr_err("mdss iommu attach failed rc=%d\n", rc);
+		goto end;
+	}
+	mdss_hw_init(mdata);
+	mdss_iommu_ctrl(0);
+	mdss_mdp_ctl_restore();
+	mdata->idle_pc = false;
+
+end:
+	mutex_unlock(&mdp_fs_idle_pc_lock);
+	return rc;
 }
 
 /**
@@ -714,7 +751,8 @@ void mdss_bus_bandwidth_ctrl(int enable)
 		if (!enable) {
 			msm_bus_scale_client_update_request(
 				mdata->bus_hdl, 0);
-			pm_runtime_put(&mdata->pdev->dev);
+			pm_runtime_mark_last_busy(&mdata->pdev->dev);
+			pm_runtime_put_autosuspend(&mdata->pdev->dev);
 		} else {
 			pm_runtime_get_sync(&mdata->pdev->dev);
 			msm_bus_scale_client_update_request(
@@ -752,10 +790,10 @@ void mdss_mdp_clk_ctrl(int enable, int isr)
 			__func__, mdp_clk_cnt, changed, enable);
 
 	if (changed) {
-		mdata->clk_ena = enable;
 		if (enable)
 			pm_runtime_get_sync(&mdata->pdev->dev);
 
+		mdata->clk_ena = enable;
 		mdss_mdp_clk_update(MDSS_CLK_AHB, enable);
 		mdss_mdp_clk_update(MDSS_CLK_AXI, enable);
 		mdss_mdp_clk_update(MDSS_CLK_MDP_CORE, enable);
@@ -763,11 +801,16 @@ void mdss_mdp_clk_ctrl(int enable, int isr)
 		if (mdata->vsync_ena)
 			mdss_mdp_clk_update(MDSS_CLK_MDP_VSYNC, enable);
 
-		if (!enable)
-			pm_runtime_put(&mdata->pdev->dev);
+		if (!enable) {
+			pm_runtime_mark_last_busy(&mdata->pdev->dev);
+			pm_runtime_put_autosuspend(&mdata->pdev->dev);
+		}
 	}
 
 	mutex_unlock(&mdp_clk_lock);
+
+	if (enable && changed)
+		mdss_mdp_idle_pc_restore();
 }
 
 static inline int mdss_mdp_irq_clk_register(struct mdss_data_type *mdata,
@@ -1034,13 +1077,20 @@ static int mdss_mdp_debug_init(struct mdss_data_type *mdata)
 	return 0;
 }
 
+/**
+ * mdss_hw_init() - Initialize MDSS target specific register settings
+ * @mdata: MDP private data
+ *
+ * Initialize basic MDSS hardware settings based on the board specific
+ * parameters. This function does not explicitly turn on the MDP clocks
+ * and so it must be called with the MDP clocks already enabled.
+ */
 int mdss_hw_init(struct mdss_data_type *mdata)
 {
 	int i, j;
 	char *offset;
 	struct mdss_mdp_pipe *vig;
 
-	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 	mdata->mdp_rev = MDSS_MDP_REG_READ(MDSS_MDP_REG_HW_VERSION);
 	pr_info_once("MDP Rev=%x\n", mdata->mdp_rev);
 
@@ -1079,9 +1129,7 @@ int mdss_hw_init(struct mdss_data_type *mdata)
 	mdata->nmax_concurrent_ad_hw =
 		(mdata->mdp_rev < MDSS_MDP_HW_REV_103) ? 1 : 2;
 
-	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 	pr_debug("MDP hw init done\n");
-
 	return 0;
 }
 
@@ -1110,7 +1158,7 @@ static u32 mdss_mdp_res_init(struct mdss_data_type *mdata)
 
 	mdata->iclient = msm_ion_client_create(-1, mdata->pdev->name);
 	if (IS_ERR_OR_NULL(mdata->iclient)) {
-		pr_err("msm_ion_client_create() return error (%p)\n",
+		pr_err("msm_ion_client_create() return error (%pK)\n",
 				mdata->iclient);
 		mdata->iclient = NULL;
 	}
@@ -1231,6 +1279,7 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mdata);
 	mdss_res = mdata;
 	mutex_init(&mdata->reg_lock);
+	atomic_set(&mdata->active_intf_cnt, 0);
 	atomic_set(&mdata->sd_client_count, 0);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mdp_phys");
@@ -1308,6 +1357,9 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 		goto probe_done;
 	}
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT_MS);
+	if (mdata->idle_pc_enabled)
+		pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev))
@@ -1522,7 +1574,7 @@ static int mdss_mdp_parse_bootarg(struct platform_device *pdev)
 	cmd_len = strlen(cmd_line);
 	disp_idx = strnstr(cmd_line, "mdss_mdp.panel=", cmd_len);
 	if (!disp_idx) {
-		pr_err("%s:%d:cmdline panel not set disp_idx=[%p]\n",
+		pr_err("%s:%d:cmdline panel not set disp_idx=[%pK]\n",
 				__func__, __LINE__, disp_idx);
 		memset(panel_name, 0x00, MDSS_MAX_PANEL_LEN);
 		*intf_type = MDSS_PANEL_INTF_INVALID;
@@ -1542,7 +1594,7 @@ static int mdss_mdp_parse_bootarg(struct platform_device *pdev)
 	}
 
 	if (end_idx <= disp_idx) {
-		pr_err("%s:%d:cmdline pan incorrect end=[%p] disp=[%p]\n",
+		pr_err("%s:%d:cmdline pan incorrect end=[%pK] disp=[%pK]\n",
 			__func__, __LINE__, end_idx, disp_idx);
 		memset(panel_name, 0x00, MDSS_MAX_PANEL_LEN);
 		*intf_type = MDSS_PANEL_INTF_INVALID;
@@ -2283,6 +2335,9 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 		"qcom,mdss-has-wfd-blk");
 	mdata->has_no_lut_read = of_property_read_bool(pdev->dev.of_node,
 		"qcom,mdss-no-lut-read");
+	mdata->idle_pc_enabled = of_property_read_bool(pdev->dev.of_node,
+		 "qcom,mdss-idle-power-collapse-enabled");
+
 	prop = of_find_property(pdev->dev.of_node, "batfet-supply", NULL);
 	mdata->batfet_required = prop ? true : false;
 	rc = of_property_read_u32(pdev->dev.of_node,
@@ -2577,67 +2632,56 @@ void mdss_mdp_batfet_ctrl(struct mdss_data_type *mdata, int enable)
 		regulator_disable(mdata->batfet);
 }
 
+/**
+ * mdss_mdp_footswitch_ctrl() - Disable/enable MDSS GDSC and CX/Batfet rails
+ * @mdata: MDP private data
+ * @on: 1 to turn on footswitch, 0 to turn off footswitch
+ *
+ * When no active references to the MDP device node and it's child nodes are
+ * held, MDSS GDSC can be turned off. However, any any panels are still
+ * active (but likely in an idle state), the vote for the CX and the batfet
+ * rails should not be released.
+ */
 static void mdss_mdp_footswitch_ctrl(struct mdss_data_type *mdata, int on)
 {
+	int ret;
+	int active_cnt = 0;
+
 	if (!mdata->fs)
 		return;
 
 	if (on) {
-		pr_debug("Enable MDP FS\n");
 		if (!mdata->fs_ena) {
-			regulator_enable(mdata->fs);
-			if (!mdata->ulps) {
+			pr_debug("Enable MDP FS\n");
+			ret = regulator_enable(mdata->fs);
+			if (ret)
+				pr_warn("Footswitch failed to enable\n");
+			if (!mdata->idle_pc) {
 				mdss_mdp_cx_ctrl(mdata, true);
 				mdss_mdp_batfet_ctrl(mdata, true);
 			}
 		}
 		mdata->fs_ena = true;
 	} else {
-		pr_debug("Disable MDP FS\n");
 		if (mdata->fs_ena) {
-			regulator_disable(mdata->fs);
-			if (!mdata->ulps) {
+			pr_debug("Disable MDP FS\n");
+			active_cnt = atomic_read(&mdata->active_intf_cnt);
+			if (active_cnt != 0) {
+				/*
+				 * Turning off GDSC while overlays are still
+				 * active.
+				 */
+				mdata->idle_pc = true;
+				pr_debug("idle pc. active overlays=%d\n",
+					active_cnt);
+			} else {
 				mdss_mdp_cx_ctrl(mdata, false);
 				mdss_mdp_batfet_ctrl(mdata, false);
 			}
+			regulator_disable(mdata->fs);
 		}
 		mdata->fs_ena = false;
 	}
-}
-
-/**
- * mdss_mdp_footswitch_ctrl_ulps() - MDSS GDSC control with ULPS feature
- * @on: 1 to turn on footswitch, 0 to turn off footswitch
- * @dev: framebuffer device node
- *
- * MDSS GDSC can be voted off during idle-screen usecase for MIPI DSI command
- * mode displays with Ultra-Low Power State (ULPS) feature enabled. Upon
- * subsequent frame update, MDSS GDSC needs to turned back on and hw state
- * needs to be restored. It returns error if footswitch control API
- * fails.
- */
-int mdss_mdp_footswitch_ctrl_ulps(int on, struct device *dev)
-{
-	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
-	int rc = 0;
-
-	pr_debug("called on=%d\n", on);
-	if (on) {
-		pm_runtime_get_sync(dev);
-		rc = mdss_iommu_ctrl(1);
-		if (IS_ERR_VALUE(rc)) {
-			pr_err("mdss iommu attach failed rc=%d\n", rc);
-			return rc;
-		}
-		mdss_hw_init(mdata);
-		mdata->ulps = false;
-		mdss_iommu_ctrl(0);
-	} else {
-		mdata->ulps = true;
-		pm_runtime_put_sync(dev);
-	}
-
-	return 0;
 }
 
 int mdss_mdp_secure_display_ctrl(unsigned int enable)
@@ -2704,6 +2748,15 @@ static int mdss_mdp_pm_resume(struct device *dev)
 
 	dev_dbg(dev, "display pm resume\n");
 
+	/*
+	 * It is possible that the runtime status of the mdp device may
+	 * have been active when the system was suspended. Reset the runtime
+	 * status to suspended state after a complete system resume.
+	 */
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_enable(dev);
+
 	return mdss_mdp_resume_sub(mdata);
 }
 #endif
@@ -2745,8 +2798,12 @@ static int mdss_mdp_runtime_resume(struct device *dev)
 	if (!mdata)
 		return -ENODEV;
 
-	dev_dbg(dev, "pm_runtime: resuming...\n");
-	device_for_each_child(dev, &device_on, mdss_fb_suspres_panel);
+	dev_dbg(dev, "pm_runtime: resuming. active overlay cnt=%d\n",
+		atomic_read(&mdata->active_intf_cnt));
+
+	/* do not resume panels when coming out of idle power collapse */
+	if (!mdata->idle_pc)
+		device_for_each_child(dev, &device_on, mdss_fb_suspres_panel);
 	mdss_mdp_footswitch_ctrl(mdata, true);
 
 	return 0;
@@ -2769,14 +2826,18 @@ static int mdss_mdp_runtime_suspend(struct device *dev)
 	bool device_on = false;
 	if (!mdata)
 		return -ENODEV;
-	dev_dbg(dev, "pm_runtime: suspending...\n");
+	dev_dbg(dev, "pm_runtime: suspending. active overlay cnt=%d\n",
+		atomic_read(&mdata->active_intf_cnt));
 
 	if (mdata->clk_ena) {
 		pr_err("MDP suspend failed\n");
 		return -EBUSY;
 	}
-	device_for_each_child(dev, &device_on, mdss_fb_suspres_panel);
+
 	mdss_mdp_footswitch_ctrl(mdata, false);
+	/* do not suspend panels when going in to idle power collapse */
+	if (!mdata->idle_pc)
+		device_for_each_child(dev, &device_on, mdss_fb_suspres_panel);
 
 	return 0;
 }
