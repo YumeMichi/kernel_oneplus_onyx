@@ -190,7 +190,7 @@ static void mdss_livedisplay_worker(struct work_struct *work)
 	if (pinfo == NULL)
 		return;
 
-	if (!mlc->caps || !pinfo->panel_power_on)
+	if (!mlc->caps || !pinfo->panel_power_state == MDSS_PANEL_POWER_ON)
 		return;
 
 	mutex_lock(&mlc->lock);
