@@ -1,0 +1,32 @@
+SRC=/home/ikke/Workspace/kernel_oneplus_onyx
+GCC_VER=4.9.x
+TARGET=arm-linux-androideabi
+GCC_BIN=/home/ikke/Workspace/toolchains/arm-linux-androideabi-4.9/bin
+GCC="$GCC_BIN/${TARGET}-gcc "
+OUT_DIR=${SRC}
+
+INFILE=$1
+DIRNAME=$(dirname $INFILE)
+FILENAME=$(basename $INFILE)
+FILENAME_NO_EXT=${FILENAME%.c}
+
+
+OUT_FILE=${SRC}/${DIRNAME}/${FILENAME_NO_EXT}.S
+
+$GCC -Wp,-MD,${DIRNAME}/.${FILENAME_NO_EXT}.o.d  -nostdinc -isystem ${GCC_BIN}/../lib/gcc/${TARGET}/${GCC_VER}/include \
+		-I${SRC}/arch/arm/mach-msm/include -I${OUT_DIR}/arch/arm/include/generated -I${OUT_DIR}/include  -I${SRC}/include \
+		-include ${SRC}/include/linux/kconfig.h  -I${SRC}/arch/arm/include -I{OUT_DIR}/arch/arm/plat-samsung \
+		-I ${SRC}/arch/arm/mach-exynos/include  \
+		-D__KERNEL__ \
+		-mlittle-endian   -I${SRC}/arch/arm/mach-exynos/include   -I${SRC}/arch/arm/plat-s5p/include   \
+		-I${SRC}/arch/arm/plat-samsung/include \
+		-Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration \
+		-Wno-format-security -std=gnu89 -O3 -marm -fno-dwarf2-cfi-asm -fstack-protector -fno-ipa-sra -mabi=aapcs-linux \
+		-mno-thumb-interwork -funwind-tables -D__LINUX_ARM_ARCH__=7 -mcpu=cortex-a15 -mtune=cortex-a15 -msoft-float \
+		-Uarm --param=allow-store-data-races=0 -Wframe-larger-than=1024 -fno-delete-null-pointer-checks \
+		-Wno-unused-but-set-variable -Wno-unused-const-variable -fomit-frame-pointer -fno-var-tracking-assignments \
+		-Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack \
+		-DCC_HAVE_ASM_GOTO    -D"KBUILD_STR(s)=#s" -D"KBUILD_BASENAME=KBUILD_STR(${FILENAME_NO_EXT})"  \
+		-D"KBUILD_MODNAME=KBUILD_STR(${FILENAME_NO_EXT})" -S -c ${SRC}/${INFILE} -o ${OUT_FILE}
+
+test -f ${OUT_FILE} && rm -f ${INFILE} && git add ${OUT_FILE}
