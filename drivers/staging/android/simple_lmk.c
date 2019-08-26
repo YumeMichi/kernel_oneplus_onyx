@@ -20,7 +20,11 @@
 
 /* MIN_NICE isn't present and MAX_RT_PRIO is elsewhere in older kernels */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+#include <linux/sched.h>
+#else
 #include <linux/sched/rt.h>
+#endif
 #define MIN_NICE -20
 #endif
 
