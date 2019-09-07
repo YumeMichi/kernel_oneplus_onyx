@@ -2755,7 +2755,9 @@ static int do_last(struct nameidata *nd, struct path *path,
 	struct path save_parent = { .dentry = NULL, .mnt = NULL };
 	bool retried = false;
 	int error;
+#ifdef CONFIG_AUDIT
 	const char *pathname = name->name;
+#endif
 
 	nd->flags &= ~LOOKUP_PARENT;
 	nd->flags |= op->intent;
