@@ -1604,7 +1604,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 	return error;
 }
 
-static int shmem_wait_for_pins(struct address_space *mapping)
+static int __maybe_unused shmem_wait_for_pins(struct address_space *mapping)
 {
 	return 0;
 }
