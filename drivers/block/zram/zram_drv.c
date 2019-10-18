@@ -500,7 +500,7 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
 		goto out_error;
 	}
 
-	backend = strlen(backend_par_buf) ? backend_par_buf : "zsmalloc";
+	backend = strlen(backend_par_buf) ? backend_par_buf : CONFIG_ZRAM_DEFAULT_BACKEND;
 	meta->mem_pool = zpool_create_pool(backend, pool_name,
 					GFP_NOIO, NULL);
 	if (!meta->mem_pool) {
