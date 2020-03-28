@@ -106,10 +106,6 @@ source "fs/fat/Kconfig"
 source "fs/sdfat/Kconfig"
 source "fs/ntfs/Kconfig"
 
-#ifdef VENDOR_EDIT
-source "fs/exfat/Kconfig"
-#endif
-
 endmenu
 endif # BLOCK
 
