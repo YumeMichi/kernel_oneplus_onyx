@@ -854,7 +854,7 @@ static void dump_throttled_rt_tasks(struct rt_rq *rt_rq)
 		idx = find_next_bit(array->bitmap, MAX_RT_PRIO, idx + 1);
 	}
 out:
-	printk_sched("%s", buf);
+	printk_deferred("%s", buf);
 }
 
 static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
