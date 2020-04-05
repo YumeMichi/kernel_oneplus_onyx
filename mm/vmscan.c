@@ -2060,7 +2060,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 
 	vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
 		   sc->nr_scanned - nr_scanned,
-		   sc->nr_reclaimed - nr_reclaimed);
+		   sc->nr_reclaimed - nr_reclaimed, sc->order);
 }
 
 /* Returns true if compaction should go ahead for a high-order request */
