@@ -357,6 +357,7 @@ CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 # fall back to -march=armv7-a in case the compiler isn't compatible with -mcpu and -mtune
 ARM_ARCH_OPT := -mcpu=cortex-a15 -mtune=cortex-a15
 GEN_OPT_FLAGS := $(call cc-option,$(ARM_ARCH_OPT),-march=armv7-a) \
+        -g0 \
         -DNDEBUG \
         -fomit-frame-pointer \
         -funsafe-math-optimizations \
