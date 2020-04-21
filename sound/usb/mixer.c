@@ -287,32 +287,25 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 	unsigned char buf[2];
 	int val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
 	int timeout = 10;
-	int idx = 0, err;
+	int err;
 
 	err = snd_usb_autoresume(cval->mixer->chip);
 	if (err < 0)
 		return -EIO;
-	mutex_lock(&chip->shutdown_mutex);
 	while (timeout-- > 0) {
-		if (chip->shutdown)
-			break;
-		idx = snd_usb_ctrl_intf(chip) | (cval->id << 8);
 		if (snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
-				    validx, idx, buf, val_len) >= val_len) {
+				    validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
+				    buf, val_len) >= val_len) {
 			*value_ret = convert_signed_value(cval, snd_usb_combine_bytes(buf, val_len));
-			err = 0;
-			goto out;
+			snd_usb_autosuspend(cval->mixer->chip);
+			return 0;
 		}
 	}
-	snd_printdd(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
-		    request, validx, idx, cval->val_type);
-	err = -EINVAL;
-
- out:
-	mutex_unlock(&chip->shutdown_mutex);
 	snd_usb_autosuspend(cval->mixer->chip);
-	return err;
+	snd_printdd(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
+		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
+	return -EINVAL;
 }
 
 static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int validx, int *value_ret)
@@ -320,7 +313,7 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int v
 	struct snd_usb_audio *chip = cval->mixer->chip;
 	unsigned char buf[2 + 3*sizeof(__u16)]; /* enough space for one range */
 	unsigned char *val;
-	int idx = 0, ret, size;
+	int ret, size;
 	__u8 bRequest;
 
 	if (request == UAC_GET_CUR) {
@@ -337,22 +330,16 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int v
 	if (ret)
 		goto error;
 
-	mutex_lock(&chip->shutdown_mutex);
-	if (chip->shutdown)
-		ret = -ENODEV;
-	else {
-		idx = snd_usb_ctrl_intf(chip) | (cval->id << 8);
-		ret = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), bRequest,
+	ret = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), bRequest,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
-			      validx, idx, buf, size);
-	}
-	mutex_unlock(&chip->shutdown_mutex);
+			      validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
+			      buf, size);
 	snd_usb_autosuspend(chip);
 
 	if (ret < 0) {
 error:
 		snd_printk(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
-			   request, validx, idx, cval->val_type);
+			   request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
 		return ret;
 	}
 
@@ -430,7 +417,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 {
 	struct snd_usb_audio *chip = cval->mixer->chip;
 	unsigned char buf[2];
-	int idx = 0, val_len, err, timeout = 10;
+	int val_len, err, timeout = 10;
 
 	if (cval->mixer->protocol == UAC_VERSION_1) {
 		val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
@@ -453,27 +440,19 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	err = snd_usb_autoresume(chip);
 	if (err < 0)
 		return -EIO;
-	mutex_lock(&chip->shutdown_mutex);
-	while (timeout-- > 0) {
-		if (chip->shutdown)
-			break;
-		idx = snd_usb_ctrl_intf(chip) | (cval->id << 8);
+	while (timeout-- > 0)
 		if (snd_usb_ctl_msg(chip->dev,
 				    usb_sndctrlpipe(chip->dev, 0), request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
-				    validx, idx, buf, val_len) >= 0) {
-			err = 0;
-			goto out;
+				    validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
+				    buf, val_len) >= 0) {
+			snd_usb_autosuspend(chip);
+			return 0;
 		}
-	}
-	snd_printdd(KERN_ERR "cannot set ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d, data = %#x/%#x\n",
-		    request, validx, idx, cval->val_type, buf[0], buf[1]);
-	err = -EINVAL;
-
- out:
-	mutex_unlock(&chip->shutdown_mutex);
 	snd_usb_autosuspend(chip);
-	return err;
+	snd_printdd(KERN_ERR "cannot set ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d, data = %#x/%#x\n",
+		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type, buf[0], buf[1]);
+	return -EINVAL;
 }
 
 static int set_cur_ctl_value(struct usb_mixer_elem_info *cval, int validx, int value)
