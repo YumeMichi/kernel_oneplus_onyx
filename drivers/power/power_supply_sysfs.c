@@ -203,6 +203,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(scope),
 	POWER_SUPPLY_ATTR(system_temp_level),
 	POWER_SUPPLY_ATTR(resistance),
+	/* Local extensions */
+	POWER_SUPPLY_ATTR(usb_hc),
+	POWER_SUPPLY_ATTR(usb_otg),
+	POWER_SUPPLY_ATTR(charge_enabled),
 	POWER_SUPPLY_ATTR(authenticate),//wangjc add for authentication
 #ifdef CONFIG_MACH_MSM8974_15055
 /* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */

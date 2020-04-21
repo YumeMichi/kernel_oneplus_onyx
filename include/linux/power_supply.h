@@ -13,7 +13,6 @@
 #ifndef __LINUX_POWER_SUPPLY_H__
 #define __LINUX_POWER_SUPPLY_H__
 
-#include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/leds.h>
 
@@ -173,6 +172,10 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL,
 	POWER_SUPPLY_PROP_RESISTANCE,
+	/* Local extensions */
+	POWER_SUPPLY_PROP_USB_HC,
+	POWER_SUPPLY_PROP_USB_OTG,
+	POWER_SUPPLY_PROP_CHARGE_ENABLED,
 	POWER_SUPPLY_PROP_AUTHENTICATE,//wangjc add for authentication
 	/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
 	POWER_SUPPLY_PROP_CHARGE_TIMEOUT,
@@ -238,7 +241,6 @@ struct power_supply {
 	struct work_struct changed_work;
 	spinlock_t changed_lock;
 	bool changed;
-	struct wake_lock work_wake_lock;
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	struct led_trigger *charging_full_trig;

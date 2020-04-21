@@ -1580,7 +1580,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	struct snd_soc_dai_link *dai_link;
 	int ret, i, order;
 
-	mutex_lock(&card->mutex);
+	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
 
 	/* bind DAIs */
@@ -2039,9 +2039,13 @@ unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
 		dev_err(codec->dev, "read 0x%02x while offline\n", reg);
 		return -ENODEV;
 	}
-	ret = codec->read(codec, reg);
-	dev_dbg(codec->dev, "read %x => %x\n", reg, ret);
-	trace_snd_soc_reg_read(codec, reg, ret);
+	if (codec->read) {
+		ret = codec->read(codec, reg);
+		dev_dbg(codec->dev, "read %x => %x\n", reg, ret);
+		trace_snd_soc_reg_read(codec, reg, ret);
+	}
+	else
+		ret = -EIO;
 
 	return ret;
 }
@@ -2054,9 +2058,13 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 		dev_err(codec->dev, "write 0x%02x while offline\n", reg);
 		return -ENODEV;
 	}
-	dev_dbg(codec->dev, "write %x = %x\n", reg, val);
-	trace_snd_soc_reg_write(codec, reg, val);
-	return codec->write(codec, reg, val);
+	if (codec->write) {
+		dev_dbg(codec->dev, "write %x = %x\n", reg, val);
+		trace_snd_soc_reg_write(codec, reg, val);
+		return codec->write(codec, reg, val);
+	}
+	else
+		return -EIO;
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
 
@@ -3247,7 +3255,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		if (card->rtd)
 			kfree(card->rtd);
 	}
-
 
 	return ret;
 }

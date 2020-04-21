@@ -2311,7 +2311,7 @@ err:
 int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 			    const struct snd_soc_dapm_route *route, int num)
 {
-	int i, ret;
+	int i, ret = 0;
 
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 	for (i = 0; i < num; i++) {
@@ -2319,14 +2319,13 @@ int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 		if (ret < 0) {
 			dev_err(dapm->dev, "Failed to add route %s->%s\n",
 				route->source, route->sink);
-			mutex_unlock(&dapm->card->dapm_mutex);
-			return ret;
+			break;
 		}
 		route++;
 	}
 	mutex_unlock(&dapm->card->dapm_mutex);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_add_routes);
 
@@ -3020,22 +3019,23 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 	const struct snd_soc_dapm_widget *widget,
 	int num)
 {
-	int i, ret;
+	int i;
+	int ret = 0;
 
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 	for (i = 0; i < num; i++) {
 		ret = snd_soc_dapm_new_control(dapm, widget);
 		if (ret < 0) {
 			dev_err(dapm->dev,
-				"ASoC: Failed to create DAPM control %s: %d\n",
-				widget->name, ret);
-			mutex_unlock(&dapm->card->dapm_mutex);
-			return ret;
+				"ASoC: Failed to create DAPM control %s\n",
+				widget->name);
+			ret = -ENOMEM;
+			break;
 		}
 		widget++;
 	}
 	mutex_unlock(&dapm->card->dapm_mutex);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_controls);
 
