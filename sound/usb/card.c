@@ -622,9 +622,7 @@ int snd_usb_autoresume(struct snd_usb_audio *chip)
 	int err = -ENODEV;
 
 	down_read(&chip->shutdown_rwsem);
-	if (chip->probing)
-		err = 0;
-	else if (!chip->shutdown)
+	if (!chip->shutdown && !chip->probing)
 		err = usb_autopm_get_interface(chip->pm_intf);
 	up_read(&chip->shutdown_rwsem);
 
