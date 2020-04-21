@@ -711,9 +711,8 @@ static int check_input_term(struct mixer_build *state, int id, struct usb_audio_
 		case UAC2_CLOCK_SELECTOR: {
 			struct uac_selector_unit_descriptor *d = p1;
 			/* call recursively to retrieve the channel info */
-			err = check_input_term(state, d->baSourceID[0], term);
-			if (err < 0)
-				return err;
+			if (check_input_term(state, d->baSourceID[0], term) < 0)
+				return -ENODEV;
 			term->type = d->bDescriptorSubtype << 16; /* virtual type */
 			term->id = id;
 			term->name = uac_selector_unit_iSelector(d);
@@ -1264,9 +1263,8 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 		return err;
 
 	/* determine the input source type and name */
-	err = check_input_term(state, hdr->bSourceID, &iterm);
-	if (err < 0)
-		return err;
+	if (check_input_term(state, hdr->bSourceID, &iterm) < 0)
+		return -EINVAL;
 
 	master_bits = snd_usb_combine_bytes(bmaControls, csize);
 	/* master configuration quirks */
