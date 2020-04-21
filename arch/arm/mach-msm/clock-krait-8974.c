@@ -591,16 +591,16 @@ static unsigned int pvs_config_ver;
 module_param(pvs_config_ver, uint, S_IRUGO);
 
 #ifdef CONFIG_MACH_MSM8974_15055
-#define UNDERCLOCKED_MAXFREQ_HZ	1958400000
-static bool no_cpu_underclock;
+static unsigned int no_cpu_underclock;
 
-static int __init get_cpu_underclock(char *unused)
+static int __init get_cpu_underclock(char *cpu_uc)
 {
-	no_cpu_underclock = true;
+	if (!strncmp(cpu_uc, "1", 1))
+		no_cpu_underclock = 1;
 
 	return 0;
 }
-__setup("no_underclock", get_cpu_underclock);
+__setup("no_underclock=", get_cpu_underclock);
 #endif
 
 static int clock_krait_8974_driver_probe(struct platform_device *pdev)
@@ -719,15 +719,11 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_MACH_MSM8974_15055
-	/* Underclock for better UX */
+	/* Underclock to 1958MHz for better UX */
 	if (!no_cpu_underclock) {
 		while (rows--) {
-			if (freq[rows - 1] == UNDERCLOCKED_MAXFREQ_HZ)
+			if (freq[rows - 1] == 1958400000)
 				break;
-			if (freq[rows - 1] < UNDERCLOCKED_MAXFREQ_HZ) {
-				rows++;
-				break;
-			}
 		}
 	}
 #endif
