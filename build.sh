@@ -10,7 +10,7 @@ clear
 
 # Resources
 THREAD="-j$(nproc)"
-export CROSS_COMPILE=$HOME/Workspace/toolchains/arm-linux-androideabi-4.9/bin/arm-linux-androidkernel-
+export CROSS_COMPILE=$HOME/Workspace/toolchains/gcc-linaro-4.9.4-2017.01-x86_64_arm-eabi/bin/arm-eabi-
 
 # Kernel Details
 DEFCONFIG="onyx_defconfig"
