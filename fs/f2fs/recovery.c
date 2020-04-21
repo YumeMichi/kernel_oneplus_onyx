@@ -168,32 +168,6 @@ static void recover_inode(struct inode *inode, struct page *page)
 			ino_of_node(page), name);
 }
 
-static bool is_same_inode(struct inode *inode, struct page *ipage)
-{
-	struct f2fs_inode *ri = F2FS_INODE(ipage);
-	struct timespec disk;
-
-	if (!IS_INODE(ipage))
-		return true;
-
-	disk.tv_sec = le64_to_cpu(ri->i_ctime);
-	disk.tv_nsec = le32_to_cpu(ri->i_ctime_nsec);
-	if (timespec_compare(&inode->i_ctime, &disk) > 0)
-		return false;
-
-	disk.tv_sec = le64_to_cpu(ri->i_atime);
-	disk.tv_nsec = le32_to_cpu(ri->i_atime_nsec);
-	if (timespec_compare(&inode->i_atime, &disk) > 0)
-		return false;
-
-	disk.tv_sec = le64_to_cpu(ri->i_mtime);
-	disk.tv_nsec = le32_to_cpu(ri->i_mtime_nsec);
-	if (timespec_compare(&inode->i_mtime, &disk) > 0)
-		return false;
-
-	return true;
-}
-
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 {
 	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
@@ -223,10 +197,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 			goto next;
 
 		entry = get_fsync_inode(head, ino_of_node(page));
-		if (entry) {
-			if (!is_same_inode(entry->inode, page))
-				goto next;
-		} else {
+		if (!entry) {
 			if (IS_INODE(page) && is_dent_dnode(page)) {
 				err = recover_inode_page(sbi, page);
 				if (err)
@@ -488,7 +459,8 @@ out:
 	return err;
 }
 
-static int recover_data(struct f2fs_sb_info *sbi, struct list_head *head)
+static int recover_data(struct f2fs_sb_info *sbi,
+				struct list_head *head, int type)
 {
 	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
 	struct curseg_info *curseg;
@@ -497,7 +469,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *head)
 	block_t blkaddr;
 
 	/* get node pages in the current segment */
-	curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
+	curseg = CURSEG_I(sbi, type);
 	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
 	while (1) {
@@ -584,7 +556,7 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	need_writecp = true;
 
 	/* step #2: recover data */
-	err = recover_data(sbi, &inode_list);
+	err = recover_data(sbi, &inode_list, CURSEG_WARM_NODE);
 	if (!err)
 		f2fs_bug_on(sbi, !list_empty(&inode_list));
 out:
@@ -623,7 +595,7 @@ out:
 			.reason = CP_RECOVERY,
 		};
 		mutex_unlock(&sbi->cp_mutex);
-		err = write_checkpoint(sbi, &cpc);
+		write_checkpoint(sbi, &cpc);
 	} else {
 		mutex_unlock(&sbi->cp_mutex);
 	}

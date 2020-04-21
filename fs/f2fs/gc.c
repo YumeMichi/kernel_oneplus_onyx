@@ -16,6 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/blkdev.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -172,9 +173,9 @@ static unsigned int get_max_cost(struct f2fs_sb_info *sbi,
 {
 	/* SSR allocates in a segment unit */
 	if (p->alloc_mode == SSR)
-		return sbi->blocks_per_seg;
+		return 1 << sbi->log_blocks_per_seg;
 	if (p->gc_mode == GC_GREEDY)
-		return sbi->blocks_per_seg * p->ofs_unit;
+		return (1 << sbi->log_blocks_per_seg) * p->ofs_unit;
 	else if (p->gc_mode == GC_CB)
 		return UINT_MAX;
 	else /* No other gc_mode */
@@ -828,10 +829,8 @@ gc_more:
 
 	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;
-	if (unlikely(f2fs_cp_error(sbi))) {
-		ret = -EIO;
+	if (unlikely(f2fs_cp_error(sbi)))
 		goto stop;
-	}
 
 	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed)) {
 		gc_type = FG_GC;
