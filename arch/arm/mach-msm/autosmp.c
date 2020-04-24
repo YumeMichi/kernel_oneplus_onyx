@@ -386,7 +386,7 @@ static struct kernel_param_ops max_cpus_screenoff_ops = {
 	.get = param_get_uint,
 };
 
-module_param_cb(max_cpus_screenoff, &max_cpus_screenoff_ops, &asmp_param.max_cpus_screenoff, 0644);
+module_param_cb(max_cpus_screenoff, &max_cpus_screenoff_ops, &asmp_param.max_cpus_screenoff, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(enabled, "hotplug/unplug cpu cores based on cpu load");
 
 static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
@@ -415,18 +415,10 @@ static struct kernel_param_ops module_ops = {
 	.get = param_get_bool,
 };
 
-module_param_cb(enabled, &module_ops, &asmp_param.enabled, 0644);
+module_param_cb(enabled, &module_ops, &asmp_param.enabled, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(enabled, "hotplug/unplug cpu cores based on cpu load");
 
 /***************************** SYSFS START *****************************/
-#define define_one_global_ro(_name)					\
-static struct global_attr _name =					\
-__ATTR(_name, 0444, show_##_name, NULL)
-
-#define define_one_global_rw(_name)					\
-static struct global_attr _name =					\
-__ATTR(_name, 0644, show_##_name, store_##_name)
-
 struct kobject *asmp_kobject;
 
 #define show_one(file_name, object)					\
@@ -538,10 +530,10 @@ static ssize_t store_min_boost_freq(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(boost_lock_duration, 644, show_boost_lock_duration,
+static DEVICE_ATTR(boost_lock_duration, S_IWUSR | S_IRUGO, show_boost_lock_duration,
 		   store_boost_lock_duration);
-static DEVICE_ATTR(cpus_boosted, 644, show_cpus_boosted, store_cpus_boosted);
-static DEVICE_ATTR(min_boost_freq, 644, show_min_boost_freq,
+static DEVICE_ATTR(cpus_boosted, S_IWUSR | S_IRUGO, show_cpus_boosted, store_cpus_boosted);
+static DEVICE_ATTR(min_boost_freq, S_IWUSR | S_IRUGO, show_min_boost_freq,
 		   store_min_boost_freq);
 
 static struct attribute *asmp_attributes[] = {
