@@ -25,7 +25,7 @@
 #include <linux/ratelimit.h>
 
 unsigned int temp_threshold = 38;
-module_param(temp_threshold, int, 0644);
+module_param(temp_threshold, int, S_IWUSR | S_IRUGO);
 
 static struct thermal_info {
         uint32_t cpuinfo_max_freq;
