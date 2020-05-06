@@ -24,7 +24,7 @@
 #include <linux/of.h>
 #include <linux/ratelimit.h>
 
-unsigned int temp_threshold = 38;
+unsigned int temp_threshold = 43;
 module_param(temp_threshold, int, S_IWUSR | S_IRUGO);
 
 static struct thermal_info {
@@ -50,17 +50,19 @@ enum thermal_freqs {
         FREQ_HOT                = 1497600,
         FREQ_WARM               = 1574400,
         FREQ_ZIPPY              = 1728000,
-        FREQ_MAX                = 1958400,
+        FREQ_PERF               = 1958400,
+        FREQ_MAX                = 2265600,
 };
 
 enum threshold_levels {
-        LEVEL_NOTE_7            = 18,
-        LEVEL_HELL              = 14,
-        LEVEL_BBQ               = 12,
-        LEVEL_MICROWAVE         = 10,
-        LEVEL_VERY_HOT          = 8,
-        LEVEL_HOT               = 5,
-        LEVEL_WARM              = 2,
+        LEVEL_NOTE_7            = 30,
+        LEVEL_HELL              = 22,
+        LEVEL_BBQ               = 17,
+        LEVEL_MICROWAVE         = 14,
+        LEVEL_VERY_HOT          = 11,
+        LEVEL_HOT               = 8,
+        LEVEL_WARM              = 5,
+        LEVEL_COOL              = 2,
 };
 
 static struct qpnp_vadc_chip *vadc_dev;
@@ -167,8 +169,10 @@ static void check_temp(struct work_struct *work)
                 freq = FREQ_HOT;
         else if (temp >= temp_threshold + LEVEL_WARM)
                 freq = FREQ_WARM;
-        else if (temp >= temp_threshold)
+        else if (temp >= temp_threshold + LEVEL_COOL)
                 freq = FREQ_ZIPPY;
+        else if (temp >= temp_threshold)
+                freq = FREQ_PERF;
         else if (temp < temp_threshold)
                 freq = FREQ_MAX;
 
