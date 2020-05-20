@@ -3001,7 +3001,7 @@ static int kswapd(void *p)
 		}
 
 		ret = try_to_freeze();
-		if (kthread_should_stop() || !atomic_read(&pgdat->kswapd_waiters))
+		if (kthread_should_stop() || !atomic_long_read(&kswapd_waiters))
 			break;
 
 		/*
