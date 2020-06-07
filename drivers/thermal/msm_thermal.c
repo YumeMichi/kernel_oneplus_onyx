@@ -242,6 +242,3 @@ static void __exit msm_thermal_device_exit(void)
 {
         platform_driver_unregister(&msm_thermal_device_driver);
 }
-
-late_initcall(msm_thermal_device_init);
-module_exit(msm_thermal_device_exit);
