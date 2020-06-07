@@ -180,7 +180,7 @@ static void check_temp(struct work_struct *work)
         }
 
 reschedule:
-        queue_delayed_work(thermal_wq, &check_temp_work, msecs_to_jiffies(200));
+        queue_delayed_work(thermal_wq, &check_temp_work, msecs_to_jiffies(250));
 }
 
 static int __devinit msm_thermal_dev_probe(struct platform_device *pdev)
@@ -203,7 +203,7 @@ static int __devinit msm_thermal_dev_probe(struct platform_device *pdev)
         }
 
         INIT_DELAYED_WORK(&check_temp_work, check_temp);
-        queue_delayed_work(thermal_wq, &check_temp_work, msecs_to_jiffies(200));
+        queue_delayed_work(thermal_wq, &check_temp_work, 5);
 
 err:
         return ret;
