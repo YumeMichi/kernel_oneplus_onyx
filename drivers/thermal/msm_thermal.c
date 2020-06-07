@@ -24,7 +24,7 @@
 #include <linux/of.h>
 #include <linux/ratelimit.h>
 
-unsigned int temp_threshold = 40;
+unsigned int temp_threshold = 43;
 module_param(temp_threshold, int, S_IWUSR | S_IRUGO);
 
 static struct thermal_info {
