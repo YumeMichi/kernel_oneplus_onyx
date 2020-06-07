@@ -3010,13 +3010,6 @@ config HAS_MACH_MEMUTILS
 	bool "Motorola MSM memcpy enhancements"
 	help
 	Faster memcpy performance for Krait
-
-config AUTOSMP
-	bool "AutoSMP Hotplug"
-	depends on SMP && HOTPLUG_CPU
-	help
-	  Automatically hotplugs the multiple CPU cores based on
-	  CPU load and suspend state.
 endif
 
 config KERNEL_TEXT_MPU_PROT
