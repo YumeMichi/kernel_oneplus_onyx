@@ -2319,8 +2319,6 @@ static int set_persist_buffers(struct msm_vidc_inst *inst,
 		persist_buf->buffer_size);
 	mutex_lock(&inst->persistbufs.lock);
 	if (!list_empty(&inst->persistbufs.list)) {
-		dprintk(VIDC_ERR,
-			"Persist buffers already allocated\n");
 		mutex_unlock(&inst->persistbufs.lock);
 		return rc;
 	}
