@@ -188,6 +188,7 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
 
 	return zpool;
 }
+EXPORT_SYMBOL_GPL(zpool_create_pool);
 
 /**
  * zpool_destroy_pool() - Destroy a zpool
@@ -211,6 +212,7 @@ void zpool_destroy_pool(struct zpool *zpool)
 	zpool_put_driver(zpool->driver);
 	kfree(zpool);
 }
+EXPORT_SYMBOL_GPL(zpool_destroy_pool);
 
 /**
  * zpool_get_type() - Get the type of the zpool
@@ -248,6 +250,7 @@ int zpool_malloc(struct zpool *zpool, size_t size, gfp_t gfp,
 {
 	return zpool->driver->malloc(zpool->pool, size, gfp, handle);
 }
+EXPORT_SYMBOL_GPL(zpool_malloc);
 
 /**
  * zpool_free() - Free previously allocated memory
@@ -267,6 +270,7 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
 {
 	zpool->driver->free(zpool->pool, handle);
 }
+EXPORT_SYMBOL_GPL(zpool_free);
 
 /**
  * zpool_shrink() - Shrink the pool size
@@ -318,6 +322,7 @@ void *zpool_map_handle(struct zpool *zpool, unsigned long handle,
 {
 	return zpool->driver->map(zpool->pool, handle, mapmode);
 }
+EXPORT_SYMBOL_GPL(zpool_map_handle);
 
 /**
  * zpool_unmap_handle() - Unmap a previously mapped handle
@@ -333,6 +338,7 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 {
 	zpool->driver->unmap(zpool->pool, handle);
 }
+EXPORT_SYMBOL_GPL(zpool_unmap_handle);
 
 /**
  * zpool_get_total_size() - The total size of the pool
