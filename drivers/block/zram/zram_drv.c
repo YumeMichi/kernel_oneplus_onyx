@@ -235,7 +235,7 @@ static ssize_t mem_used_total_show(struct device *dev,
 	down_read(&zram->init_lock);
 	if (init_done(zram)) {
 		struct zram_meta *meta = zram->meta;
-		val = zs_get_total_pages(meta->mem_pool);
+		val = zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT;
 	}
 	up_read(&zram->init_lock);
 
@@ -441,8 +441,8 @@ static ssize_t mm_stat_show(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR_RO(io_stat);
-static DEVICE_ATTR_RO(mm_stat);
+static DEVICE_ATTR(io_stat, S_IRUGO, io_stat_show, NULL);
+static DEVICE_ATTR(mm_stat, S_IRUGO, mm_stat_show, NULL);
 ZRAM_ATTR_RO(num_reads);
 ZRAM_ATTR_RO(num_writes);
 ZRAM_ATTR_RO(failed_reads);
@@ -476,7 +476,7 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
 		if (!handle)
 			continue;
 
-		zs_free(meta->mem_pool, handle);
+		zpool_free(meta->mem_pool, handle);
 	}
 
 	zpool_destroy_pool(meta->mem_pool);
@@ -735,7 +735,7 @@ compress_again:
 		zstrm = NULL;
 
 		ret = zpool_malloc(meta->mem_pool, clen,
-				GFP_NOIO | __GFP_HIGHMEM
+				GFP_NOIO | __GFP_HIGHMEM,
 				&handle);
 		if (ret == 0)
 			goto compress_again;
