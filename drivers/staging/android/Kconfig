@@ -1,12 +1,12 @@
-menu "Android"
+menu "Android staging"
 
-config ANDROID
-	bool "Android Drivers"
+config ANDROID_STAGING
+	bool "Android Staging Drivers"
 	default N
 	---help---
 	  Enable support for various drivers needed on the Android platform
 
-if ANDROID
+if ANDROID_STAGING
 
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
@@ -129,6 +129,6 @@ config ANDROID_INTF_ALARM_DEV
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
 	  Also exports the alarm interface to user-space.
 
-endif # if ANDROID
+endif # if ANDROID_STAGING
 
 endmenu
