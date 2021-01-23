@@ -39,6 +39,7 @@
 #include <linux/fs_stack.h>
 #include <linux/magic.h>
 #include <linux/uaccess.h>
+#include <linux/uidgid.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/types.h>
